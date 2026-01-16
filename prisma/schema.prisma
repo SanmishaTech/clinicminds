@@ -1,0 +1,127 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Approval status for Indents: two-step approval and completion
+
+
+model User {
+  id                        Int                @id @default(autoincrement())
+  name                      String?
+  email                     String             @unique
+  passwordHash              String // was: password
+  role                      String
+  profilePhoto              String?
+  emailVerified             DateTime?
+  verificationToken         String?            @unique
+  verificationTokenExpiry   DateTime?
+  status                    Boolean            @default(true)
+  lastLogin                 DateTime?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  refreshTokens             RefreshToken[]
+
+  franchise                  Franchise?
+
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         Int       @id @default(autoincrement())
+  token      String    @unique
+  userId     Int
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+  replacedBy String?
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Franchise {
+  id           Int      @id @default(autoincrement())
+  name         String
+  addressLine1 String?
+  addressLine2 String?
+  city         String
+  state        String
+  pincode      String
+  contactNo    String
+  contactEmail String
+  logoUrl      String?
+
+  userMobile String
+  userId     Int    @unique
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([city])
+  @@index([state])
+  @@map("franchises")
+}
+
+model City {
+  id        Int      @id @default(autoincrement())
+  city      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  companies        Company[]
+
+  @@map("cities")
+}
+
+model Company {
+  id          Int     @id @default(autoincrement())
+  companyName String
+  shortName   String?
+
+  // Contact Person Details
+  contactPerson String?
+  contactNo     String?
+
+  // Address Details
+  addressLine1 String?
+  addressLine2 String?
+  cityId       Int?
+  pinCode      String?
+
+  // Logo
+  logoUrl String?
+
+  // Status
+  closed Boolean @default(false)
+
+  // Other Details
+  panNo String?
+  gstNo String?
+  tanNo String?
+  cinNo String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  city  City?  @relation(fields: [cityId], references: [id])
+
+  @@index([companyName])
+  @@index([shortName])
+  @@index([closed])
+  @@index([cityId])
+  @@map("companies")
+}
