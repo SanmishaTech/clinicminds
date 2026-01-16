@@ -73,6 +73,15 @@ model Franchise {
   @@map("franchises")
 }
 
+model State {
+  id        Int      @id @default(autoincrement())
+  state     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("states")
+}
+
 model City {
   id        Int      @id @default(autoincrement())
   city      String   @unique

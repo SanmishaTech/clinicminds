@@ -15,6 +15,14 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/franchises/new", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
   { prefix: "/franchises/", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
   { prefix: "/franchises", permissions: [PERMISSIONS.READ_FRANCHISES] },
+
+  { prefix: "/states/new", permissions: [PERMISSIONS.EDIT_STATES] },
+  { prefix: "/states/", permissions: [PERMISSIONS.EDIT_STATES] },
+  { prefix: "/states", permissions: [PERMISSIONS.READ_STATES] },
+
+  { prefix: "/cities/new", permissions: [PERMISSIONS.EDIT_CITIES] },
+  { prefix: "/cities/", permissions: [PERMISSIONS.EDIT_CITIES] },
+  { prefix: "/cities", permissions: [PERMISSIONS.READ_CITIES] },
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -53,6 +61,24 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.EDIT_FRANCHISES],
       PATCH: [PERMISSIONS.EDIT_FRANCHISES],
       DELETE: [PERMISSIONS.DELETE_FRANCHISES],
+    },
+  },
+  {
+    prefix: "/api/states",
+    methods: {
+      GET: [PERMISSIONS.READ_STATES],
+      POST: [PERMISSIONS.EDIT_STATES],
+      PATCH: [PERMISSIONS.EDIT_STATES],
+      DELETE: [PERMISSIONS.DELETE_STATES],
+    },
+  },
+  {
+    prefix: "/api/cities",
+    methods: {
+      GET: [PERMISSIONS.READ_CITIES],
+      POST: [PERMISSIONS.EDIT_CITIES],
+      PATCH: [PERMISSIONS.EDIT_CITIES],
+      DELETE: [PERMISSIONS.DELETE_CITIES],
     },
   },
 ];

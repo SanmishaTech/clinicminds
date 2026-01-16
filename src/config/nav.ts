@@ -7,6 +7,7 @@ import {
   Users,
   Settings,
   Building2,
+  MapPin,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -58,6 +59,18 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/franchises",
         icon: Building2,
         permission: PERMISSIONS.VIEW_FRANCHISES,
+      },
+      {
+        title: "States",
+        href: "/states",
+        icon: MapPin,
+        permission: PERMISSIONS.VIEW_STATES,
+      },
+      {
+        title: "Cities",
+        href: "/cities",
+        icon: MapPin,
+        permission: PERMISSIONS.VIEW_CITIES,
       },
     ],
   },
