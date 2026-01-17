@@ -56,7 +56,6 @@ export async function POST(req: NextRequest) {
   if (auth.ok === false) return auth.response;
   try {
     const body = await req.json();
-     console.log("body:", body);
     const data = serviceSchema.parse(body);
    
     const service = await prisma.service.create({

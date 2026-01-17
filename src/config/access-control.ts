@@ -27,6 +27,10 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/cities/new", permissions: [PERMISSIONS.EDIT_CITIES] },
   { prefix: "/cities/", permissions: [PERMISSIONS.EDIT_CITIES] },
   { prefix: "/cities", permissions: [PERMISSIONS.READ_CITIES] },
+
+  { prefix: "/services/new", permissions: [PERMISSIONS.CREATE_SERVICES] },
+  { prefix: "/services/", permissions: [PERMISSIONS.EDIT_SERVICES] },
+  { prefix: "/services", permissions: [PERMISSIONS.READ_SERVICES] },
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -92,6 +96,16 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.EDIT_CITIES],
       PATCH: [PERMISSIONS.EDIT_CITIES],
       DELETE: [PERMISSIONS.DELETE_CITIES],
+    },
+  },
+
+  {
+    prefix: "/api/services",
+    methods: {
+      GET: [PERMISSIONS.READ_SERVICES],
+      POST: [PERMISSIONS.CREATE_SERVICES],
+      PATCH: [PERMISSIONS.EDIT_SERVICES],
+      DELETE: [PERMISSIONS.DELETE_SERVICES],
     },
   },
 ];
