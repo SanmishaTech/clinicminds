@@ -79,18 +79,24 @@ model State {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  cities City[]
+
   @@map("states")
 }
 
 model City {
   id        Int      @id @default(autoincrement())
-  city      String   @unique
+  city      String
+  stateId   Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
+  state            State?    @relation(fields: [stateId], references: [id])
   companies        Company[]
 
+  @@unique([city, stateId])
+  @@index([stateId])
   @@map("cities")
 }
 
