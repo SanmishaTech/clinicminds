@@ -12,6 +12,10 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/users/", permissions: [PERMISSIONS.EDIT_USERS] }, // edit user pages (/users/:id/...)
   { prefix: "/users", permissions: [PERMISSIONS.READ_USERS] }, // users list (view only)
 
+  { prefix: "/patients/new", permissions: [PERMISSIONS.EDIT_PATIENTS] },
+  { prefix: "/patients/", permissions: [PERMISSIONS.EDIT_PATIENTS] },
+  { prefix: "/patients", permissions: [PERMISSIONS.READ_PATIENTS] },
+
   { prefix: "/franchises/new", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
   { prefix: "/franchises/", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
   { prefix: "/franchises", permissions: [PERMISSIONS.READ_FRANCHISES] },
@@ -43,6 +47,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
     methods: {
       GET: [],
       PATCH: [],
+    },
+  },
+  {
+    prefix: "/api/patients",
+    methods: {
+      GET: [PERMISSIONS.READ_PATIENTS],
+      POST: [PERMISSIONS.EDIT_PATIENTS],
+      PATCH: [PERMISSIONS.EDIT_PATIENTS],
+      DELETE: [PERMISSIONS.DELETE_PATIENTS],
     },
   },
   {
