@@ -8,7 +8,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AppButton } from '@/components/common';
 import { AppCard } from '@/components/common/app-card';
 import { TextInput } from '@/components/common/text-input';
-import TextareaInput from '@/components/common/textarea-input';
 import { FormSection, FormRow } from '@/components/common/app-form';
 import { apiPost, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
@@ -16,39 +15,38 @@ import { useRouter } from 'next/navigation';
 import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
 import { useProtectPage } from '@/hooks/use-protect-page';
 
-export interface ServiceFormInitialData {
+export interface MedicineFormInitialData {
   id: number;
   name: string;
-  unit: string;
+  brand: string;
   rate: string;
-  description?: string | null;
+  mrp: string;
 }
 
 export interface FormProps {
   mode: 'create' | 'edit';
-  initial?: ServiceFormInitialData | null;
+  initial?: MedicineFormInitialData | null;
   onSuccess?: (result?: unknown) => void;
-  redirectOnSuccess?: string; // default '/franchises'
+  redirectOnSuccess?: string; // default '/medicines'
 }
 
-export const serviceSchema = z.object({
+export const medicineSchema = z.object({
     name: z.string().trim().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
-    unit: z.string().trim().min(1, 'Unit is required').max(255, 'Unit must be less than 255 characters'),
+    brand: z.string().trim().min(1, 'Brand is required').max(255, 'Brand must be less than 255 characters'),
     rate: z.string().trim()
       .refine((val) => val && val.trim().length > 0, "Rate is required")
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Rate must be a valid positive number"),
-    description: z.preprocess((v) => (v === "" || v === null ? "" : v),
-    z.string()
-      .trim()
-      .max(1000, 'Description must be less than 1000 characters').optional()),
+    mrp: z.string().trim()
+      .refine((val) => val && val.trim().length > 0, "MRP is required")
+      .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "MRP must be a valid positive number"),
 });
 
 
-export function ServiceForm({
+export function MedicineForm({
   mode,
   initial,
   onSuccess,
-  redirectOnSuccess = '/services',
+  redirectOnSuccess = '/medicines',
 }: FormProps) {
   useProtectPage();
   const router = useRouter();
@@ -56,38 +54,39 @@ export function ServiceForm({
   const [submitting, setSubmitting] = useState(false);
   const { backWithScrollRestore } = useScrollRestoration('client-list');
 
-  const form = useForm<ServiceFormInitialData>({
-    resolver: zodResolver(serviceSchema),
+  const form = useForm<MedicineFormInitialData>({
+    resolver: zodResolver(medicineSchema),
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
       ...initial,
-    } as ServiceFormInitialData,
+    } as MedicineFormInitialData,
   });
 
   const { control, handleSubmit } = form;
   const isCreate = mode === 'create';
 
-  async function onSubmit(values: ServiceFormInitialData) {
+  async function onSubmit(values: MedicineFormInitialData) {
     setSubmitting(true);
     const apiData = {
       ...values,
       rate: parseFloat(values.rate),
+      mrp: parseFloat(values.mrp),
     };
     try {
       if (mode === 'create') {
-        const res = await apiPost('/api/services', apiData);
-        toast.success('Service has been added');
+        const res = await apiPost('/api/medicines', apiData);
+        toast.success('Medicine has been added');
         onSuccess?.(res);
       } else if (mode === 'edit' && initial?.id) {
-        const res = await apiPatch(`/api/services/${initial.id}`, apiData);
-        toast.success('Service details have been updated');
+        const res = await apiPatch(`/api/medicines/${initial.id}`, apiData);
+        toast.success('Medicine details have been updated');
         onSuccess?.(res);
       }
       router.push(redirectOnSuccess);
     } catch (err) {
       console.log(err);
-      toast.error((err as Error).message || 'Failed to save service');
+      toast.error((err as Error).message || 'Failed to save medicine');
     } finally {
       setSubmitting(false);
     }
@@ -97,31 +96,31 @@ export function ServiceForm({
     <Form {...form}>
       <AppCard>
         <AppCard.Header>
-          <AppCard.Title>{isCreate ? 'Add New Service' : 'Edit Service'}</AppCard.Title>
+          <AppCard.Title>{isCreate ? 'Add New Medicine' : 'Edit Medicine'}</AppCard.Title>
         </AppCard.Header>
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
-            <FormSection legend='Service details'>
+            <FormSection legend='Medicine details'>
               <FormRow className='grid-cols-12 gap-6'>
                 <TextInput
                   control={control}
                   name='name'
-                  label='Service Name'
-                  placeholder='Service name'
+                  label='Medicine Name'
+                  placeholder='Medicine name'
                   required
-                  itemClassName='col-span-12'
+                  itemClassName='col-span-12 md:col-span-6'
                 />
-              </FormRow>
-              <FormRow className='grid-cols-12'>
-                <TextInput
+                 <TextInput
                   control={control}
-                  name='unit'
-                  label='Unit'
-                  placeholder='Unit'
+                  name='brand'
+                  label='Brand'
+                  placeholder='Brand'
                   required
                   type='text'
                   itemClassName='col-span-12 md:col-span-6'
                 />
+              </FormRow>
+              <FormRow className='grid-cols-12'>
                 <TextInput
                   control={control}
                   name='rate'
@@ -132,14 +131,15 @@ export function ServiceForm({
                   required
                   itemClassName='col-span-12 md:col-span-6' 
                   />
-              </FormRow>
-              <FormRow>
-                <TextareaInput
+                  <TextInput
                   control={control}
-                  name='description'
-                  label='Description'
-                  placeholder='Description'
-                  itemClassName='col-span-12'
+                  name='mrp'
+                  label='MRP'
+                  placeholder='MRP'
+                  type='number'
+                  step='1'
+                  required
+                  itemClassName='col-span-12 md:col-span-6'
                 />
               </FormRow>
             </FormSection>
@@ -160,7 +160,7 @@ export function ServiceForm({
               isLoading={submitting}
               disabled={submitting || !form.formState.isValid}
             >
-              {isCreate ? 'Create Service' : 'Save Changes'}
+              {isCreate ? 'Create Medicine' : 'Save Changes'}
             </AppButton>
           </AppCard.Footer>
         </form>
@@ -169,4 +169,4 @@ export function ServiceForm({
   );
 }
 
-export default ServiceForm;
+export default MedicineForm;

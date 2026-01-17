@@ -63,7 +63,7 @@ model Franchise {
   userMobile String
   userId     Int    @unique
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  sales      Sale[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -110,6 +110,10 @@ model Service{
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([name])                    // For searching by name
+  @@index([unit])                    // For filtering by unit
+  @@index([rate])                    // For sorting by rate
+  @@index([createdAt])                // For sorting by creation date
   @@map("services")
 }
 
@@ -122,6 +126,11 @@ model Medicine{
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([name])                    // For searching by name
+  @@index([brand])                   // For filtering by brand
+  @@index([rate])                    // For sorting by rate
+  @@index([mrp])                     // For sorting by mrp
+  @@index([createdAt])                // For sorting by creation date
   @@map("medicines")
 }
 
