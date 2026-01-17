@@ -38,6 +38,32 @@ export const NAV_ITEMS: NavItem[] = [
 
   {
     type: "group",
+    title: "Master",
+    icon: Building2,
+    children: [
+         {
+        title: "Cities",
+        href: "/cities",
+        icon: MapPin,
+        permission: PERMISSIONS.VIEW_CITIES,
+      },
+      {
+        title: "States",
+        href: "/states",
+        icon: MapPin,
+        permission: PERMISSIONS.VIEW_STATES,
+      },
+        {
+        title: "Franchises",
+        href: "/franchises",
+        icon: Building2,
+        permission: PERMISSIONS.VIEW_FRANCHISES,
+      },
+    ],
+  },
+
+  {
+    type: "group",
     title: "Settings",
 
     icon: Settings,
@@ -53,24 +79,6 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/users",
         icon: Users,
         permission: PERMISSIONS.VIEW_USERS,
-      },
-      {
-        title: "Franchises",
-        href: "/franchises",
-        icon: Building2,
-        permission: PERMISSIONS.VIEW_FRANCHISES,
-      },
-      {
-        title: "States",
-        href: "/states",
-        icon: MapPin,
-        permission: PERMISSIONS.VIEW_STATES,
-      },
-      {
-        title: "Cities",
-        href: "/cities",
-        icon: MapPin,
-        permission: PERMISSIONS.VIEW_CITIES,
       },
     ],
   },
