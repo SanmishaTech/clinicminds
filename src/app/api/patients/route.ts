@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
     dateOfBirth,
     age,
     gender,
-    status = "Active",
+    status = "Enquiry",
     address,
     stateId,
     cityId,
@@ -168,6 +168,11 @@ export async function POST(req: NextRequest) {
   if (!cityId) return ApiError("City is required", 400);
   if (!mobile1) return ApiError("Mobile 1 is required", 400);
 
+  if (!/^[0-9]{10}$/.test(String(mobile1).trim())) return ApiError("Mobile 1 must be 10 digits", 400);
+  if (mobile2 && !/^[0-9]{10}$/.test(String(mobile2).trim())) return ApiError("Mobile 2 must be 10 digits", 400);
+  if (contactPersonMobile1 && !/^[0-9]{10}$/.test(String(contactPersonMobile1).trim())) return ApiError("Contact Person Mobile 1 must be 10 digits", 400);
+  if (contactPersonMobile2 && !/^[0-9]{10}$/.test(String(contactPersonMobile2).trim())) return ApiError("Contact Person Mobile 2 must be 10 digits", 400);
+
   const normalizedGender = normalizeGender(gender);
   if (!normalizedGender) return ApiError("Invalid gender", 400);
 
@@ -182,7 +187,7 @@ export async function POST(req: NextRequest) {
   if (Number.isNaN(parsedBalance)) return ApiError("Invalid balance amount", 400);
 
   const statusText = typeof status === "string" ? status.trim() : "";
-  const finalStatus = statusText || "Active";
+  const finalStatus = statusText || "Enquiry";
 
   try {
     const patientModel = (prisma as any).patient;
@@ -353,13 +358,38 @@ export async function PATCH(req: NextRequest) {
   }
   if (typeof address === "string" || address === null) data.address = address || null;
   if (typeof pincode === "string" || pincode === null) data.pincode = pincode || null;
-  if (typeof mobile1 === "string") data.mobile1 = mobile1.trim();
-  if (typeof mobile2 === "string" || mobile2 === null) data.mobile2 = mobile2 || null;
+  if (typeof mobile1 === "string") {
+    const m = mobile1.trim();
+    if (!/^[0-9]{10}$/.test(m)) return ApiError("Mobile 1 must be 10 digits", 400);
+    data.mobile1 = m;
+  }
+  if (typeof mobile2 === "string" || mobile2 === null) {
+    if (!mobile2) data.mobile2 = null;
+    else {
+      const m = mobile2.trim();
+      if (!/^[0-9]{10}$/.test(m)) return ApiError("Mobile 2 must be 10 digits", 400);
+      data.mobile2 = m;
+    }
+  }
   if (typeof email === "string" || email === null) data.email = email || null;
   if (typeof contactPerson === "string" || contactPerson === null) data.contactPerson = contactPerson || null;
   if (typeof contactPersonRelation === "string" || contactPersonRelation === null) data.contactPersonRelation = contactPersonRelation || null;
-  if (typeof contactPersonMobile1 === "string" || contactPersonMobile1 === null) data.contactPersonMobile1 = contactPersonMobile1 || null;
-  if (typeof contactPersonMobile2 === "string" || contactPersonMobile2 === null) data.contactPersonMobile2 = contactPersonMobile2 || null;
+  if (typeof contactPersonMobile1 === "string" || contactPersonMobile1 === null) {
+    if (!contactPersonMobile1) data.contactPersonMobile1 = null;
+    else {
+      const m = contactPersonMobile1.trim();
+      if (!/^[0-9]{10}$/.test(m)) return ApiError("Contact Person Mobile 1 must be 10 digits", 400);
+      data.contactPersonMobile1 = m;
+    }
+  }
+  if (typeof contactPersonMobile2 === "string" || contactPersonMobile2 === null) {
+    if (!contactPersonMobile2) data.contactPersonMobile2 = null;
+    else {
+      const m = contactPersonMobile2.trim();
+      if (!/^[0-9]{10}$/.test(m)) return ApiError("Contact Person Mobile 2 must be 10 digits", 400);
+      data.contactPersonMobile2 = m;
+    }
+  }
 
   if (balanceAmount !== undefined) {
     if (balanceAmount === null || balanceAmount === "") data.balanceAmount = 0;

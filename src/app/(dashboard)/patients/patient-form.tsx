@@ -120,8 +120,15 @@ export function PatientForm({
 
     pincode: z.string().optional().transform((v) => (v === '' ? undefined : v)),
 
-    mobile1: z.string().min(1, 'Mobile 1 is required'),
-    mobile2: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    mobile1: z
+      .string()
+      .min(1, 'Mobile 1 is required')
+      .regex(/^[0-9]{10}$/, 'Mobile 1 must be 10 digits'),
+    mobile2: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine((v) => !v || /^[0-9]{10}$/.test(v), 'Mobile 2 must be 10 digits'),
 
     email: z
       .string()
@@ -131,8 +138,16 @@ export function PatientForm({
 
     contactPerson: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     contactPersonRelation: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-    contactPersonMobile1: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-    contactPersonMobile2: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    contactPersonMobile1: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine((v) => !v || /^[0-9]{10}$/.test(v), 'Contact Person Mobile 1 must be 10 digits'),
+    contactPersonMobile2: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine((v) => !v || /^[0-9]{10}$/.test(v), 'Contact Person Mobile 2 must be 10 digits'),
 
     balanceAmount: z.string().optional().transform((v) => (v === '' ? undefined : v)),
   });
@@ -150,7 +165,7 @@ export function PatientForm({
       dateOfBirth: initial?.dateOfBirth ? formatDateForInput(initial.dateOfBirth) : '',
       age: initial?.age != null ? String(initial.age) : '',
       gender: initial?.gender || '',
-      status: initial?.status || 'Active',
+      status: initial?.status || 'Enquiry',
       address: initial?.address || '',
       stateId: initial?.stateId ? String(initial.stateId) : '',
       cityId: initial?.cityId ? String(initial.cityId) : '',
@@ -278,7 +293,7 @@ export function PatientForm({
               <FormRow cols={3}>
                 <TextInput control={control} name='name' label='Name' required placeholder='Patient name' />
                 <TextInput control={control} name='dateOfBirth' label='Date of Birth' type='date' />
-                <TextInput control={control} name='age' label='Age' required type='number' min={0} />
+                <TextInput control={control} name='age' label='Age' required type='number' min={0} placeholder='Enter Age' />
               </FormRow>
               <FormRow cols={3}>
                 <SelectInput
@@ -297,7 +312,7 @@ export function PatientForm({
               <FormRow cols={1}>
                 <TextareaInput control={control} name='address' label='Address' placeholder='Address' rows={3} />
               </FormRow>
-              <FormRow cols={3}>
+              <FormRow cols={2}>
                 <ComboboxInput
                   control={control as any}
                   name={'stateId' as any}
@@ -318,26 +333,61 @@ export function PatientForm({
                   emptyText={stateIdValue ? 'No city found.' : 'Select a state first.'}
                   required
                 />
+              </FormRow>
+              <FormRow cols={1}>
                 <TextInput control={control} name='pincode' label='Pincode' placeholder='Pincode' />
               </FormRow>
             </FormSection>
 
             <FormSection legend='Contact Details'>
               <FormRow cols={3}>
-                <TextInput control={control} name='mobile1' label='Mobile 1' required placeholder='Mobile number' />
-                <TextInput control={control} name='mobile2' label='Mobile 2' placeholder='Alternate mobile' />
+                <TextInput
+                  control={control}
+                  name='mobile1'
+                  label='Mobile 1'
+                  required
+                  placeholder='Mobile number'
+                  type='tel'
+                  maxLength={10}
+                  pattern='[0-9]{10}'
+                />
+                <TextInput
+                  control={control}
+                  name='mobile2'
+                  label='Mobile 2'
+                  placeholder='Alternate mobile'
+                  type='tel'
+                  maxLength={10}
+                  pattern='[0-9]{10}'
+                />
                 <EmailInput control={control} name='email' label='Email' placeholder='email@example.com' />
               </FormRow>
             </FormSection>
 
             <FormSection legend='Contact Person Details'>
               <FormRow cols={3}>
-                <TextInput control={control} name='contactPerson' label='Contact Person' placeholder='Contact person' />
-                <TextInput control={control} name='contactPersonRelation' label='Relation' placeholder='Relation' />
-                <TextInput control={control} name='contactPersonMobile1' label='Mobile 1' placeholder='Mobile number' />
+                <TextInput control={control} name='contactPerson' label='Contact Person Name' placeholder='Contact person' />
+                <TextInput control={control} name='contactPersonRelation' label='Contact Person Relation' placeholder='Relation' />
+                <TextInput
+                  control={control}
+                  name='contactPersonMobile1'
+                  label='Contact Person Mobile 1'
+                  placeholder='Mobile number'
+                  type='tel'
+                  maxLength={10}
+                  pattern='[0-9]{10}'
+                />
               </FormRow>
               <FormRow cols={3}>
-                <TextInput control={control} name='contactPersonMobile2' label='Mobile 2' placeholder='Alternate mobile' />
+                <TextInput
+                  control={control}
+                  name='contactPersonMobile2'
+                  label='Contact Person Mobile 2'
+                  placeholder='Alternate mobile'
+                  type='tel'
+                  maxLength={10}
+                  pattern='[0-9]{10}'
+                />
               </FormRow>
             </FormSection>
 
