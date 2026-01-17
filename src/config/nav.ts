@@ -9,6 +9,7 @@ import {
   Building2,
   MapPin,
   Stethoscope,
+  Pill,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -65,6 +66,12 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/services",
         icon: Stethoscope,
         permission: PERMISSIONS.VIEW_SERVICES,
+      },
+        {
+        title: "Medicines",
+        href: "/medicines",
+        icon: Pill,
+        permission: PERMISSIONS.VIEW_MEDICINES,
       },
     ],
   },
