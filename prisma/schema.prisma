@@ -79,60 +79,24 @@ model State {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  cities City[]
+
   @@map("states")
 }
 
 model City {
   id        Int      @id @default(autoincrement())
-  city      String   @unique
+  city      String
+  stateId   Int?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  companies        Company[]
+  state            State?    @relation(fields: [stateId], references: [id])
 
+  @@unique([city, stateId])
+  @@index([stateId])
   @@map("cities")
-}
-
-model Company {
-  id          Int     @id @default(autoincrement())
-  companyName String
-  shortName   String?
-
-  // Contact Person Details
-  contactPerson String?
-  contactNo     String?
-
-  // Address Details
-  addressLine1 String?
-  addressLine2 String?
-  cityId       Int?
-  pinCode      String?
-
-  // Logo
-  logoUrl String?
-
-  // Status
-  closed Boolean @default(false)
-
-  // Other Details
-  panNo String?
-  gstNo String?
-  tanNo String?
-  cinNo String?
-
-  // Timestamps
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  city  City?  @relation(fields: [cityId], references: [id])
-
-  @@index([companyName])
-  @@index([shortName])
-  @@index([closed])
-  @@index([cityId])
-  @@map("companies")
 }
 
 model Service{
