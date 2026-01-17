@@ -5,5 +5,5 @@ import ServiceForm from '../medicines-form';
 
 export default function NewServicePage() {
   useProtectPage();
-  return <ServiceForm mode='create' redirectOnSuccess='/services' />;
+  return <ServiceForm mode='create' redirectOnSuccess='/medicines' />;
 }

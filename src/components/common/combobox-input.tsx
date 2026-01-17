@@ -21,6 +21,7 @@ interface ComboboxInputProps<T extends FieldValues> {
   required?: boolean
   className?: string
   inputClassName?: string
+  onChange?: (value: string) => void
 }
 
 export function ComboboxInput<T extends FieldValues>({
@@ -34,6 +35,7 @@ export function ComboboxInput<T extends FieldValues>({
   required = false,
   className,
   inputClassName,
+  onChange,
 }: ComboboxInputProps<T>) {
   return (
     <FormField
@@ -50,7 +52,10 @@ export function ComboboxInput<T extends FieldValues>({
           <FormControl>
             <AppCombobox
               value={field.value}
-              onValueChange={field.onChange}
+              onValueChange={(value) => {
+                field.onChange(value);
+                onChange?.(value);
+              }}
               options={options}
               placeholder={placeholder}
               searchPlaceholder={searchPlaceholder}

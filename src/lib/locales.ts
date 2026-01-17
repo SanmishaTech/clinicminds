@@ -112,3 +112,34 @@ export function formatRelativeTime(
   const plural = rounded === 1 ? picked.unit : picked.unit + 's';
   return diffSeconds < 0 ? `${rounded} ${plural} ago` : `in ${rounded} ${plural}`;
 }
+
+// Format currency specifically in Indian format with ₹ symbol and proper comma placement
+export function formatIndianCurrency(amount: number | null | undefined): string {
+  if (amount === null || amount === undefined || isNaN(Number(amount))) return '-';
+  
+  // Convert to number and then to string with 2 decimal places
+  const numAmount = Number(amount);
+  const amountStr = numAmount.toFixed(2);
+  const [integerPart, decimalPart] = amountStr.split('.');
+  
+  // Format the integer part according to Indian numbering system
+  let formattedInteger = '';
+  if (parseInt(integerPart) >= 1000) {
+    // Get the last 3 digits
+    const lastThree = integerPart.slice(-3);
+    // Get the remaining digits
+    const remaining = integerPart.slice(0, -3);
+    
+    // Format remaining digits with commas every 2 digits from right
+    if (remaining.length > 0) {
+      const remainingFormatted = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+      formattedInteger = remainingFormatted + ',' + lastThree;
+    } else {
+      formattedInteger = lastThree;
+    }
+  } else {
+    formattedInteger = integerPart;
+  }
+  
+  return `₹${formattedInteger}.${decimalPart}`;
+}
