@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { apiGet, apiPost, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
@@ -34,6 +33,20 @@ type Sale = {
   saleDetails: SaleDetail[];
 };
 
+export type SaleFormInitialData = {
+  id?: number;
+  invoiceNo?: string;
+  invoiceDate?: string;
+  franchiseId?: string;
+  totalAmount?: number;
+  saleDetails?: {
+    medicineId: number;
+    quantity: number;
+    rate: number;
+    amount: number;
+  }[];
+};
+
 type Medicine = {
   id: number;
   name: string;
@@ -48,11 +61,12 @@ type Franchise = {
 };
 
 interface SalesFormProps {
+  mode: 'create' | 'edit';
   saleId?: number;
   initialData?: SalesFormValues;
 }
 
-export function SalesForm({ saleId, initialData }: SalesFormProps) {
+export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   const router = useRouter();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [franchises, setFranchises] = useState<Franchise[]>([]);
@@ -84,7 +98,8 @@ export function SalesForm({ saleId, initialData }: SalesFormProps) {
     } as SalesFormValues,
   });
 
-  const { control, handleSubmit, setValue, watch, reset } = form;
+  const { control, handleSubmit, setValue } = form;
+  const isCreate = mode === 'create';
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -177,7 +192,7 @@ export function SalesForm({ saleId, initialData }: SalesFormProps) {
         }))
       };
       
-      if (saleId) {
+      if (!isCreate) {
         const response = await apiPatch(`/api/sales/${saleId}`, apiData);
         toast.success('Sale updated successfully');
       } else {
@@ -201,9 +216,9 @@ export function SalesForm({ saleId, initialData }: SalesFormProps) {
       <form onSubmit={handleSubmit(onSubmit)}>
         <AppCard>
         <AppCard.Header>
-          <AppCard.Title>{saleId ? 'Edit Sale' : 'Create Sale'}</AppCard.Title>
+          <AppCard.Title>{!isCreate ? 'Edit Sale' : 'Create Sale'}</AppCard.Title>
           <AppCard.Description>
-            {saleId ? 'Update sale information' : 'Enter sale details'}
+            {!isCreate ? 'Update sale information' : 'Enter sale details'}
           </AppCard.Description>
         </AppCard.Header>
         <AppCard.Content className="space-y-6">
@@ -409,7 +424,7 @@ export function SalesForm({ saleId, initialData }: SalesFormProps) {
             type="submit"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Saving...' : (saleId ? 'Update Sale' : 'Create Sale')}
+            {isSubmitting ? 'Saving...' : (!isCreate ? 'Update Sale' : 'Create Sale')}
           </AppButton>
         </AppCard.Footer>
       </AppCard>

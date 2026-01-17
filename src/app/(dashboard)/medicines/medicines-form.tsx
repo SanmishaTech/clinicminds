@@ -12,15 +12,14 @@ import { FormSection, FormRow } from '@/components/common/app-form';
 import { apiPost, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
-import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
-import { useProtectPage } from '@/hooks/use-protect-page';
+
 
 export interface MedicineFormInitialData {
-  id: number;
-  name: string;
-  brand: string;
-  rate: string;
-  mrp: string;
+  id?: number;
+  name?: string;
+  brand?: string;
+  rate?: string;
+  mrp?: string;
 }
 
 export interface FormProps {
@@ -48,25 +47,27 @@ export function MedicineForm({
   onSuccess,
   redirectOnSuccess = '/medicines',
 }: FormProps) {
-  useProtectPage();
+ 
   const router = useRouter();
   
   const [submitting, setSubmitting] = useState(false);
-  const { backWithScrollRestore } = useScrollRestoration('client-list');
-
-  const form = useForm<MedicineFormInitialData>({
+ type RawFormValues = z.infer<typeof medicineSchema>;
+  const form = useForm<RawFormValues>({
     resolver: zodResolver(medicineSchema),
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
-      ...initial,
-    } as MedicineFormInitialData,
+      name: initial?.name || '',
+      brand: initial?.brand || '',
+      rate: initial?.rate || '',
+      mrp: initial?.mrp || '',
+    } 
   });
 
   const { control, handleSubmit } = form;
   const isCreate = mode === 'create';
 
-  async function onSubmit(values: MedicineFormInitialData) {
+  async function onSubmit(values: RawFormValues) {
     setSubmitting(true);
     const apiData = {
       ...values,
@@ -96,7 +97,8 @@ export function MedicineForm({
     <Form {...form}>
       <AppCard>
         <AppCard.Header>
-          <AppCard.Title>{isCreate ? 'Add New Medicine' : 'Edit Medicine'}</AppCard.Title>
+          <AppCard.Title>{isCreate ? 'Create Medicine' : 'Edit Medicine'}</AppCard.Title>
+          <AppCard.Description>{isCreate ? 'Create a new medicine' : 'Edit medicine details'}</AppCard.Description>
         </AppCard.Header>
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
@@ -148,7 +150,7 @@ export function MedicineForm({
             <AppButton
               type='button'
               variant='secondary'
-              onClick={backWithScrollRestore}
+              onClick={() => router.push(redirectOnSuccess)}
               disabled={submitting}
               iconName='X'
             >

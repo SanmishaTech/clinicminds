@@ -1,9 +1,7 @@
 'use client';
 
-import { useProtectPage } from '@/hooks/use-protect-page';
-import ServiceForm from '../medicines-form';
+import MedicineForm from '../medicines-form';
 
-export default function NewServicePage() {
-  useProtectPage();
-  return <ServiceForm mode='create' redirectOnSuccess='/medicines' />;
+export default function NewMedicinePage() {
+  return <MedicineForm mode='create' redirectOnSuccess='/medicines' />;
 }

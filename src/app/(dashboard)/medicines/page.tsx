@@ -14,10 +14,9 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
 import { formatRelativeTime } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
-import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
-import { useProtectPage } from '@/hooks/use-protect-page';
 import { EditButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
+import Link from 'next/link';
 
 type MedicineListItem = {
   id: number;
@@ -37,8 +36,6 @@ type MedicinesResponse = {
 };
 
 export default function MedicinesPage() {
-  useProtectPage();
-  const { pushWithScrollSave } = useScrollRestoration('client-list');
   
   const [qp, setQp] = useQueryParamsState({
     page: 1,
@@ -124,14 +121,11 @@ export default function MedicinesPage() {
         <AppCard.Description>Manage Medicines</AppCard.Description>
         {can(PERMISSIONS.CREATE_MEDICINES) && (
           <AppCard.Action>
-            <AppButton 
-              size='sm' 
-              iconName='Plus' 
-              type='button'
-              onClick={() => pushWithScrollSave('/medicines/new')}
-            >
-              Add
-            </AppButton>
+            <Link href='/medicines/new'>
+              <AppButton size='sm' iconName='Plus' type='button'>
+                Add
+              </AppButton>
+            </Link>
           </AppCard.Action>
         )}
       </AppCard.Header>
@@ -175,11 +169,9 @@ export default function MedicinesPage() {
             return (
               <div className='flex items-center gap-1'>
                 {can(PERMISSIONS.EDIT_MEDICINES) && (
-                  <EditButton 
-                    tooltip='Edit Medicine' 
-                    aria-label='Edit Medicine' 
-                    onClick={() => pushWithScrollSave(`/medicines/${row.id}/edit`)}
-                  />
+                  <Link href={`/medicines/${row.id}/edit`}>
+                    <EditButton tooltip='Edit Medicine' aria-label='Edit Medicine' />
+                  </Link>
                 )}
                 <DeleteButton
                   onDelete={() => handleDelete(row.id)}

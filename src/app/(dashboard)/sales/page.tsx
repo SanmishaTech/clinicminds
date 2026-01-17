@@ -12,12 +12,13 @@ import { AppButton } from '@/components/common/app-button';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
-import { formatRelativeTime, formatIndianCurrency } from '@/lib/locales';
+import { formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
-import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
-import { useProtectPage } from '@/hooks/use-protect-page';
 import { EditButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
+import Link from 'next/link';
+
+
 
 type SaleListItem = {
   id: number;
@@ -41,8 +42,6 @@ type SalesResponse = {
 };
 
 export default function SalesPage() {
-  useProtectPage();
-  const { pushWithScrollSave } = useScrollRestoration('client-list');
   
   const [qp, setQp] = useQueryParamsState({
     page: 1,
@@ -153,14 +152,15 @@ export default function SalesPage() {
         <AppCard.Description>Manage Sales</AppCard.Description>
         {can(PERMISSIONS.CREATE_SALES) && (
           <AppCard.Action>
+            <Link href='/sales/new'>
             <AppButton 
               size='sm' 
               iconName='Plus' 
               type='button'
-              onClick={() => pushWithScrollSave('/sales/new')}
             >
               Add
             </AppButton>
+            </Link>
           </AppCard.Action>
         )}
       </AppCard.Header>
@@ -220,11 +220,12 @@ export default function SalesPage() {
             return (
               <div className='flex items-center gap-1'>
                 {can(PERMISSIONS.EDIT_SALES) && (
+                  <Link href={`/sales/${row.id}/edit`}>
                   <EditButton 
                     tooltip='Edit Sale' 
                     aria-label='Edit Sale' 
-                    onClick={() => pushWithScrollSave(`/sales/${row.id}/edit`)}
                   />
+                  </Link>
                 )}
                 <DeleteButton
                   onDelete={() => handleDelete(row.id)}
