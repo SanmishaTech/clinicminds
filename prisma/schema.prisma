@@ -80,6 +80,7 @@ model State {
   updatedAt DateTime @updatedAt
 
   cities City[]
+  patients Patient[]
 
   @@map("states")
 }
@@ -93,6 +94,7 @@ model City {
 
   // Relations
   state            State?    @relation(fields: [stateId], references: [id])
+  patients         Patient[]
 
   @@unique([city, stateId])
   @@index([stateId])
@@ -121,4 +123,50 @@ model Medicine{
   updatedAt   DateTime @updatedAt
 
   @@map("medicines")
+}
+
+model Patient {
+  id                    Int      @id @default(autoincrement())
+  patientNo             String   @unique
+  team                  String
+  name                  String
+  dateOfBirth           DateTime?
+  age                   Int?
+  gender                String
+  status                String   @default("Active")
+  address               String?
+  stateId               Int
+  cityId                Int
+  pincode               String?
+  mobile1               String
+  mobile2               String?
+  email                 String?
+  contactPerson         String?
+  contactPersonRelation String?
+  contactPersonMobile1  String?
+  contactPersonMobile2  String?
+  balanceAmount         Float    @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  state State @relation(fields: [stateId], references: [id])
+  city  City  @relation(fields: [cityId], references: [id])
+
+  @@index([patientNo])
+  @@index([name])
+  @@index([team])
+  @@index([gender])
+  @@index([status])
+  @@index([stateId])
+  @@index([cityId])
+  @@index([mobile1])
+  @@map("patients")
+}
+
+model PatientSequence {
+  dateKey    String   @id
+  lastNumber Int      @default(0)
+  updatedAt  DateTime @updatedAt
+
+  @@map("patient_sequences")
 }
