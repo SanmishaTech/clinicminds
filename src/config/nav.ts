@@ -8,6 +8,7 @@ import {
   Settings,
   Building2,
   MapPin,
+  Stethoscope,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -59,6 +60,12 @@ export const NAV_ITEMS: NavItem[] = [
         icon: Building2,
         permission: PERMISSIONS.VIEW_FRANCHISES,
       },
+      {
+        title: "Services",
+        href: "/services",
+        icon: Stethoscope,
+        permission: PERMISSIONS.VIEW_SERVICES,
+      },
     ],
   },
 
@@ -83,11 +90,5 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
 
-  {
-      type: "item",
-      title: "Services",
-      href: "/services",
-      icon: Users,
-      permission: PERMISSIONS.VIEW_SERVICES,
-  },
+  
 ];

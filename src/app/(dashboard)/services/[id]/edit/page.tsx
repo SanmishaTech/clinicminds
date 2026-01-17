@@ -6,7 +6,7 @@ import { ServiceFormInitialData } from '../../services-form';
 import { useProtectPage } from '@/hooks/use-protect-page';
 import { apiGet } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
-import useSWR from 'swr';
+import { useState, useEffect } from 'react';
 
 export default function EditServicesPage() {
   useProtectPage();
@@ -14,15 +14,32 @@ export default function EditServicesPage() {
   const params = useParams<{ id?: string }>();
   const id = params?.id;
 
- const { data: initial, error, isLoading } = useSWR<ServiceFormInitialData>(
-  id ? `/api/services/${id}` : null,
-  apiGet,
-  {
-    dedupingInterval: 1000, // 1 second
-    revalidateOnFocus: false, // Optional: prevents refetching when window regains focus
-    revalidateOnReconnect: false, // Optional: prevents refetching on network reconnect
-  }
-);
+ const [initial, setInitial] = useState<ServiceFormInitialData | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!id) {
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchService = async () => {
+      setIsLoading(true);
+      try {
+        const serviceData = await apiGet<ServiceFormInitialData>(`/api/services/${id}`);
+        setInitial(serviceData);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error('Failed to load service'));
+        setInitial(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchService();
+  }, [id]);
 
   if (error) {
     toast.error('Failed to load service');
