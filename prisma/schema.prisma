@@ -98,3 +98,27 @@ model City {
   @@index([stateId])
   @@map("cities")
 }
+
+model Service{
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  unit        String
+  rate        Decimal  @db.Decimal(10, 2)
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("services")
+}
+
+model Medicine{
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  brand       String
+  rate        Decimal  @db.Decimal(10, 2)
+  mrp         Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("medicines")
+}
