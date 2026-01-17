@@ -74,4 +74,12 @@ export const NAV_ITEMS: NavItem[] = [
       },
     ],
   },
+
+  {
+      type: "item",
+      title: "Services",
+      href: "/services",
+      icon: Users,
+      permission: PERMISSIONS.VIEW_SERVICES,
+  },
 ];
