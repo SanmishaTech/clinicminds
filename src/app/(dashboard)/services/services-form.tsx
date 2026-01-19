@@ -13,14 +13,12 @@ import { FormSection, FormRow } from '@/components/common/app-form';
 import { apiPost, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
-import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
-import { useProtectPage } from '@/hooks/use-protect-page';
 
 export interface ServiceFormInitialData {
-  id: number;
-  name: string;
-  unit: string;
-  rate: string;
+  id?: number;
+  name?: string;
+  unit?: string;
+  rate?: string;
   description?: string | null;
 }
 
@@ -50,29 +48,30 @@ export function ServiceForm({
   onSuccess,
   redirectOnSuccess = '/services',
 }: FormProps) {
-  useProtectPage();
   const router = useRouter();
-  
   const [submitting, setSubmitting] = useState(false);
-  const { backWithScrollRestore } = useScrollRestoration('client-list');
 
-  const form = useForm<ServiceFormInitialData>({
+  type RawFormValues = z.infer<typeof serviceSchema>;
+  const form = useForm<RawFormValues>({
     resolver: zodResolver(serviceSchema),
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
-      ...initial,
-    } as ServiceFormInitialData,
+      name: initial?.name || '',
+      unit: initial?.unit || '',
+      rate: initial?.rate || '',
+      description: initial?.description || '',
+    },
   });
 
   const { control, handleSubmit } = form;
   const isCreate = mode === 'create';
 
-  async function onSubmit(values: ServiceFormInitialData) {
+  async function onSubmit(values: RawFormValues) {
     setSubmitting(true);
     const apiData = {
       ...values,
-      rate: parseFloat(values.rate),
+      rate: parseFloat(String(values.rate)),
     };
     try {
       if (mode === 'create') {
@@ -97,50 +96,23 @@ export function ServiceForm({
     <Form {...form}>
       <AppCard>
         <AppCard.Header>
-          <AppCard.Title>{isCreate ? 'Add New Service' : 'Edit Service'}</AppCard.Title>
+          <AppCard.Title>{isCreate ? 'Create Service' : 'Edit Service'}</AppCard.Title>
+          <AppCard.Description>
+            {isCreate ? 'Add a new service.' : 'Update service details.'}
+          </AppCard.Description>
         </AppCard.Header>
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
-            <FormSection legend='Service details'>
-              <FormRow className='grid-cols-12 gap-6'>
-                <TextInput
-                  control={control}
-                  name='name'
-                  label='Service Name'
-                  placeholder='Service name'
-                  required
-                  itemClassName='col-span-12'
-                />
+            <FormSection legend='Service Details'>
+              <FormRow cols={1}>
+                <TextInput control={control} name='name' label='Service Name' required placeholder='Service name' />
               </FormRow>
-              <FormRow className='grid-cols-12'>
-                <TextInput
-                  control={control}
-                  name='unit'
-                  label='Unit'
-                  placeholder='Unit'
-                  required
-                  type='text'
-                  itemClassName='col-span-12 md:col-span-6'
-                />
-                <TextInput
-                  control={control}
-                  name='rate'
-                  label='Rate'
-                  placeholder='Rate'
-                  type='number'
-                  step='1'
-                  required
-                  itemClassName='col-span-12 md:col-span-6' 
-                  />
+              <FormRow cols={2}>
+                <TextInput control={control} name='unit' label='Unit' required placeholder='Unit' />
+                <TextInput control={control} name='rate' label='Rate' required placeholder='Rate' type='number' step='1' />
               </FormRow>
-              <FormRow>
-                <TextareaInput
-                  control={control}
-                  name='description'
-                  label='Description'
-                  placeholder='Description'
-                  itemClassName='col-span-12'
-                />
+              <FormRow cols={1}>
+                <TextareaInput control={control} name='description' label='Description' placeholder='Description' rows={3} />
               </FormRow>
             </FormSection>
           </AppCard.Content>
@@ -148,7 +120,7 @@ export function ServiceForm({
             <AppButton
               type='button'
               variant='secondary'
-              onClick={backWithScrollRestore}
+              onClick={() => router.push(redirectOnSuccess)}
               disabled={submitting}
               iconName='X'
             >

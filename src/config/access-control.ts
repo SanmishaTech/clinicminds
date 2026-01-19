@@ -12,6 +12,10 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/users/", permissions: [PERMISSIONS.EDIT_USERS] }, // edit user pages (/users/:id/...)
   { prefix: "/users", permissions: [PERMISSIONS.READ_USERS] }, // users list (view only)
 
+  { prefix: "/patients/new", permissions: [PERMISSIONS.EDIT_PATIENTS] },
+  { prefix: "/patients/", permissions: [PERMISSIONS.EDIT_PATIENTS] },
+  { prefix: "/patients", permissions: [PERMISSIONS.READ_PATIENTS] },
+
   { prefix: "/franchises/new", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
   { prefix: "/franchises/", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
   { prefix: "/franchises", permissions: [PERMISSIONS.READ_FRANCHISES] },
@@ -31,6 +35,9 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/medicines/new", permissions: [PERMISSIONS.CREATE_MEDICINES] },
   { prefix: "/medicines/", permissions: [PERMISSIONS.EDIT_MEDICINES] },
   { prefix: "/medicines", permissions: [PERMISSIONS.READ_MEDICINES] },
+  { prefix: "/services/new", permissions: [PERMISSIONS.CREATE_SERVICES] },
+  { prefix: "/services/", permissions: [PERMISSIONS.EDIT_SERVICES] },
+  { prefix: "/services", permissions: [PERMISSIONS.READ_SERVICES] },
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -51,6 +58,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
     methods: {
       GET: [],
       PATCH: [],
+    },
+  },
+  {
+    prefix: "/api/patients",
+    methods: {
+      GET: [PERMISSIONS.READ_PATIENTS],
+      POST: [PERMISSIONS.EDIT_PATIENTS],
+      PATCH: [PERMISSIONS.EDIT_PATIENTS],
+      DELETE: [PERMISSIONS.DELETE_PATIENTS],
     },
   },
   {
@@ -105,6 +121,14 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.CREATE_MEDICINES],
       PATCH: [PERMISSIONS.EDIT_MEDICINES],
       DELETE: [PERMISSIONS.DELETE_MEDICINES],
+
+  {
+    prefix: "/api/services",
+    methods: {
+      GET: [PERMISSIONS.READ_SERVICES],
+      POST: [PERMISSIONS.CREATE_SERVICES],
+      PATCH: [PERMISSIONS.EDIT_SERVICES],
+      DELETE: [PERMISSIONS.DELETE_SERVICES],
     },
   },
 ];

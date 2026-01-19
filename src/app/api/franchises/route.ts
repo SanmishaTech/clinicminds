@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
   }>) || {};
 
   if (!name) return Error("Franchise Name is required", 400);
+  if (!addressLine1) return Error("Address Line 1 is required", 400);
   if (!city) return Error("City is required", 400);
   if (!state) return Error("State is required", 400);
   if (!pincode) return Error("Pincode is required", 400);
@@ -137,6 +138,8 @@ export async function POST(req: NextRequest) {
 
   if (!userEmail || !password) return Error("Email & password required", 400);
   if (!userMobile) return Error("Mobile is required", 400);
+  if (!/^[0-9]{10}$/.test(String(contactNo))) return Error("Contact No must be 10 digits", 400);
+  if (!/^[0-9]{10}$/.test(String(userMobile))) return Error("Mobile must be 10 digits", 400);
   if (password.length < 6) return Error("Password must be at least 6 characters", 400);
 
   try {
@@ -263,15 +266,26 @@ export async function PATCH(req: NextRequest) {
 
   const franchiseData: Record<string, unknown> = {};
   if (typeof name === "string" && name) franchiseData.name = name;
-  if (typeof addressLine1 === "string" || addressLine1 === null) franchiseData.addressLine1 = addressLine1 || null;
+  if (typeof addressLine1 === "string" || addressLine1 === null) {
+    if (!addressLine1 || (typeof addressLine1 === "string" && addressLine1.trim() === "")) {
+      return Error("Address Line 1 is required", 400);
+    }
+    franchiseData.addressLine1 = addressLine1;
+  }
   if (typeof addressLine2 === "string" || addressLine2 === null) franchiseData.addressLine2 = addressLine2 || null;
   if (typeof city === "string" && city) franchiseData.city = city;
   if (typeof state === "string" && state) franchiseData.state = state;
   if (typeof pincode === "string" && pincode) franchiseData.pincode = pincode;
-  if (typeof contactNo === "string" && contactNo) franchiseData.contactNo = contactNo;
+  if (typeof contactNo === "string" && contactNo) {
+    if (!/^[0-9]{10}$/.test(contactNo)) return Error("Contact No must be 10 digits", 400);
+    franchiseData.contactNo = contactNo;
+  }
   if (typeof contactEmail === "string" && contactEmail) franchiseData.contactEmail = contactEmail;
   if (typeof logoUrl === "string" || logoUrl === null) franchiseData.logoUrl = logoUrl || null;
-  if (typeof userMobile === "string" && userMobile) franchiseData.userMobile = userMobile;
+  if (typeof userMobile === "string" && userMobile) {
+    if (!/^[0-9]{10}$/.test(userMobile)) return Error("Mobile must be 10 digits", 400);
+    franchiseData.userMobile = userMobile;
+  }
 
   const userData: Record<string, unknown> = {};
   if (typeof userName === "string" || userName === null) userData.name = userName || null;

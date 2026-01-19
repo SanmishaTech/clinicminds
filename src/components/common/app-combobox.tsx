@@ -63,12 +63,12 @@ export function AppCombobox({
           role="combobox"
           aria-expanded={open}
           className={cn(
-            "w-full justify-between font-normal",
+            "!w-full min-w-0 justify-between font-normal",
             !value && "text-muted-foreground",
             className
           )}
         >
-          {selectedOption ? selectedOption.label : placeholder}
+          <span className="flex-1 min-w-0 truncate text-left">{selectedOption ? selectedOption.label : placeholder}</span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
