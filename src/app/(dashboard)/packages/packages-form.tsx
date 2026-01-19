@@ -1,0 +1,664 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { apiGet, apiPatch, apiPost } from '@/lib/api-client';
+import { toast } from '@/lib/toast';
+import { useRouter } from 'next/navigation';
+import { AppCard } from '@/components/common/app-card';
+import { AppButton } from '@/components/common/app-button';
+import { FormSection, FormRow } from '@/components/common/app-form';
+import { Form } from '@/components/ui/form';
+import { TextInput } from '@/components/common/text-input';
+import { ComboboxInput } from '@/components/common/combobox-input';
+import { Input } from '@/components/ui/input';
+import { Plus, Trash2 } from 'lucide-react';
+
+export interface PackageFormInitialData {
+  id?: number;
+  name?: string;
+  totalAmount?: number;
+  packageDetails?: {
+    serviceId: number;
+    description?: string | null;
+    qty: number;
+    rate: number;
+    amount: number;
+  }[];
+  packageMedicines?: {
+    medicineId: number;
+    qty: number;
+    rate: number;
+    amount: number;
+  }[];
+}
+
+export interface PackageFormProps {
+  mode: 'create' | 'edit';
+  initial?: PackageFormInitialData | null;
+  onSuccess?: (result?: unknown) => void;
+  redirectOnSuccess?: string;
+}
+
+type Service = {
+  id: number;
+  name: string;
+  rate: number;
+  description?: string | null;
+};
+
+type Medicine = {
+  id: number;
+  name: string;
+  rate: number;
+  brand: {
+    name: string;
+  };
+};
+
+const packagesFormSchema = z.object({
+  name: z.string().trim().min(1, 'Package is required'),
+  packageDetails: z
+    .array(
+      z.object({
+        serviceId: z
+          .string()
+          .refine((v) => !v || /^\d+$/.test(v), 'Must be a valid number')
+          .refine((v) => v && v.trim().length > 0, 'Service is required'),
+        description: z.string().optional(),
+        qty: z
+          .string()
+          .refine((v) => v && v.trim().length > 0, 'Qty is required')
+          .refine(
+            (v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0,
+            'Qty must be a valid positive number'
+          ),
+        rate: z
+          .string()
+          .refine((v) => v && v.trim().length > 0, 'Rate is required')
+          .refine(
+            (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
+            'Rate must be a valid positive number'
+          ),
+        amount: z
+          .string()
+          .refine((v) => v && v.trim().length > 0, 'Amount is required')
+          .refine(
+            (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
+            'Amount must be a valid positive number'
+          ),
+      })
+    )
+    .min(1, 'At least one package detail is required'),
+  packageMedicines: z
+    .array(
+      z.object({
+        medicineId: z
+          .string()
+          .refine((v) => !v || /^\d+$/.test(v), 'Must be a valid number')
+          .refine((v) => v && v.trim().length > 0, 'Medicine is required'),
+        qty: z
+          .string()
+          .refine((v) => v && v.trim().length > 0, 'Qty is required')
+          .refine(
+            (v) => !isNaN(parseFloat(v)) && parseFloat(v) > 0,
+            'Qty must be a valid positive number'
+          ),
+        rate: z
+          .string()
+          .refine((v) => v && v.trim().length > 0, 'Rate is required')
+          .refine(
+            (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
+            'Rate must be a valid positive number'
+          ),
+        amount: z
+          .string()
+          .refine((v) => v && v.trim().length > 0, 'Amount is required')
+          .refine(
+            (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
+            'Amount must be a valid positive number'
+          ),
+      })
+    )
+    .min(1, 'At least one package medicine is required'),
+  totalAmount: z
+    .string()
+    .trim()
+    .refine((v) => v && v.trim().length > 0, 'Total amount is required')
+    .refine(
+      (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
+      'Total must be a valid positive number'
+    ),
+});
+
+export type PackagesFormValues = z.infer<typeof packagesFormSchema>;
+
+export function PackageForm({
+  mode,
+  initial,
+  onSuccess,
+  redirectOnSuccess = '/packages',
+}: PackageFormProps) {
+  const router = useRouter();
+  const [services, setServices] = useState<Service[]>([]);
+  const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const isCreate = mode === 'create';
+
+  const form = useForm<PackagesFormValues>({
+    resolver: zodResolver(packagesFormSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
+    defaultValues: {
+      name: initial?.name || '',
+      totalAmount: (initial?.totalAmount ?? 0).toString(),
+      packageDetails:
+        initial?.packageDetails?.map((d) => ({
+          serviceId: d.serviceId.toString(),
+          description: d.description || '',
+          qty: d.qty.toString(),
+          rate: d.rate.toString(),
+          amount: d.amount.toString(),
+        })) || [
+          { serviceId: '', description: '', qty: '1', rate: '0', amount: '0' },
+        ],
+      packageMedicines:
+        initial?.packageMedicines?.map((m) => ({
+          medicineId: m.medicineId.toString(),
+          qty: m.qty.toString(),
+          rate: m.rate.toString(),
+          amount: m.amount.toString(),
+        })) || [{ medicineId: '', qty: '1', rate: '0', amount: '0' }],
+    },
+  });
+
+  const { control, handleSubmit, setValue } = form;
+
+  const serviceOptions = useMemo(() => {
+    return services.map((s) => ({
+      value: String(s.id),
+      label: s.name,
+    }));
+  }, [services]);
+
+  const medicineOptions = useMemo(() => {
+    return medicines.map((m) => ({
+      value: String(m.id),
+      label: `${m.brand.name} ${m.name}`,
+    }));
+  }, [medicines]);
+
+  const {
+    fields: detailFields,
+    append: appendDetail,
+    remove: removeDetail,
+  } = useFieldArray({
+    control,
+    name: 'packageDetails',
+  });
+
+  const {
+    fields: medicineFields,
+    append: appendMedicine,
+    remove: removeMedicine,
+  } = useFieldArray({
+    control,
+    name: 'packageMedicines',
+  });
+
+  const watchedDetails = useWatch({ control, name: 'packageDetails' });
+  const watchedMedicines = useWatch({ control, name: 'packageMedicines' });
+
+  useEffect(() => {
+    const totalDetails = (watchedDetails || []).reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    const totalMedicines = (watchedMedicines || []).reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    const total = totalDetails + totalMedicines;
+    setValue('totalAmount', total.toFixed(2));
+  }, [watchedDetails, watchedMedicines, setValue]);
+
+  function updateDetailAmount(index: number, field: 'qty' | 'rate', value: string) {
+    const details = [...(watchedDetails || [])];
+    const row = details[index];
+    if (!row) return;
+
+    if (field === 'qty') row.qty = value;
+    if (field === 'rate') row.rate = value;
+
+    const qty = parseFloat(row.qty) || 0;
+    const rate = parseFloat(row.rate) || 0;
+    row.amount = (qty * rate).toFixed(2);
+
+    setValue(`packageDetails.${index}.qty`, row.qty);
+    setValue(`packageDetails.${index}.rate`, row.rate);
+    setValue(`packageDetails.${index}.amount`, row.amount);
+  }
+
+  function updateMedicineAmount(index: number, field: 'qty' | 'rate', value: string) {
+    const rows = [...(watchedMedicines || [])];
+    const row = rows[index];
+    if (!row) return;
+
+    if (field === 'qty') row.qty = value;
+    if (field === 'rate') row.rate = value;
+
+    const qty = parseFloat(row.qty) || 0;
+    const rate = parseFloat(row.rate) || 0;
+    row.amount = (qty * rate).toFixed(2);
+
+    setValue(`packageMedicines.${index}.qty`, row.qty);
+    setValue(`packageMedicines.${index}.rate`, row.rate);
+    setValue(`packageMedicines.${index}.amount`, row.amount);
+  }
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [servicesRes, medicinesRes] = await Promise.all([
+          apiGet('/api/services?perPage=1000'),
+          apiGet('/api/medicines?perPage=1000'),
+        ]);
+
+        setServices((servicesRes as any).data || []);
+        setMedicines((medicinesRes as any).data || []);
+      } catch (e) {
+        toast.error('Failed to load data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  async function onSubmit(values: PackagesFormValues) {
+    setSubmitting(true);
+
+    try {
+      const apiData = {
+        name: values.name.trim(),
+        totalAmount: parseFloat(values.totalAmount),
+        packageDetails: values.packageDetails.map((d) => ({
+          serviceId: parseInt(d.serviceId),
+          description: d.description || undefined,
+          qty: parseInt(d.qty),
+          rate: parseFloat(d.rate),
+          amount: parseFloat(d.amount),
+        })),
+        packageMedicines: values.packageMedicines.map((m) => ({
+          medicineId: parseInt(m.medicineId),
+          qty: parseInt(m.qty),
+          rate: parseFloat(m.rate),
+          amount: parseFloat(m.amount),
+        })),
+      };
+
+      if (mode === 'create') {
+        const res = await apiPost('/api/packages', apiData);
+        toast.success('Package created');
+        onSuccess?.(res);
+      } else if (mode === 'edit' && initial?.id) {
+        const res = await apiPatch('/api/packages', { id: initial.id, ...apiData });
+        toast.success('Package updated');
+        onSuccess?.(res);
+      }
+
+      router.push(redirectOnSuccess);
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (isLoading) {
+    return <div className='p-6'>Loading...</div>;
+  }
+
+  return (
+    <Form {...form}>
+      <form noValidate onSubmit={handleSubmit(onSubmit)}>
+        <AppCard>
+          <AppCard.Header>
+            <AppCard.Title>{isCreate ? 'Create Package' : 'Edit Package'}</AppCard.Title>
+            <AppCard.Description>
+              {isCreate ? 'Add a new package.' : 'Update package details.'}
+            </AppCard.Description>
+          </AppCard.Header>
+          <AppCard.Content className='space-y-6'>
+            <FormSection legend='Packages'>
+              <FormRow className='grid-cols-12 gap-6'>
+                <TextInput
+                  control={control}
+                  name='name'
+                  label='Package name'
+                  placeholder='Package name'
+                  required
+                  itemClassName='col-span-12'
+                />
+              </FormRow>
+            </FormSection>
+
+            <FormSection legend='Package Details'>
+              <div className='border rounded-lg overflow-hidden'>
+                <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
+                  <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    Service
+                  </div>
+                  <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    Description
+                  </div>
+                  <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    Qty
+                  </div>
+                  <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    Rate
+                  </div>
+                  <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground text-center'>
+                    Amount
+                  </div>
+                </div>
+
+                {detailFields.map((field, index) => (
+                  <div key={field.id} className='grid grid-cols-12 gap-0 border-b last:border-b-0 hover:bg-accent/50'>
+                    <div className='col-span-3 p-3 border-r'>
+                      <ComboboxInput
+                        control={control}
+                        name={`packageDetails.${index}.serviceId`}
+                        options={serviceOptions}
+                        placeholder='(Choose One)'
+                        required
+                        onChange={(value) => {
+                          if (!value) return;
+                          const serviceId = parseInt(value);
+                          const service = services.find((s) => s.id === serviceId);
+                          if (!service) return;
+                          setValue(
+                            `packageDetails.${index}.rate`,
+                            String(service.rate)
+                          );
+                          const qty = parseFloat(watchedDetails?.[index]?.qty || '1') || 0;
+                          setValue(
+                            `packageDetails.${index}.amount`,
+                            (qty * Number(service.rate)).toFixed(2)
+                          );
+                          const existingDesc = watchedDetails?.[index]?.description || '';
+                          if (!existingDesc && service.description) {
+                            setValue(
+                              `packageDetails.${index}.description`,
+                              service.description
+                            );
+                          }
+                        }}
+                      />
+                    </div>
+                    <div className='col-span-3 p-3 border-r'>
+                      <Controller
+                        control={control}
+                        name={`packageDetails.${index}.description`}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            placeholder=''
+                            className='w-full h-10 border'
+                            value={field.value || ''}
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className='col-span-2 p-3 border-r'>
+                      <Controller
+                        control={control}
+                        name={`packageDetails.${index}.qty`}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            type='number'
+                            min='1'
+                            placeholder='0'
+                            className='w-full h-10 border'
+                            value={field.value || ''}
+                            onChange={(e) => updateDetailAmount(index, 'qty', e.target.value)}
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className='col-span-2 p-3 border-r'>
+                      <Controller
+                        control={control}
+                        name={`packageDetails.${index}.rate`}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            type='number'
+                            step='0.01'
+                            min='0'
+                            placeholder='0.00'
+                            className='w-full h-10 border'
+                            value={field.value || ''}
+                            onChange={(e) =>
+                              updateDetailAmount(index, 'rate', e.target.value)
+                            }
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className='col-span-2 p-3 flex items-center gap-2'>
+                      <Input
+                        value={watchedDetails?.[index]?.amount || '0'}
+                        type='number'
+                        step='0.01'
+                        min='0'
+                        className='w-full h-10 border'
+                        disabled
+                        readOnly
+                      />
+                      {detailFields.length > 1 && (
+                        <AppButton
+                          type='button'
+                          variant='destructive'
+                          size='sm'
+                          onClick={() => removeDetail(index)}
+                          className='h-8 w-8 p-0'
+                        >
+                          <Trash2 className='h-4 w-4' />
+                        </AppButton>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className='mt-4'>
+                <AppButton
+                  type='button'
+                  variant='outline'
+                  onClick={() =>
+                    appendDetail({
+                      serviceId: '',
+                      description: '',
+                      qty: '1',
+                      rate: '0',
+                      amount: '0',
+                    })
+                  }
+                  className='gap-2'
+                >
+                  <Plus className='h-4 w-4' />
+                  Add
+                </AppButton>
+              </div>
+            </FormSection>
+
+            <FormSection legend='Package Medicines'>
+              <div className='border rounded-lg overflow-hidden'>
+                <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
+                  <div className='col-span-4 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    Medicine
+                  </div>
+                  <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    Qty
+                  </div>
+                  <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    Rate
+                  </div>
+                  <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground text-center'>
+                    Amount
+                  </div>
+                </div>
+
+                {medicineFields.map((field, index) => (
+                  <div key={field.id} className='grid grid-cols-12 gap-0 border-b last:border-b-0 hover:bg-accent/50'>
+                    <div className='col-span-4 p-3 border-r'>
+                      <ComboboxInput
+                        control={control}
+                        name={`packageMedicines.${index}.medicineId`}
+                        options={medicineOptions}
+                        placeholder='(Choose One)'
+                        required
+                        onChange={(value) => {
+                          if (!value) return;
+                          const medicineId = parseInt(value);
+                          const medicine = medicines.find((m) => m.id === medicineId);
+                          if (!medicine) return;
+                          setValue(
+                            `packageMedicines.${index}.rate`,
+                            String(medicine.rate)
+                          );
+                          const qty = parseFloat(watchedMedicines?.[index]?.qty || '1') || 0;
+                          setValue(
+                            `packageMedicines.${index}.amount`,
+                            (qty * Number(medicine.rate)).toFixed(2)
+                          );
+                        }}
+                      />
+                    </div>
+                    <div className='col-span-3 p-3 border-r'>
+                      <Controller
+                        control={control}
+                        name={`packageMedicines.${index}.qty`}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            type='number'
+                            min='1'
+                            placeholder='0'
+                            className='w-full h-10 border'
+                            value={field.value || ''}
+                            onChange={(e) => updateMedicineAmount(index, 'qty', e.target.value)}
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className='col-span-3 p-3 border-r'>
+                      <Controller
+                        control={control}
+                        name={`packageMedicines.${index}.rate`}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            type='number'
+                            step='0.01'
+                            min='0'
+                            placeholder='0.00'
+                            className='w-full h-10 border'
+                            value={field.value || ''}
+                            onChange={(e) =>
+                              updateMedicineAmount(index, 'rate', e.target.value)
+                            }
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className='col-span-2 p-3 flex items-center gap-2'>
+                      <Input
+                        value={watchedMedicines?.[index]?.amount || '0'}
+                        type='number'
+                        step='0.01'
+                        min='0'
+                        className='w-full h-10 border'
+                        disabled
+                        readOnly
+                      />
+                      {medicineFields.length > 1 && (
+                        <AppButton
+                          type='button'
+                          variant='destructive'
+                          size='sm'
+                          onClick={() => removeMedicine(index)}
+                          className='h-8 w-8 p-0'
+                        >
+                          <Trash2 className='h-4 w-4' />
+                        </AppButton>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className='mt-4 flex items-start justify-between gap-4'>
+                <AppButton
+                  type='button'
+                  variant='outline'
+                  onClick={() =>
+                    appendMedicine({ medicineId: '', qty: '1', rate: '0', amount: '0' })
+                  }
+                  className='gap-2'
+                >
+                  <Plus className='h-4 w-4' />
+                  Add
+                </AppButton>
+
+                <div className='ml-auto w-full max-w-[260px]'>
+                  <div className='text-right text-sm text-muted-foreground'>Total Amount</div>
+                  <Input
+                    value={form.getValues('totalAmount') || '0.00'}
+                    type='number'
+                    step='0.01'
+                    min='0'
+                    className='mt-2 h-10 border text-right'
+                    disabled
+                    readOnly
+                  />
+                </div>
+              </div>
+            </FormSection>
+          </AppCard.Content>
+          <AppCard.Footer className='justify-end gap-2'>
+            <AppButton
+              type='button'
+              variant='secondary'
+              onClick={() => router.push(redirectOnSuccess)}
+              disabled={submitting}
+              iconName='X'
+            >
+              Cancel
+            </AppButton>
+            <AppButton
+              type='submit'
+              iconName={isCreate ? 'Plus' : 'Save'}
+              isLoading={submitting}
+              disabled={submitting || !form.formState.isValid}
+            >
+              {isCreate ? 'Submit' : 'Save Changes'}
+            </AppButton>
+          </AppCard.Footer>
+        </AppCard>
+      </form>
+    </Form>
+  );
+}
+
+export default PackageForm;
