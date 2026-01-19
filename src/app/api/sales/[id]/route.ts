@@ -5,18 +5,20 @@ import { Success, Error, BadRequest, NotFound } from '@/lib/api-response';
 import { guardApiAccess } from '@/lib/access-guard';
 import { updateSaleSchema, type UpdateSaleInput } from '@/lib/schemas/backend/sales';
 import { z } from 'zod';
+
 // GET /api/sales/:id
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const auth = await guardApiAccess(req);
   if (!auth.ok) return auth.response;
-  const id = parseInt(params.id);
-  if (isNaN(id)) return BadRequest('Invalid sale ID');
+  const { id } = await context.params;
+  const idNum = Number(id);
+  if (Number.isNaN(idNum)) return BadRequest('Invalid sale ID');
   try {
     const sale = await prisma.sale.findUnique({
-      where: { id },
+      where: { id: idNum },
       include: {
         franchise: {
           select: { id: true, name: true }
@@ -43,21 +45,23 @@ export async function GET(
     return Error('Failed to fetch sale');
   }
 }
+
 // PATCH /api/sales/:id
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const auth = await guardApiAccess(req);
   if (!auth.ok) return auth.response;
-  const id = parseInt(params.id);
-  if (isNaN(id)) return BadRequest('Invalid sale ID');
+  const { id } = await context.params;
+  const idNum = Number(id);
+  if (Number.isNaN(idNum)) return BadRequest('Invalid sale ID');
   try {
     const body = await req.json();
     const data = updateSaleSchema.parse(body) as UpdateSaleInput;
     // Check if sale exists
     const existingSale = await prisma.sale.findUnique({
-      where: { id },
+      where: { id: idNum },
       select: { id: true }
     });
     if (!existingSale) {
@@ -71,18 +75,18 @@ export async function PATCH(
       if (data.totalAmount !== undefined) updateData.totalAmount = data.totalAmount;
       // Update sale
       const sale = await prisma.sale.update({
-        where: { id },
+        where: { id: idNum },
         data: updateData
       });
       // Update sale details if provided
       if (data.saleDetails && data.saleDetails.length > 0) {
         // Delete existing sale details and create new ones
         await prisma.saleDetail.deleteMany({
-          where: { saleId: id }
+          where: { saleId: idNum }
         });
         await prisma.saleDetail.createMany({
           data: data.saleDetails.map(detail => ({
-            saleId: id,
+            saleId: idNum,
             medicineId: detail.medicineId!,
             quantity: detail.quantity!,
             rate: detail.rate!,
@@ -92,7 +96,7 @@ export async function PATCH(
       }
       // Return the updated sale with details
       return prisma.sale.findUnique({
-        where: { id },
+        where: { id: idNum },
         include: {
           saleDetails: {
             include: {
@@ -117,19 +121,21 @@ export async function PATCH(
     return Error('Failed to update sale');
   }
 }
+
 // DELETE /api/sales/:id
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const auth = await guardApiAccess(req);
   if (!auth.ok) return auth.response;
-  const id = parseInt(params.id);
-  if (isNaN(id)) return BadRequest('Invalid sale ID');
+  const { id } = await context.params;
+  const idNum = Number(id);
+  if (Number.isNaN(idNum)) return BadRequest('Invalid sale ID');
   try {
     // Check if sale exists
     const existingSale = await prisma.sale.findUnique({
-      where: { id },
+      where: { id: idNum },
       select: { id: true }
     });
     if (!existingSale) {
@@ -137,9 +143,9 @@ export async function DELETE(
     }
     // The onDelete: Cascade in the schema will handle deleting related saleDetails
     await prisma.sale.delete({
-      where: { id }
+      where: { id: idNum }
     });
-    return Success({ id });
+    return Success({ id: idNum });
   } catch (error) {
     console.error('Error deleting sale:', error);
     return Error('Failed to delete sale');

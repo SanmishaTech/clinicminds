@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { SalesForm } from '../../sales-form';
 import { SalesFormValues } from '@/lib/schemas/frontend/sales';
@@ -33,9 +33,13 @@ export default function EditSalePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
     const fetchSale = async () => {
       try {
-        const sale = await apiGet(`/api/sales/${params.id}`) as SaleApiResponse;
+        const sale = await apiGet(`/api/sales/${id}`) as SaleApiResponse;
         // Transform the API response to match the expected form data structure
         const transformedData: SalesFormValues = {
           invoiceNo: sale.invoiceNo,
@@ -58,12 +62,16 @@ export default function EditSalePage() {
     };
 
     fetchSale();
-  }, [params.id]);
+  }, [id]);
 
   if (loading) {
     return <div>Loading...</div>;
   }
 
-  return <SalesForm mode='edit' saleId={parseInt(params.id as string)} initialData={initialData} />;
+  if (!id) {
+    return <div className='p-6'>Invalid sale</div>;
+  }
+
+  return <SalesForm mode='edit' saleId={parseInt(id)} initialData={initialData} />;
 }
 
