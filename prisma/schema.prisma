@@ -28,6 +28,7 @@ model User {
   refreshTokens             RefreshToken[]
 
   franchise                  Franchise?
+  team                       Team?
 
   @@index([role])
   @@map("users")
@@ -284,9 +285,37 @@ model PatientSequence {
 model Room {
   id          Int      @id @default(autoincrement())
   name        String
-  description String?
+  description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("rooms")
 }
+
+model Team{
+  id            Int      @id @default(autoincrement())
+  name          String
+  joiningDate   DateTime?
+  leavingDate   DateTime?
+  addressLine1  String   @db.Text
+  addressLine2  String?  @db.Text
+  city          String
+  state         String
+  pincode       String
+  userMobile    String
+  userId        Int    @unique
+  user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([city])                    // For filtering by city
+  @@index([state])                   // For filtering by state
+  @@index([userMobile])              // For searching by user mobile
+  @@index([joiningDate])             // For sorting by joining date
+  @@index([leavingDate])             // For sorting by leaving date
+  @@index([createdAt])               // For sorting by creation date
+  @@index([userId])                  // For user relation queries
+  @@map("teams")
+}
+

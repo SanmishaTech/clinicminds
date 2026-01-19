@@ -159,6 +159,14 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
     },
   },
   {
+    prefix: "/api/teams",
+    methods: {
+      GET: [PERMISSIONS.READ_TEAMS],
+      POST: [PERMISSIONS.CREATE_TEAMS],
+      PATCH: [PERMISSIONS.EDIT_TEAMS],
+      DELETE: [PERMISSIONS.DELETE_TEAMS],
+    },
+  },
     prefix: "/api/packages",
     methods: {
       GET: [PERMISSIONS.READ_PACKAGES],

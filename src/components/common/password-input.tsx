@@ -32,7 +32,7 @@ export function PasswordInput({ control, name, label, description, placeholder, 
       control={control}
       name={name}
       render={({ field }) => (
-  <FormItem className={cn('col-span-12', spanClass)}>
+  <FormItem className={cn(spanClass)}>
           <FormLabel>
             {label}
             {required ? <span className="ml-0.5 text-destructive">*</span> : null}

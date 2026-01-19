@@ -94,6 +94,12 @@ export const NAV_ITEMS: NavItem[] = [
         permission: PERMISSIONS.VIEW_ROOMS,
       },
       {
+        title: "Teams",
+        href: "/teams",
+        icon: Users,
+        permission: PERMISSIONS.VIEW_TEAMS,
+      },
+      {
         title: "Packages",
         href: "/packages",
         icon: Package,
