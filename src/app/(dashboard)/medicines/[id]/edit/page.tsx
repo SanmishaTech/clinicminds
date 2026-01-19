@@ -1,60 +1,44 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import MedicineForm from '../../medicines-form';
 import { MedicineFormInitialData } from '../../medicines-form';
-import { useProtectPage } from '@/hooks/use-protect-page';
 import { apiGet } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { useState, useEffect } from 'react';
 
 export default function EditMedicinesPage() {
-  useProtectPage();
 
   const params = useParams<{ id?: string }>();
   const id = params?.id;
 
- const [initial, setInitial] = useState<MedicineFormInitialData | null>(null);
-  const [error, setError] = useState<Error | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+ const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [initial, setInitial] = useState<MedicineFormInitialData | null>(null);
   useEffect(() => {
-    if (!id) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchMedicine = async () => {
-      setIsLoading(true);
+    let mounted = true;
+    (async () => {
       try {
-        const medicineData = await apiGet<MedicineFormInitialData>(`/api/medicines/${id}`);
-        setInitial(medicineData);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err : new Error('Failed to load medicine'));
-        setInitial(null);
+        const data = await apiGet<MedicineFormInitialData>(`/api/medicines/${id}`);
+        if (!mounted) return;
+        setInitial(data);
+      } catch (e) {
+        toast.error((e as Error).message || 'Failed to load medicine');
+        router.push('/medicines');
       } finally {
-        setIsLoading(false);
+        if (mounted) setLoading(false);
       }
+    })();
+    return () => {
+      mounted = false;
     };
+  }, [id, router]);
 
-    fetchMedicine();
-  }, [id]);
-
-  if (error) {
-    toast.error('Failed to load medicine');
+  if (loading) {
+    return <div className='p-6'>Loading...</div>;
   }
 
-  if (isLoading) {return  <div className="flex items-center justify-center  min-h-[700px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-      </div>;}
-  if (!initial) return <div className='p-6'>Medicine not found</div>;
-
   return (
-    <MedicineForm
-      mode='edit'
-      initial={initial}
-      redirectOnSuccess='/medicines'
-    />
+    <MedicineForm mode='edit' initial={initial} redirectOnSuccess='/medicines' />
   );
 }

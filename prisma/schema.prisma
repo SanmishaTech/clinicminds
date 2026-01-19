@@ -126,12 +126,52 @@ model Medicine{
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  saleDetail SaleDetail[]
+
   @@index([name])                    // For searching by name
   @@index([brand])                   // For filtering by brand
   @@index([rate])                    // For sorting by rate
   @@index([mrp])                     // For sorting by mrp
   @@index([createdAt])                // For sorting by creation date
   @@map("medicines")
+}
+
+model Sale{
+  id          Int      @id @default(autoincrement())
+  invoiceNo   String
+  invoiceDate DateTime
+  franchiseId Int
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  saleDetails SaleDetail[]
+  totalAmount Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([invoiceNo])
+  @@index([franchiseId])             // For filtering by franchise
+  @@index([invoiceDate])             // For sorting/filtering by date
+  @@index([franchiseId, invoiceDate]) // Composite for franchise sales reports
+  @@index([createdAt])                // For recent sales
+  @@map("sales")
+}
+
+model SaleDetail{
+  id          Int      @id @default(autoincrement())
+  saleId      Int
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  medicineId  Int
+  medicine    Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  quantity    Int
+  rate        Decimal  @db.Decimal(10, 2)
+  amount      Decimal  @db.Decimal(10, 2)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([saleId])
+  @@index([medicineId])
+  @@index([saleId, medicineId])
+  @@map("sale_details")
 }
 
 model Patient {

@@ -10,6 +10,7 @@ import {
   MapPin,
   Stethoscope,
   Pill,
+  Receipt,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -81,7 +82,20 @@ export const NAV_ITEMS: NavItem[] = [
       },
     ],
   },
-
+    {
+    type: "group",
+    title: "Transactions",
+    icon: Receipt,
+    children: [
+        {   
+        title: "Sales",
+        href: "/sales",
+        icon: Receipt,
+        permission: PERMISSIONS.VIEW_SALES,
+        },
+    ],
+  },
+  
   {
     type: "group",
     title: "Settings",

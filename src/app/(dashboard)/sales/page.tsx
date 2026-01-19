@@ -12,60 +12,89 @@ import { AppButton } from '@/components/common/app-button';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
-import { formatRelativeTime } from '@/lib/locales';
+import { formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { EditButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
 import Link from 'next/link';
 
-type MedicineListItem = {
+
+
+type SaleListItem = {
   id: number;
-  name: string;
-  brand: string;
-  rate: string;
-  mrp: string;
-  createdAt: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  totalAmount: number;
+  franchise: {
+    name: string;
+  };
+  _count: {
+    saleDetails: number;
+  };
 };
 
-type MedicinesResponse = {
-  data: MedicineListItem[];
+type SalesResponse = {
+  data: SaleListItem[];
   page: number;
   perPage: number;
   total: number;
   totalPages: number;
 };
 
-export default function MedicinesPage() {
+export default function SalesPage() {
   
   const [qp, setQp] = useQueryParamsState({
     page: 1,
     perPage: 10,
     search: '',
-    sort: 'name',
-    order: 'asc',
+    sort: 'invoiceDate',
+    order: 'desc',
+    startDate: '',
+    endDate: '',
   });
-  const { page, perPage, search, sort, order } =
+  const { page, perPage, search, sort, order, startDate, endDate } =
     (qp as unknown) as {
       page: number;
       perPage: number;
       search: string;
       sort: string;
       order: 'asc' | 'desc';
+      startDate: string;
+      endDate: string;
     };
 
   const [searchDraft, setSearchDraft] = useState(search);
+  const [startDateDraft, setStartDateDraft] = useState(startDate);
+  const [endDateDraft, setEndDateDraft] = useState(endDate);
 
-  useEffect(() => { setSearchDraft(search); }, [search]);
+  useEffect(() => { 
+    setSearchDraft(search);
+    setStartDateDraft(startDate);
+    setEndDateDraft(endDate);
+  }, [search, startDate, endDate]);
 
-  const filtersDirty = searchDraft !== search;
+  const filtersDirty = searchDraft !== search || 
+    startDateDraft !== startDate || endDateDraft !== endDate;
 
   function applyFilters() {
-    setQp({ page: 1, search: searchDraft.trim() });
+    setQp({ 
+      page: 1, 
+      search: searchDraft.trim(),
+      startDate: startDateDraft,
+      endDate: endDateDraft,
+    });
   }
 
   function resetFilters() {
     setSearchDraft('');
-    setQp({ page: 1, search: '' });
+    setStartDateDraft('');
+    setEndDateDraft('');
+    setQp({ 
+      page: 1, 
+      search: '',
+      startDate: '',
+      endDate: '',
+    });
   }
 
   const query = useMemo(() => {
@@ -75,15 +104,17 @@ export default function MedicinesPage() {
     if (search) sp.set('search', search);
     if (sort) sp.set('sort', sort);
     if (order) sp.set('order', order);
-    return `/api/medicines?${sp.toString()}`;
-  }, [page, perPage, search, sort, order]);
+    if (startDate) sp.set('startDate', startDate);
+    if (endDate) sp.set('endDate', endDate);
+    return `/api/sales?${sp.toString()}`;
+  }, [page, perPage, search, sort, order, startDate, endDate]);
 
-  const { data, error, isLoading, mutate } = useSWR<MedicinesResponse>(query, apiGet);
+  const { data, error, isLoading, mutate } = useSWR<SalesResponse>(query, apiGet);
 
   const { can } = usePermissions();
 
   if (error) {
-    toast.error((error as Error).message || 'Failed to load Medicines');
+    toast.error((error as Error).message || 'Failed to load Sales');
   }
 
   function toggleSort(field: string) {
@@ -94,20 +125,20 @@ export default function MedicinesPage() {
     }
   }
 
-  const columns: Column<MedicineListItem>[] = [
-    { key: 'name', header: 'Medicine', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
-    { key: 'brand', header: 'Brand', sortable: true, },
-    { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
-    { key: 'mrp', header: 'MRP', sortable: true, className: 'whitespace-nowrap' },
-    { key: 'createdAt', header: 'Created', sortable: true, className: 'whitespace-nowrap', cellClassName: 'text-muted-foreground whitespace-nowrap', accessor: (r) => formatRelativeTime(r.createdAt) },
+  const columns: Column<SaleListItem>[] = [
+    { key: 'invoiceNo', header: 'Invoice No', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
+    { key: 'invoiceDate', header: 'Date', sortable: true, className: 'whitespace-nowrap', cellClassName: 'whitespace-nowrap', accessor: (r) => new Date(r.invoiceDate).toLocaleDateString() },
+    { key: 'franchise', header: 'Franchise', sortable: false, accessor: (r) => r.franchise.name },
+    { key: 'totalAmount', header: 'Total Amount', sortable: true, className: 'whitespace-nowrap', accessor: (r) => formatIndianCurrency(r.totalAmount) },
+    { key: '_count', header: 'Items', sortable: false, accessor: (r) => r._count.saleDetails },
   ];
 
   const sortState: SortState = { field: sort, order };
 
   async function handleDelete(id: number) {
     try {
-      await apiDelete(`/api/medicines/${id}`);
-      toast.success('Medicine has been deleted');
+      await apiDelete(`/api/sales/${id}`);
+      toast.success('Sale has been deleted');
       await mutate();
     } catch (e) {
       toast.error((e as Error).message);
@@ -117,14 +148,18 @@ export default function MedicinesPage() {
   return (
     <AppCard>
       <AppCard.Header>
-        <AppCard.Title>Medicines</AppCard.Title>
-        <AppCard.Description>Manage Medicines</AppCard.Description>
-        {can(PERMISSIONS.CREATE_MEDICINES) && (
+        <AppCard.Title>Sales</AppCard.Title>
+        <AppCard.Description>Manage Sales</AppCard.Description>
+        {can(PERMISSIONS.CREATE_SALES) && (
           <AppCard.Action>
-            <Link href='/medicines/new'>
-              <AppButton size='sm' iconName='Plus' type='button'>
-                Add
-              </AppButton>
+            <Link href='/sales/new'>
+            <AppButton 
+              size='sm' 
+              iconName='Plus' 
+              type='button'
+            >
+              Add
+            </AppButton>
             </Link>
           </AppCard.Action>
         )}
@@ -132,10 +167,26 @@ export default function MedicinesPage() {
       <AppCard.Content>
         <FilterBar title='Search & Filter'>
           <NonFormTextInput
-            aria-label='Search medicines'
-            placeholder='Search medicines…'
+            aria-label='Search sales'
+            placeholder='Search invoice or franchise…'
             value={searchDraft}
             onChange={(e) => setSearchDraft(e.target.value)}
+            containerClassName='w-full'
+          />
+          <NonFormTextInput
+            type='date'
+            aria-label='Start date'
+            placeholder='Start date…'
+            value={startDateDraft}
+            onChange={(e) => setStartDateDraft(e.target.value)}
+            containerClassName='w-full'
+          />
+          <NonFormTextInput
+            type='date'
+            aria-label='End date'
+            placeholder='End date…'
+            value={endDateDraft}
+            onChange={(e) => setEndDateDraft(e.target.value)}
             containerClassName='w-full'
           />
           <AppButton
@@ -146,7 +197,7 @@ export default function MedicinesPage() {
           >
             Filter
           </AppButton>
-          {search && (
+          {(search || startDate || endDate) && (
             <AppButton
               variant='secondary'
               size='sm'
@@ -165,19 +216,22 @@ export default function MedicinesPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(row) => {
-            if (!can(PERMISSIONS.EDIT_MEDICINES) && !can(PERMISSIONS.DELETE_MEDICINES)) return null;
+            if (!can(PERMISSIONS.EDIT_SALES) && !can(PERMISSIONS.DELETE_SALES)) return null;
             return (
               <div className='flex items-center gap-1'>
-                {can(PERMISSIONS.EDIT_MEDICINES) && (
-                  <Link href={`/medicines/${row.id}/edit`}>
-                    <EditButton tooltip='Edit Medicine' aria-label='Edit Medicine' />
+                {can(PERMISSIONS.EDIT_SALES) && (
+                  <Link href={`/sales/${row.id}/edit`}>
+                  <EditButton 
+                    tooltip='Edit Sale' 
+                    aria-label='Edit Sale' 
+                  />
                   </Link>
                 )}
                 <DeleteButton
                   onDelete={() => handleDelete(row.id)}
-                  itemLabel='Medicine'
-                  title='Delete Medicine?'
-                  description={`This will permanently remove medicine "${row.name}". This action cannot be undone.`}
+                  itemLabel='Sale'
+                  title='Delete Sale?'
+                  description={`This will permanently remove sale "${row.invoiceNo}". This action cannot be undone.`}
                 />
               </div>
             );

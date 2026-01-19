@@ -28,6 +28,13 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/cities/", permissions: [PERMISSIONS.EDIT_CITIES] },
   { prefix: "/cities", permissions: [PERMISSIONS.READ_CITIES] },
 
+  { prefix: "/sales/new", permissions: [PERMISSIONS.CREATE_SALES] },
+  { prefix: "/sales/", permissions: [PERMISSIONS.EDIT_SALES] },
+  { prefix: "/sales", permissions: [PERMISSIONS.READ_SALES] },
+
+  { prefix: "/medicines/new", permissions: [PERMISSIONS.CREATE_MEDICINES] },
+  { prefix: "/medicines/", permissions: [PERMISSIONS.EDIT_MEDICINES] },
+  { prefix: "/medicines", permissions: [PERMISSIONS.READ_MEDICINES] },
   { prefix: "/services/new", permissions: [PERMISSIONS.CREATE_SERVICES] },
   { prefix: "/services/", permissions: [PERMISSIONS.EDIT_SERVICES] },
   { prefix: "/services", permissions: [PERMISSIONS.READ_SERVICES] },
@@ -98,6 +105,22 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       DELETE: [PERMISSIONS.DELETE_CITIES],
     },
   },
+  {
+    prefix: "/api/sales",
+    methods: {
+      GET: [PERMISSIONS.READ_SALES],
+      POST: [PERMISSIONS.CREATE_SALES],
+      PATCH: [PERMISSIONS.EDIT_SALES],
+      DELETE: [PERMISSIONS.DELETE_SALES],
+    },
+  },
+  {
+    prefix: "/api/medicines",
+    methods: {
+      GET: [PERMISSIONS.READ_MEDICINES],
+      POST: [PERMISSIONS.CREATE_MEDICINES],
+      PATCH: [PERMISSIONS.EDIT_MEDICINES],
+      DELETE: [PERMISSIONS.DELETE_MEDICINES],
 
   {
     prefix: "/api/services",
