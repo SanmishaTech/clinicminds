@@ -65,7 +65,7 @@ export function FranchiseForm({
   const [submitting, setSubmitting] = useState(false);
 
   const schema = z.object({
-    name: z.string().min(1, 'Franchise Name is required'),
+    name: z.string().trim().min(1, 'Franchise Name is required'),
     addressLine1: z.string().min(1, 'Address Line 1 is required'),
     addressLine2: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     stateId: z.string().min(1, 'State is required'),
@@ -74,7 +74,7 @@ export function FranchiseForm({
     contactNo: z.string().regex(/^[0-9]{10}$/, 'Contact No must be 10 digits'),
     contactEmail: z.string().email('Invalid contact email'),
 
-    userName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    userName: z.string().trim().min(1, 'Name is required'),
     userMobile: z.string().regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
     userEmail: z.string().email('Invalid email'),
     password: (mode === 'create'
@@ -109,7 +109,7 @@ export function FranchiseForm({
     },
   });
 
-  const { control, handleSubmit } = form;
+  const { control, handleSubmit, setError, clearErrors } = form;
   const statusValue = form.watch('status');
   const stateIdValue = form.watch('stateId');
   const cityIdValue = form.watch('cityId');
@@ -163,6 +163,7 @@ export function FranchiseForm({
   }, [mode, initial, statesResp, citiesResp, form]);
 
   async function onSubmit(values: RawFormValues) {
+    clearErrors(['name', 'userEmail']);
     setSubmitting(true);
     try {
       const stateLabel = stateOptions.find((s) => s.value === values.stateId)?.label || '';
@@ -179,7 +180,7 @@ export function FranchiseForm({
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
 
-          userName: values.userName || null,
+          userName: values.userName,
           userMobile: values.userMobile,
           userEmail: values.userEmail,
           password: values.password,
@@ -199,7 +200,7 @@ export function FranchiseForm({
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
 
-          userName: values.userName || null,
+          userName: values.userName,
           userMobile: values.userMobile,
           userEmail: values.userEmail,
           password: values.password || undefined,
@@ -210,6 +211,18 @@ export function FranchiseForm({
       }
       router.push(redirectOnSuccess);
     } catch (err) {
+      const e = err as Error & { status?: number };
+      if (e?.status === 409) {
+        const msg = e.message || '';
+        if (msg.toLowerCase().includes('franchise name')) {
+          setError('name', { type: 'server', message: msg || 'Franchise name already exists' }, { shouldFocus: true });
+          return;
+        }
+        if (msg.toLowerCase().includes('email')) {
+          setError('userEmail', { type: 'server', message: msg || 'Email already exists' }, { shouldFocus: true });
+          return;
+        }
+      }
       toast.error((err as Error).message || 'Failed');
     } finally {
       setSubmitting(false);
@@ -277,7 +290,7 @@ export function FranchiseForm({
 
             <FormSection legend='Login Details'>
               <FormRow>
-                <TextInput control={control} name='userName' label='Name' placeholder='Optional full name' />
+                <TextInput control={control} name='userName' label='Name' required placeholder='Enter Full name' />
               </FormRow>
               <FormRow cols={2}>
                 <TextInput
@@ -285,7 +298,7 @@ export function FranchiseForm({
                   name='userMobile'
                   label='Mobile'
                   required
-                  placeholder='Mobile number'
+                  placeholder='Enter Mobile number'
                   type='tel'
                   maxLength={10}
                   pattern='[0-9]{10}'

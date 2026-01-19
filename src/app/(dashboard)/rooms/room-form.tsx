@@ -39,7 +39,7 @@ export function RoomForm({
   const [submitting, setSubmitting] = useState(false);
 
   const schema = z.object({
-    name: z.string().min(1, 'Room name is required').max(255, 'Room name must be less than 255 characters'),
+    name: z.string().trim().min(1, 'Room name is required').max(255, 'Room name must be less than 255 characters'),
     description: z.string().optional().nullable().transform((v) => v === '' ? null : v),
   });
 
@@ -55,10 +55,11 @@ export function RoomForm({
     },
   });
 
-  const { control, handleSubmit } = form;
+  const { control, handleSubmit, setError, clearErrors } = form;
   const isCreate = mode === 'create';
 
   async function onSubmit(values: RawFormValues) {
+    clearErrors('name');
     setSubmitting(true);
     try {
       const payload = {
@@ -80,6 +81,11 @@ export function RoomForm({
       }
       router.push(redirectOnSuccess);
     } catch (err) {
+      const e = err as Error & { status?: number };
+      if (e?.status === 409) {
+        setError('name', { type: 'server', message: e.message || 'Room name already exists' }, { shouldFocus: true });
+        return;
+      }
       toast.error((err as Error).message || 'Failed');
     } finally {
       setSubmitting(false);

@@ -108,7 +108,7 @@ export function CityForm({ mode, initial, onSuccess, redirectOnSuccess = '/citie
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
             <FormSection legend='City Details'>
-              <FormRow cols={2}>
+              <FormRow cols={2} from='md'>
                 <ComboboxInput
                   control={control}
                   name='stateId'
@@ -119,7 +119,7 @@ export function CityForm({ mode, initial, onSuccess, redirectOnSuccess = '/citie
                   emptyText='No state found.'
                   required
                 />
-                <TextInput control={control} name='city' label='City' required placeholder='City name' />
+                <TextInput control={control} name='city' label='City' required placeholder='City name' span={1} spanFrom='md' />
               </FormRow>
             </FormSection>
           </AppCard.Content>

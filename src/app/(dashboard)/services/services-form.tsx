@@ -61,10 +61,11 @@ export function ServiceForm({
     },
   });
 
-  const { control, handleSubmit } = form;
+  const { control, handleSubmit, setError, clearErrors } = form;
   const isCreate = mode === 'create';
 
   async function onSubmit(values: RawFormValues) {
+    clearErrors('name');
     setSubmitting(true);
     const apiData = {
       ...values,
@@ -82,6 +83,11 @@ export function ServiceForm({
       }
       router.push(redirectOnSuccess);
     } catch (err) {
+      const e = err as Error & { status?: number };
+      if (e?.status === 409) {
+        setError('name', { type: 'server', message: e.message || 'Service name already exists' }, { shouldFocus: true });
+        return;
+      }
       console.log(err);
       toast.error((err as Error).message || 'Failed to save service');
     } finally {
@@ -101,11 +107,9 @@ export function ServiceForm({
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
             <FormSection legend='Service Details'>
-              <FormRow cols={1}>
-                <TextInput control={control} name='name' label='Service Name' required placeholder='Service name' />
-              </FormRow>
-              <FormRow cols={1}>
-                <TextInput control={control} name='rate' label='Rate' required placeholder='Rate' type='number' step='1' />
+              <FormRow cols={2} from='md'>
+                <TextInput control={control} name='name' label='Service Name' required placeholder='Service name' span={1} spanFrom='md' />
+                <TextInput control={control} name='rate' label='Rate' required placeholder='Rate' type='number' step='1' span={1} spanFrom='md' />
               </FormRow>
               <FormRow cols={1}>
                 <TextareaInput control={control} name='description' label='Description' placeholder='Description' rows={3} />

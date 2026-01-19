@@ -89,10 +89,11 @@ export function MedicineForm({
     fetchData();
   }, []);
 
-  const { control, handleSubmit } = form;
+  const { control, handleSubmit, setError, clearErrors } = form;
   const isCreate = mode === 'create';
 
   async function onSubmit(values: RawFormValues) {
+    clearErrors('name');
     setSubmitting(true);
     const apiData = {
       ...values,
@@ -112,6 +113,11 @@ export function MedicineForm({
       }
       router.push(redirectOnSuccess);
     } catch (err) {
+      const e = err as Error & { status?: number };
+      if (e?.status === 409) {
+        setError('name', { type: 'server', message: e.message || 'Medicine name already exists' }, { shouldFocus: true });
+        return;
+      }
       console.log(err);
       toast.error((err as Error).message || 'Failed to save medicine');
     } finally {
