@@ -150,6 +150,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
     },
   },
   {
+    prefix: "/api/rooms",
+    methods: {
+      GET: [PERMISSIONS.READ_ROOMS],
+      POST: [PERMISSIONS.CREATE_ROOMS],
+      PATCH: [PERMISSIONS.EDIT_ROOMS],
+      DELETE: [PERMISSIONS.DELETE_ROOMS],
+    },
+  },
+  {
     prefix: "/api/packages",
     methods: {
       GET: [PERMISSIONS.READ_PACKAGES],

@@ -88,6 +88,12 @@ export const NAV_ITEMS: NavItem[] = [
         permission: PERMISSIONS.VIEW_MEDICINES,
       },
       {
+        title: "Rooms",
+        href: "/rooms",
+        icon: Package,
+        permission: PERMISSIONS.VIEW_ROOMS,
+      },
+      {
         title: "Packages",
         href: "/packages",
         icon: Package,
