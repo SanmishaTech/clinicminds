@@ -54,6 +54,12 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const data = roomSchema.parse(body);
+
+    const existingRoomByName = await prisma.room.findFirst({
+      where: { name: data.name },
+      select: { id: true },
+    });
+    if (existingRoomByName) return Error('Room name already exists', 409);
    
     const room = await prisma.room.create({
       data: data as any
@@ -63,6 +69,8 @@ export async function POST(req: NextRequest) {
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);
     }
+    const err = error as { code?: string };
+    if (err?.code === 'P2002') return Error('Room name already exists', 409);
     console.error('Create room error:', error);
     return Error('Failed to create room');
   }
@@ -82,6 +90,14 @@ export async function PATCH(req: NextRequest) {
     }
     
     const parsedData = roomSchema.partial().parse(updateData);
+
+    if (typeof parsedData.name === 'string') {
+      const existingRoomByName = await prisma.room.findFirst({
+        where: { name: parsedData.name, NOT: { id: Number(id) } },
+        select: { id: true },
+      });
+      if (existingRoomByName) return Error('Room name already exists', 409);
+    }
     
     const room = await prisma.room.update({
       where: { id: Number(id) },
@@ -93,6 +109,9 @@ export async function PATCH(req: NextRequest) {
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);
     }
+    const err = error as { code?: string };
+    if (err?.code === 'P2025') return Error('Room not found', 404);
+    if (err?.code === 'P2002') return Error('Room name already exists', 409);
     console.error('Update room error:', error);
     return Error('Failed to update room');
   }

@@ -59,7 +59,7 @@ model Franchise {
   pincode      String
   contactNo    String
   contactEmail String
-
+   
   userMobile String
   userId     Int    @unique
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -109,6 +109,8 @@ model Service{
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  packageDetails PackageDetail[]
+
   @@index([name])                    // For searching by name
   @@index([rate])                    // For sorting by rate
   @@index([createdAt])                // For sorting by creation date
@@ -138,6 +140,7 @@ model Medicine{
   updatedAt   DateTime @updatedAt
 
   saleDetail SaleDetail[]
+  packageMedicines PackageMedicine[]
 
   @@index([name])                    // For searching by name
   @@index([brandId])                   // For filtering by brand
@@ -183,6 +186,54 @@ model SaleDetail{
   @@index([medicineId])
   @@index([saleId, medicineId])
   @@map("sale_details")
+}
+
+model Package {
+  id             Int              @id @default(autoincrement())
+  name           String           @unique
+  totalAmount    Decimal          @db.Decimal(10, 2)
+  packageDetails PackageDetail[]
+  packageMedicines PackageMedicine[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([name])
+  @@map("packages")
+}
+
+model PackageDetail {
+  id          Int      @id @default(autoincrement())
+  packageId   Int
+  package     Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  serviceId   Int
+  service     Service  @relation(fields: [serviceId], references: [id])
+  description String?  @db.Text
+  qty         Int
+  rate        Decimal  @db.Decimal(10, 2)
+  amount      Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([packageId])
+  @@index([serviceId])
+  @@map("package_details")
+}
+
+model PackageMedicine {
+  id        Int      @id @default(autoincrement())
+  packageId Int
+  package   Package  @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  medicineId Int
+  medicine  Medicine @relation(fields: [medicineId], references: [id])
+  qty       Int
+  rate      Decimal  @db.Decimal(10, 2)
+  amount    Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([packageId])
+  @@index([medicineId])
+  @@map("package_medicines")
 }
 
 model Patient {

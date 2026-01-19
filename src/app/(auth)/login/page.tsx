@@ -61,6 +61,7 @@ export default function LoginPage() {
 									control={form.control}
 									name='password'
 									label='Password'
+									placeholder='Enter password'
 									disabled={isLoading}
 								/>
 								<div className='flex items-center justify-between gap-4'>

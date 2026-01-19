@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
     pincode: string;
     contactNo: string;
     contactEmail: string;
-    userName: string | null;
+    userName: string;
     userMobile: string;
     userEmail: string;
     password: string;
@@ -126,6 +126,7 @@ export async function POST(req: NextRequest) {
   }>) || {};
 
   if (!name) return Error("Franchise Name is required", 400);
+  if (String(name).trim() === "") return Error("Franchise Name is required", 400);
   if (!addressLine1) return Error("Address Line 1 is required", 400);
   if (!city) return Error("City is required", 400);
   if (!state) return Error("State is required", 400);
@@ -133,19 +134,29 @@ export async function POST(req: NextRequest) {
   if (!contactNo) return Error("Contact No is required", 400);
   if (!contactEmail) return Error("Contact Email is required", 400);
 
+  if (!userName || String(userName).trim() === "") return Error("Name is required", 400);
+
   if (!userEmail || !password) return Error("Email & password required", 400);
   if (!userMobile) return Error("Mobile is required", 400);
   if (!/^[0-9]{10}$/.test(String(contactNo))) return Error("Contact No must be 10 digits", 400);
   if (!/^[0-9]{10}$/.test(String(userMobile))) return Error("Mobile must be 10 digits", 400);
   if (password.length < 6) return Error("Password must be at least 6 characters", 400);
 
+  const trimmedFranchiseName = String(name).trim();
+
   try {
+    const existingFranchiseByName = await prisma.franchise.findFirst({
+      where: { name: trimmedFranchiseName },
+      select: { id: true },
+    });
+    if (existingFranchiseByName) return Error("Franchise name already exists", 409);
+
     const passwordHash = await bcrypt.hash(password, 10);
 
     const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
-          name: userName || null,
+          name: String(userName).trim(),
           email: userEmail,
           passwordHash,
           role: "FRANCHISE",
@@ -161,7 +172,7 @@ export async function POST(req: NextRequest) {
 
       const franchise = await tx.franchise.create({
         data: {
-          name,
+          name: trimmedFranchiseName,
           addressLine1: addressLine1 || null,
           addressLine2: addressLine2 || null,
           city,
@@ -248,7 +259,7 @@ export async function PATCH(req: NextRequest) {
     pincode?: string;
     contactNo?: string;
     contactEmail?: string;
-    userName?: string | null;
+    userName?: string;
     userMobile?: string;
     userEmail?: string;
     password?: string;
@@ -258,7 +269,13 @@ export async function PATCH(req: NextRequest) {
   if (!id) return Error("Franchise id required", 400);
 
   const franchiseData: Record<string, unknown> = {};
-  if (typeof name === "string" && name) franchiseData.name = name;
+  let desiredFranchiseName: string | undefined;
+  if (typeof name === "string") {
+    const trimmed = name.trim();
+    if (trimmed === "") return Error("Franchise Name is required", 400);
+    desiredFranchiseName = trimmed;
+    franchiseData.name = trimmed;
+  }
   if (typeof addressLine1 === "string" || addressLine1 === null) {
     if (!addressLine1 || (typeof addressLine1 === "string" && addressLine1.trim() === "")) {
       return Error("Address Line 1 is required", 400);
@@ -280,7 +297,10 @@ export async function PATCH(req: NextRequest) {
   }
 
   const userData: Record<string, unknown> = {};
-  if (typeof userName === "string" || userName === null) userData.name = userName || null;
+  if (typeof userName === "string") {
+    if (userName.trim() === "") return Error("Name is required", 400);
+    userData.name = userName.trim();
+  }
   if (typeof userEmail === "string" && userEmail) userData.email = userEmail;
   if (typeof status === "boolean") userData.status = status;
   if (typeof password === "string" && password) {
@@ -296,6 +316,14 @@ export async function PATCH(req: NextRequest) {
   if (Object.keys(data).length === 0) return Error("Nothing to update", 400);
 
   try {
+    if (desiredFranchiseName) {
+      const existingFranchiseByName = await prisma.franchise.findFirst({
+        where: { name: desiredFranchiseName, NOT: { id: Number(id) } },
+        select: { id: true },
+      });
+      if (existingFranchiseByName) return Error("Franchise name already exists", 409);
+    }
+
     const updated = await prisma.franchise.update({
       where: { id: Number(id) },
       data,

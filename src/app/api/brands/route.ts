@@ -5,8 +5,6 @@ import { Success, Error } from '@/lib/api-response';
 import { guardApiAccess } from '@/lib/access-guard';
 import { paginate } from '@/lib/paginate';
 
-const brandModel = (prisma as any).brand;
-
 // GET /api/brands
 export async function GET(req: NextRequest) {
   const auth = await guardApiAccess(req);
@@ -30,7 +28,7 @@ export async function GET(req: NextRequest) {
   
   try {
     const result = await paginate({
-      model: brandModel,
+      model: prisma.brand,
       where,
       orderBy,
       page,
@@ -66,7 +64,7 @@ export async function POST(req: NextRequest) {
   if (String(name).trim().length > 100) return Error('Brand name must be less than 100 characters', 400);
 
   try {
-    const created = await brandModel.create({
+    const created = await prisma.brand.create({
       data: { name: String(name).trim() },
       select: {
         id: true,
@@ -110,7 +108,7 @@ export async function PATCH(req: NextRequest) {
   if (Object.keys(data).length === 0) return Error('Nothing to update', 400);
 
   try {
-    const updated = await brandModel.update({
+    const updated = await prisma.brand.update({
       where: { id: Number(id) },
       data,
       select: {

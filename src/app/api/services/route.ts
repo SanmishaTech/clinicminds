@@ -66,6 +66,8 @@ export async function POST(req: NextRequest) {
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);
     }
+    const err = error as { code?: string };
+    if (err?.code === 'P2002') return Error('Service name already exists', 409);
     console.error('Create service error:', error);
     return Error('Failed to create service');
   }

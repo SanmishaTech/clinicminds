@@ -45,17 +45,17 @@ export const NAV_ITEMS: NavItem[] = [
     title: "Master",
     icon: Building2,
     children: [
-         {
-        title: "Cities",
-        href: "/cities",
-        icon: MapPin,
-        permission: PERMISSIONS.VIEW_CITIES,
-      },
       {
         title: "States",
         href: "/states",
         icon: MapPin,
         permission: PERMISSIONS.VIEW_STATES,
+      },
+         {
+        title: "Cities",
+        href: "/cities",
+        icon: MapPin,
+        permission: PERMISSIONS.VIEW_CITIES,
       },
         {
         title: "Franchises",
@@ -98,7 +98,13 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/teams",
         icon: Users,
         permission: PERMISSIONS.VIEW_TEAMS,
-      }
+      },
+      {
+        title: "Packages",
+        href: "/packages",
+        icon: Package,
+        permission: PERMISSIONS.VIEW_PACKAGES,
+      },
     ],
   },
     {

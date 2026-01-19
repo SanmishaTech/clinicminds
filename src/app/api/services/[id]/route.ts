@@ -81,6 +81,8 @@ export async function PATCH(
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);
     }
+    const err = error as { code?: string };
+    if (err?.code === 'P2002') return Error('Service name already exists', 409);
     console.error('Error updating service:', error);
     return Error('Failed to update service');
   }
