@@ -17,7 +17,6 @@ import { useRouter } from 'next/navigation';
 export interface ServiceFormInitialData {
   id?: number;
   name?: string;
-  unit?: string;
   rate?: string;
   description?: string | null;
 }
@@ -31,7 +30,6 @@ export interface FormProps {
 
 export const serviceSchema = z.object({
     name: z.string().trim().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
-    unit: z.string().trim().min(1, 'Unit is required').max(255, 'Unit must be less than 255 characters'),
     rate: z.string().trim()
       .refine((val) => val && val.trim().length > 0, "Rate is required")
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Rate must be a valid positive number"),
@@ -58,7 +56,6 @@ export function ServiceForm({
     reValidateMode: 'onChange',
     defaultValues: {
       name: initial?.name || '',
-      unit: initial?.unit || '',
       rate: initial?.rate || '',
       description: initial?.description || '',
     },
@@ -107,8 +104,7 @@ export function ServiceForm({
               <FormRow cols={1}>
                 <TextInput control={control} name='name' label='Service Name' required placeholder='Service name' />
               </FormRow>
-              <FormRow cols={2}>
-                <TextInput control={control} name='unit' label='Unit' required placeholder='Unit' />
+              <FormRow cols={1}>
                 <TextInput control={control} name='rate' label='Rate' required placeholder='Rate' type='number' step='1' />
               </FormRow>
               <FormRow cols={1}>

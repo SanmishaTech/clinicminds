@@ -21,7 +21,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       const select = {
         id: true,
         name: true,
-        unit: true,
         rate: true,
         description: true,
         createdAt: true,
@@ -74,7 +73,7 @@ export async function PATCH(
 
     const updatedService = await prisma.service.update({
       where: { id: serviceId },
-      data,
+      data: data as any,
     });
 
     return Success(updatedService);

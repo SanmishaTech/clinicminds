@@ -6,6 +6,7 @@ import { guardApiAccess } from '@/lib/access-guard';
 import { z } from 'zod';
 import { paginate } from '@/lib/paginate';
 import { serviceSchema } from '@/lib/schemas/backend/services';
+
 // GET /api/services
 export async function GET(req: NextRequest) {
   const auth = await guardApiAccess(req);
@@ -16,14 +17,13 @@ export async function GET(req: NextRequest) {
   const perPage = Math.min(100, Math.max(1, Number(searchParams.get('perPage')) || 10));
   const sort = searchParams.get('sort') || 'name';
   const order = (searchParams.get('order') === 'desc' ? 'desc' : 'asc') as "asc" | "desc";
-  const sortable = new Set(["name", "unit", "rate", "createdAt", "updatedAt"]);
+  const sortable = new Set(["name", "rate", "createdAt", "updatedAt"]);
   const orderBy: Record<string, "asc" | "desc"> = sortable.has(sort) 
   ? { [sort]: order } 
   : { name: "asc" };
   const where = {
     OR: [
       { name: { contains: search } },
-      { unit: { contains: search } },
       { description: { contains: search } },
     ],
   };
@@ -37,7 +37,6 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         name: true,
-        unit: true,
         rate: true,
         description: true,
         createdAt: true,
@@ -50,6 +49,7 @@ export async function GET(req: NextRequest) {
     return Error('Failed to fetch services');
   }
 }
+
 // POST /api/services
 export async function POST(req: NextRequest) {
   const auth = await guardApiAccess(req);
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
     const data = serviceSchema.parse(body);
    
     const service = await prisma.service.create({
-      data: data
+      data: data as any
     });
     return Success(service, 201);
   } catch (error) {

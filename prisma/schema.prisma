@@ -104,14 +104,12 @@ model City {
 model Service{
   id          Int      @id @default(autoincrement())
   name        String   @unique
-  unit        String
   rate        Decimal  @db.Decimal(10, 2)
   description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([name])                    // For searching by name
-  @@index([unit])                    // For filtering by unit
   @@index([rate])                    // For sorting by rate
   @@index([createdAt])                // For sorting by creation date
   @@map("services")
