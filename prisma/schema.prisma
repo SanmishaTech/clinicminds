@@ -123,6 +123,8 @@ model Brand{
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  medicines Medicine[]
+
   @@index([name])
   @@map("brands")
 }

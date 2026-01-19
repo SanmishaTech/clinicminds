@@ -11,6 +11,7 @@ import {
   Stethoscope,
   Pill,
   Receipt,
+  Package,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -73,6 +74,12 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/services",
         icon: Stethoscope,
         permission: PERMISSIONS.VIEW_SERVICES,
+      },
+      {
+        title: "Brands",
+        href: "/brands",
+        icon: Package,
+        permission: PERMISSIONS.VIEW_BRANDS,
       },
         {
         title: "Medicines",

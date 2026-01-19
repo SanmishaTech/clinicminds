@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { Form } from '@/components/ui/form';
 import { z } from 'zod';
@@ -8,8 +8,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AppButton } from '@/components/common';
 import { AppCard } from '@/components/common/app-card';
 import { TextInput } from '@/components/common/text-input';
+import { ComboboxInput } from '@/components/common/combobox-input';
 import { FormSection, FormRow } from '@/components/common/app-form';
-import { apiPost, apiPatch } from '@/lib/api-client';
+import { apiPost, apiPatch, apiGet } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
 
@@ -17,6 +18,7 @@ import { useRouter } from 'next/navigation';
 export interface MedicineFormInitialData {
   id?: number;
   name?: string;
+  brandId?: string;
   brand?: string;
   rate?: string;
   mrp?: string;
@@ -31,7 +33,9 @@ export interface FormProps {
 
 export const medicineSchema = z.object({
     name: z.string().trim().min(1, 'Name is required').max(255, 'Name must be less than 255 characters'),
-    brand: z.string().trim().min(1, 'Brand is required').max(255, 'Brand must be less than 255 characters'),
+    brandId: z.string().refine(
+    (v) => !v || /^\d+$/.test(v), "Must be a valid number"
+  ).refine((v) => v && v.trim().length > 0, "Brand is required"),
     rate: z.string().trim()
       .refine((val) => val && val.trim().length > 0, "Rate is required")
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Rate must be a valid positive number"),
@@ -49,20 +53,41 @@ export function MedicineForm({
 }: FormProps) {
  
   const router = useRouter();
-  
   const [submitting, setSubmitting] = useState(false);
- type RawFormValues = z.infer<typeof medicineSchema>;
+  const [brands, setBrands] = useState<{ id: number; name: string }[]>([]);
+  
+  const brandOptions = useMemo(() => {
+    return brands.map((brand) => ({
+      value: brand.id.toString(),
+      label: brand.name
+    }));
+  }, [brands]);
+  
+  type RawFormValues = z.infer<typeof medicineSchema>;
   const form = useForm<RawFormValues>({
     resolver: zodResolver(medicineSchema),
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
       name: initial?.name || '',
-      brand: initial?.brand || '',
+      brandId: initial?.brandId?.toString() || '',
       rate: initial?.rate || '',
       mrp: initial?.mrp || '',
     } 
   });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const brandsRes = await apiGet('/api/brands?perPage=1000');
+        setBrands((brandsRes as any).data || []);
+      } catch (error) {
+        console.error('Failed to load brands:', error);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const { control, handleSubmit } = form;
   const isCreate = mode === 'create';
@@ -71,6 +96,7 @@ export function MedicineForm({
     setSubmitting(true);
     const apiData = {
       ...values,
+      brandId: parseInt(values.brandId),
       rate: parseFloat(values.rate),
       mrp: parseFloat(values.mrp),
     };
@@ -112,14 +138,16 @@ export function MedicineForm({
                   required
                   itemClassName='col-span-12 md:col-span-6'
                 />
-                 <TextInput
+                 <ComboboxInput
                   control={control}
-                  name='brand'
+                  name='brandId'
                   label='Brand'
-                  placeholder='Brand'
+                  placeholder='Select brand'
+                  searchPlaceholder='Search brands...'
+                  emptyText='No brand found.'
+                  options={brandOptions}
                   required
-                  type='text'
-                  itemClassName='col-span-12 md:col-span-6'
+                  className='col-span-12 md:col-span-6'
                 />
               </FormRow>
               <FormRow className='grid-cols-12'>

@@ -38,6 +38,10 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/services/new", permissions: [PERMISSIONS.CREATE_SERVICES] },
   { prefix: "/services/", permissions: [PERMISSIONS.EDIT_SERVICES] },
   { prefix: "/services", permissions: [PERMISSIONS.READ_SERVICES] },
+
+  { prefix: "/brands/new", permissions: [PERMISSIONS.CREATE_BRANDS] },
+  { prefix: "/brands/", permissions: [PERMISSIONS.EDIT_BRANDS] },
+  { prefix: "/brands", permissions: [PERMISSIONS.READ_BRANDS] },
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -121,7 +125,8 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.CREATE_MEDICINES],
       PATCH: [PERMISSIONS.EDIT_MEDICINES],
       DELETE: [PERMISSIONS.DELETE_MEDICINES],
-
+    },
+  },
   {
     prefix: "/api/services",
     methods: {
@@ -129,6 +134,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.CREATE_SERVICES],
       PATCH: [PERMISSIONS.EDIT_SERVICES],
       DELETE: [PERMISSIONS.DELETE_SERVICES],
+    },
+  },
+  {
+    prefix: "/api/brands",
+    methods: {
+      GET: [PERMISSIONS.READ_BRANDS],
+      POST: [PERMISSIONS.CREATE_BRANDS],
+      PATCH: [PERMISSIONS.EDIT_BRANDS],
+      DELETE: [PERMISSIONS.DELETE_BRANDS],
     },
   },
 ];
