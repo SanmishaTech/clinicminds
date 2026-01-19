@@ -229,3 +229,13 @@ model PatientSequence {
 
   @@map("patient_sequences")
 }
+
+model Room {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("rooms")
+}

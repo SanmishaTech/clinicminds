@@ -145,6 +145,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       DELETE: [PERMISSIONS.DELETE_BRANDS],
     },
   },
+  {
+    prefix: "/api/rooms",
+    methods: {
+      GET: [PERMISSIONS.READ_ROOMS],
+      POST: [PERMISSIONS.CREATE_ROOMS],
+      PATCH: [PERMISSIONS.EDIT_ROOMS],
+      DELETE: [PERMISSIONS.DELETE_ROOMS],
+    },
+  },
 ];
 
 export type AccessRuleMatch = {
