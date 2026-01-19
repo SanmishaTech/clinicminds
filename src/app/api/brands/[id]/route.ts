@@ -1,10 +1,11 @@
 // src/app/api/brands/[id]/route.ts
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Success, Error, BadRequest, NotFound } from '@/lib/api-response';
+import { Success, Error } from '@/lib/api-response';
 import { guardApiAccess } from '@/lib/access-guard';
-import { brandUpdateSchema } from '@/lib/schemas/backend/brands';
-import { z } from 'zod';
+
+const brandModel = (prisma as any).brand;
+const medicineModel = (prisma as any).medicine;
 
 // GET /api/brands/[id]
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -13,10 +14,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
   const { id } = await context.params;
   const idNum = Number(id);
-  if (Number.isNaN(idNum)) return BadRequest('Invalid ID format');
+  if (Number.isNaN(idNum)) return Error('Invalid id', 400);
   
   try {
-    const brand = await prisma.brand.findUnique({
+    const brand = await brandModel.findUnique({
       where: { id: idNum },
       select: {
         id: true,
@@ -26,45 +27,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       }
     });
     
-    if (!brand) {
-      return NotFound('Brand not found');
-    }
+    if (!brand) return Error('Brand not found', 404);
     
     return Success(brand);
   } catch (error) {
     console.error('Error fetching brand:', error);
     return Error('Failed to fetch brand');
-  }
-}
-
-// PATCH /api/brands/[id]
-export async function PATCH(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const auth = await guardApiAccess(req);
-  if (auth.ok === false) return auth.response;
-
-  const { id } = await context.params;
-  const idNum = Number(id);
-  if (Number.isNaN(idNum)) return BadRequest('Invalid ID format');
-  
-  try {
-    const body = await req.json();
-    const data = brandUpdateSchema.parse(body);
-    
-    const brand = await prisma.brand.update({
-      where: { id: idNum },
-      data
-    });
-    
-    return Success(brand);
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return BadRequest(error.errors);
-    }
-    if (error.code === 'P2025') {
-      return NotFound('Brand not found');
-    }
-    console.error('Update brand error:', error);
-    return Error('Failed to update brand');
   }
 }
 
@@ -75,28 +43,23 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
 
   const { id } = await context.params;
   const idNum = Number(id);
-  if (Number.isNaN(idNum)) return BadRequest('Invalid ID format');
+  if (Number.isNaN(idNum)) return Error('Invalid id', 400);
   
   try {
     // Check if brand is being used by any medicines
-    const medicineCount = await prisma.medicine.count({
-      where: { brandId: idNum }
-    });
+    const medicineCount = await medicineModel.count({ where: { brandId: idNum } });
     
     if (medicineCount > 0) {
-      return BadRequest(`Cannot delete brand: ${medicineCount} medicine(s) are associated with this brand`);
+      return Error(`Cannot delete brand: ${medicineCount} medicine(s) are associated with this brand`, 400);
     }
     
-    await prisma.brand.delete({
-      where: { id: idNum }
-    });
+    await brandModel.delete({ where: { id: idNum } });
     
-    return Success({ message: 'Brand deleted successfully' });
-  } catch (error) {
-    if (error.code === 'P2025') {
-      return NotFound('Brand not found');
-    }
-    console.error('Delete brand error:', error);
+    return Success({ id: idNum }, 200);
+  } catch (e: unknown) {
+    const err = e as { code?: string };
+    if (err?.code === 'P2025') return Error('Brand not found', 404);
+    console.error('Delete brand error:', e);
     return Error('Failed to delete brand');
   }
 }

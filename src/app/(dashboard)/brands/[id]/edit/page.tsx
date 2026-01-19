@@ -18,11 +18,13 @@ export default function EditBrandPage() {
     let mounted = true;
     (async () => {
       try {
-        const data = await apiGet(`/api/brands/${id}`) as BrandFormInitialData;
-        if (!mounted) return;
-        setInitial(data);
-      } catch (error) {
-        toast.error('Failed to load brand');
+        const data = await apiGet<{ id: number; name: string }>(`/api/brands/${id}`);
+        setInitial({
+          id: data.id,
+          name: data.name,
+        });
+      } catch (e) {
+        toast.error((e as Error).message || 'Failed to load brand');
         router.push('/brands');
       } finally {
         if (mounted) setLoading(false);
@@ -32,14 +34,10 @@ export default function EditBrandPage() {
   }, [id, router]);
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className='p-6'>Loading...</div>;
   }
 
   return (
-    <BrandForm
-      mode="edit"
-      initial={initial}
-      redirectOnSuccess="/brands"
-    />
+    <BrandForm mode='edit' initial={initial} />
   );
 }

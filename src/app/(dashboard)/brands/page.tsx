@@ -79,7 +79,7 @@ export default function BrandsPage() {
   const { can } = usePermissions();
 
   if (error) {
-    toast.error((error as Error).message || 'Failed to load Brands');
+    toast.error((error as Error).message || 'Failed to load brands');
   }
 
   function toggleSort(field: string) {
@@ -166,12 +166,14 @@ export default function BrandsPage() {
                     <EditButton tooltip='Edit Brand' aria-label='Edit Brand' />
                   </Link>
                 )}
-                <DeleteButton
-                  onDelete={() => handleDelete(row.id)}
-                  itemLabel='Brand'
-                  title='Delete Brand?'
-                  description={`This will permanently remove brand "${row.name}". This action cannot be undone.`}
-                />
+                {can(PERMISSIONS.DELETE_BRANDS) && (
+                  <DeleteButton
+                    onDelete={() => handleDelete(row.id)}
+                    itemLabel='brand'
+                    title='Delete brand?'
+                    description={`This will permanently remove brand "${row.name}". This action cannot be undone.`}
+                  />
+                )}
               </div>
             );
           }}

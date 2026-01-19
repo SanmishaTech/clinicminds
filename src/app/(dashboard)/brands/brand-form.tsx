@@ -59,13 +59,12 @@ export function BrandForm({
         toast.success('Brand has been added');
         onSuccess?.(res);
       } else if (mode === 'edit' && initial?.id) {
-        const res = await apiPatch(`/api/brands/${initial.id}`, values);
+        const res = await apiPatch('/api/brands', { id: initial.id, ...values });
         toast.success('Brand details have been updated');
         onSuccess?.(res);
       }
       router.push(redirectOnSuccess);
     } catch (err) {
-      console.log(err);
       toast.error((err as Error).message || 'Failed to save brand');
     } finally {
       setSubmitting(false);
