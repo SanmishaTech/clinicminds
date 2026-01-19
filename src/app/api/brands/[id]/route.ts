@@ -4,9 +4,6 @@ import { prisma } from '@/lib/prisma';
 import { Success, Error } from '@/lib/api-response';
 import { guardApiAccess } from '@/lib/access-guard';
 
-const brandModel = (prisma as any).brand;
-const medicineModel = (prisma as any).medicine;
-
 // GET /api/brands/[id]
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const auth = await guardApiAccess(req);
@@ -17,7 +14,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   if (Number.isNaN(idNum)) return Error('Invalid id', 400);
   
   try {
-    const brand = await brandModel.findUnique({
+    const brand = await prisma.brand.findUnique({
       where: { id: idNum },
       select: {
         id: true,
@@ -47,13 +44,13 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   
   try {
     // Check if brand is being used by any medicines
-    const medicineCount = await medicineModel.count({ where: { brandId: idNum } });
+    const medicineCount = await prisma.medicine.count({ where: { brandId: idNum } });
     
     if (medicineCount > 0) {
       return Error(`Cannot delete brand: ${medicineCount} medicine(s) are associated with this brand`, 400);
     }
     
-    await brandModel.delete({ where: { id: idNum } });
+    await prisma.brand.delete({ where: { id: idNum } });
     
     return Success({ id: idNum }, 200);
   } catch (e: unknown) {
