@@ -2,7 +2,7 @@ import z from "zod";
 
 export const medicineSchema = z.object({
     name: z.string(),
-    brand: z.string(),
+    brandId: z.number(),
     rate: z.number(),
     mrp: z.number(),
 });

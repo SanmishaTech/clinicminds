@@ -21,7 +21,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       const select = {
         id: true,
         name: true,
-        brand: true,
+        brandId: true,
+        brand: {
+          select: {
+            name: true,
+          }
+        },
         rate: true,
         mrp: true,
         createdAt: true,

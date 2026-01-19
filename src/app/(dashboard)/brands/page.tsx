@@ -18,27 +18,21 @@ import { EditButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
 import Link from 'next/link';
 
-type MedicineListItem = {
+type BrandListItem = {
   id: number;
   name: string;
-  brand: {
-    name: string;
-  };
-  rate: string;
-  mrp: string;
   createdAt: string;
 };
 
-type MedicinesResponse = {
-  data: MedicineListItem[];
+type BrandsResponse = {
+  data: BrandListItem[];
   page: number;
   perPage: number;
   total: number;
   totalPages: number;
 };
 
-export default function MedicinesPage() {
-  
+export default function BrandsPage() {
   const [qp, setQp] = useQueryParamsState({
     page: 1,
     perPage: 10,
@@ -77,15 +71,15 @@ export default function MedicinesPage() {
     if (search) sp.set('search', search);
     if (sort) sp.set('sort', sort);
     if (order) sp.set('order', order);
-    return `/api/medicines?${sp.toString()}`;
+    return `/api/brands?${sp.toString()}`;
   }, [page, perPage, search, sort, order]);
 
-  const { data, error, isLoading, mutate } = useSWR<MedicinesResponse>(query, apiGet);
+  const { data, error, isLoading, mutate } = useSWR<BrandsResponse>(query, apiGet);
 
   const { can } = usePermissions();
 
   if (error) {
-    toast.error((error as Error).message || 'Failed to load Medicines');
+    toast.error((error as Error).message || 'Failed to load Brands');
   }
 
   function toggleSort(field: string) {
@@ -96,11 +90,8 @@ export default function MedicinesPage() {
     }
   }
 
-  const columns: Column<MedicineListItem>[] = [
-    { key: 'name', header: 'Medicine', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
-    { key: 'brand', header: 'Brand', sortable: true, accessor: (r) => r.brand?.name || '-' },
-    { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
-    { key: 'mrp', header: 'MRP', sortable: true, className: 'whitespace-nowrap' },
+  const columns: Column<BrandListItem>[] = [
+    { key: 'name', header: 'Brand Name', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
     { key: 'createdAt', header: 'Created', sortable: true, className: 'whitespace-nowrap', cellClassName: 'text-muted-foreground whitespace-nowrap', accessor: (r) => formatRelativeTime(r.createdAt) },
   ];
 
@@ -108,8 +99,8 @@ export default function MedicinesPage() {
 
   async function handleDelete(id: number) {
     try {
-      await apiDelete(`/api/medicines/${id}`);
-      toast.success('Medicine has been deleted');
+      await apiDelete(`/api/brands/${id}`);
+      toast.success('Brand has been deleted');
       await mutate();
     } catch (e) {
       toast.error((e as Error).message);
@@ -119,11 +110,11 @@ export default function MedicinesPage() {
   return (
     <AppCard>
       <AppCard.Header>
-        <AppCard.Title>Medicines</AppCard.Title>
-        <AppCard.Description>Manage Medicines</AppCard.Description>
-        {can(PERMISSIONS.CREATE_MEDICINES) && (
+        <AppCard.Title>Brands</AppCard.Title>
+        <AppCard.Description>Manage Brands</AppCard.Description>
+        {can(PERMISSIONS.CREATE_BRANDS) && (
           <AppCard.Action>
-            <Link href='/medicines/new'>
+            <Link href='/brands/new'>
               <AppButton size='sm' iconName='Plus' type='button'>
                 Add
               </AppButton>
@@ -134,8 +125,8 @@ export default function MedicinesPage() {
       <AppCard.Content>
         <FilterBar title='Search & Filter'>
           <NonFormTextInput
-            aria-label='Search medicines'
-            placeholder='Search medicines…'
+            aria-label='Search brands'
+            placeholder='Search brands…'
             value={searchDraft}
             onChange={(e) => setSearchDraft(e.target.value)}
             containerClassName='w-full'
@@ -167,19 +158,19 @@ export default function MedicinesPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(row) => {
-            if (!can(PERMISSIONS.EDIT_MEDICINES) && !can(PERMISSIONS.DELETE_MEDICINES)) return null;
+            if (!can(PERMISSIONS.EDIT_BRANDS) && !can(PERMISSIONS.DELETE_BRANDS)) return null;
             return (
-              <div className='flex items-center gap-1'>
-                {can(PERMISSIONS.EDIT_MEDICINES) && (
-                  <Link href={`/medicines/${row.id}/edit`}>
-                    <EditButton tooltip='Edit Medicine' aria-label='Edit Medicine' />
+              <div className='flex'>
+                {can(PERMISSIONS.EDIT_BRANDS) && (
+                  <Link href={`/brands/${row.id}/edit`}>
+                    <EditButton tooltip='Edit Brand' aria-label='Edit Brand' />
                   </Link>
                 )}
                 <DeleteButton
                   onDelete={() => handleDelete(row.id)}
-                  itemLabel='Medicine'
-                  title='Delete Medicine?'
-                  description={`This will permanently remove medicine "${row.name}". This action cannot be undone.`}
+                  itemLabel='Brand'
+                  title='Delete Brand?'
+                  description={`This will permanently remove brand "${row.name}". This action cannot be undone.`}
                 />
               </div>
             );
