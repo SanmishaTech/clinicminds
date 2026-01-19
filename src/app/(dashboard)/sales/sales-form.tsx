@@ -50,7 +50,9 @@ export type SaleFormInitialData = {
 type Medicine = {
   id: number;
   name: string;
-  brand: string;
+  brand: {
+    name: string
+  };
   rate: number;
   mrp: number;
 };
@@ -71,7 +73,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [franchises, setFranchises] = useState<Franchise[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const schema = salesFormSchema;
   
@@ -115,7 +117,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   const medicineOptions = useMemo(() => {
     return medicines.map((medicine) => ({
       value: String(medicine.id),
-      label: `${medicine.name} (${medicine.brand})`
+      label: `${medicine.brand.name} ${medicine.name}`
     }));
   }, [medicines]);
 
@@ -177,7 +179,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   }, []);
 
   const onSubmit = async (data: SalesFormValues) => {
-    setIsSubmitting(true);
+    setSubmitting(true);
     try {
       // Convert string values to numbers for API
       const apiData = {
@@ -203,7 +205,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
-      setIsSubmitting(false);
+      setSubmitting(false);
     }
   };
 
@@ -238,6 +240,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                 name="invoiceDate"
                 label="Invoice Date"
                 type="date"
+                required
                 itemClassName="col-span-12 md:col-span-6"
               />
             </FormRow>
@@ -248,6 +251,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                   name="franchiseId"
                   label="Franchise"
                   options={franchiseOptions}
+                  required
                   placeholder="Select franchise"
                 />
               </div>
@@ -288,6 +292,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                       name={`saleDetails.${index}.medicineId`}
                       options={medicineOptions}
                       placeholder="Select medicine"
+                      required
                       onChange={(value) => {
                         // When medicine is selected, override rate for this specific index
                         if (value) {
@@ -420,12 +425,14 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
           >
             Cancel
           </AppButton>
-          <AppButton
-            type="submit"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? 'Saving...' : (!isCreate ? 'Update Sale' : 'Create Sale')}
-          </AppButton>
+         <AppButton
+              type='submit'
+              iconName={isCreate ? 'Plus' : 'Save'}
+              isLoading={submitting}
+              disabled={submitting || !form.formState.isValid}
+            >
+              {isCreate ? 'Create Sale' : 'Update Sale'}
+            </AppButton>
         </AppCard.Footer>
       </AppCard>
     </form>
