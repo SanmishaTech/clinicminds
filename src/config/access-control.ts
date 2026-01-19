@@ -167,6 +167,7 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       DELETE: [PERMISSIONS.DELETE_TEAMS],
     },
   },
+  {
     prefix: "/api/packages",
     methods: {
       GET: [PERMISSIONS.READ_PACKAGES],

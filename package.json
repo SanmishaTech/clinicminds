@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:turbo": "next dev --turbopack",
+    "prebuild": "prisma generate",
     "build": "next build",
     "build:turbo": "next build --turbopack",
     "start": "next start",
@@ -13,7 +14,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "gen:jwt-secret": "node scripts/generate-jwt-secret.mjs"
+    "gen:jwt-secret": "node scripts/generate-jwt-secret.mjs",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
