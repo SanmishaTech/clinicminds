@@ -121,7 +121,8 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.CREATE_MEDICINES],
       PATCH: [PERMISSIONS.EDIT_MEDICINES],
       DELETE: [PERMISSIONS.DELETE_MEDICINES],
-
+    },
+  },
   {
     prefix: "/api/services",
     methods: {

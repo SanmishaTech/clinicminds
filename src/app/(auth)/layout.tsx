@@ -7,7 +7,7 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const appName = process.env.NEXT_PUBLIC_APP_NAME || "My App";
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || "ClinicMinds";
   const appDescription = process.env.NEXT_PUBLIC_APP_DESCRIPTION || "Please sign in to your account and start the adventure";
 
   return (

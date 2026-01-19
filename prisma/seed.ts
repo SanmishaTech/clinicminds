@@ -29,8 +29,8 @@ async function main() {
   ) {
     const created: { id: number; email: string; role: string }[] = [];
     for (let i = 1; i <= count; i++) {
-      const email = `${prefix}${i}@demo.com`;
-      const name = `${ROLES[roleCode]} ${i}`;
+      const email = count === 1 ? `${prefix}@demo.com` : `${prefix}${i}@demo.com`;
+      const name = count === 1 ? `${ROLES[roleCode]}` : `${ROLES[roleCode]} ${i}`;
       const user = await upsertUser(email, roleCode, name, passwordHash);
       // For all users except ADMIN, ensure an Employee row linked to this user exists
       if (roleCode !== "ADMIN") {
@@ -48,7 +48,6 @@ async function main() {
   // Required counts
   const admins = await seedRoleBatch("ADMIN", 1, "admin");
   await seedRoleBatch("FRANCHISE", 1, "franchise");
-  await seedRoleBatch("DOCTOR", 1, "doctor");
   // const siteAdmins = await seedRoleBatch("SITE_ADMIN", 2, "siteadmin");
   // const projectManagers = await seedRoleBatch("PROJECT_MANAGER", 2, "pm");
   // const projectDirectors = await seedRoleBatch("PROJECT_DIRECTOR", 1, "pd");

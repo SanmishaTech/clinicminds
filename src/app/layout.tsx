@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: process.env.NEXT_PUBLIC_APP_NAME ?? "Mothercare",
-  description: process.env.NEXT_PUBLIC_APP_DESCRIPTION ?? "Mothercare"
+  title: process.env.NEXT_PUBLIC_APP_NAME ?? "ClinicMinds",
+  description: process.env.NEXT_PUBLIC_APP_DESCRIPTION ?? "ClinicMinds"
 };
 
 export default function RootLayout({

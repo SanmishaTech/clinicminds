@@ -351,7 +351,7 @@ export function Sidebar({
             <Building2 className="h-4 w-4" />
           </span>
           <span className="truncate text-sm font-semibold tracking-tight">
-            {process.env.NEXT_PUBLIC_APP_NAME || "Mothercare"}
+            {process.env.NEXT_PUBLIC_APP_NAME || "ClinicMinds"}
           </span>
         </Link>
         <div className="ml-auto">
