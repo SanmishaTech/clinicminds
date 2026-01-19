@@ -58,7 +58,6 @@ model Franchise {
   pincode      String
   contactNo    String
   contactEmail String
-  logoUrl      String?
 
   userMobile String
   userId     Int    @unique

@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { Form } from '@/components/ui/form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AppButton, EmailInput, PasswordInput, ImprovedUploadInput } from '@/components/common';
+import { AppButton, EmailInput, PasswordInput } from '@/components/common';
 import { AppCheckbox } from '@/components/common/app-checkbox';
 import { AppCard } from '@/components/common/app-card';
 import { TextInput } from '@/components/common/text-input';
@@ -42,7 +42,6 @@ export interface FranchiseFormInitialData {
   pincode?: string;
   contactNo?: string;
   contactEmail?: string;
-  logoUrl?: string | null;
   userName?: string | null;
   userMobile?: string;
   userEmail?: string;
@@ -74,7 +73,6 @@ export function FranchiseForm({
     pincode: z.string().min(1, 'Pincode is required'),
     contactNo: z.string().regex(/^[0-9]{10}$/, 'Contact No must be 10 digits'),
     contactEmail: z.string().email('Invalid contact email'),
-    logoUrl: z.string().nullable().optional(),
 
     userName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     userMobile: z.string().regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
@@ -102,7 +100,6 @@ export function FranchiseForm({
       pincode: initial?.pincode || '',
       contactNo: initial?.contactNo || '',
       contactEmail: initial?.contactEmail || '',
-      logoUrl: initial?.logoUrl ?? null,
 
       userName: initial?.userName || '',
       userMobile: initial?.userMobile || '',
@@ -181,7 +178,6 @@ export function FranchiseForm({
           pincode: values.pincode,
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
-          logoUrl: values.logoUrl || null,
 
           userName: values.userName || null,
           userMobile: values.userMobile,
@@ -202,7 +198,6 @@ export function FranchiseForm({
           pincode: values.pincode,
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
-          logoUrl: values.logoUrl || null,
 
           userName: values.userName || null,
           userMobile: values.userMobile,
@@ -233,17 +228,8 @@ export function FranchiseForm({
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
             <FormSection legend='Franchise Details'>
-              <FormRow cols={2}>
+              <FormRow>
                 <TextInput control={control} name='name' label='Franchise Name' required placeholder='Franchise name' />
-                <ImprovedUploadInput
-                  control={control}
-                  name='logoUrl'
-                  label='Logo Details'
-                  type='image'
-                  prefix='franchise'
-                  showPreview
-                  existingUrl={initial?.logoUrl ?? null}
-                />
               </FormRow>
               <FormRow cols={2}>
                 <TextInput control={control} name='addressLine1' label='Address Line 1' required placeholder='Address line 1' />

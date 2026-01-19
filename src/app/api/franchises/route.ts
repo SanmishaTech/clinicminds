@@ -68,7 +68,6 @@ export async function GET(req: NextRequest) {
       pincode: true,
       contactNo: true,
       contactEmail: true,
-      logoUrl: true,
       userMobile: true,
       createdAt: true,
       user: {
@@ -105,7 +104,6 @@ export async function POST(req: NextRequest) {
     pincode,
     contactNo,
     contactEmail,
-    logoUrl,
     userName,
     userMobile,
     userEmail,
@@ -120,7 +118,6 @@ export async function POST(req: NextRequest) {
     pincode: string;
     contactNo: string;
     contactEmail: string;
-    logoUrl: string | null;
     userName: string | null;
     userMobile: string;
     userEmail: string;
@@ -172,7 +169,6 @@ export async function POST(req: NextRequest) {
           pincode,
           contactNo,
           contactEmail,
-          logoUrl: logoUrl || null,
           userMobile,
           userId: user.id,
         },
@@ -186,7 +182,6 @@ export async function POST(req: NextRequest) {
           pincode: true,
           contactNo: true,
           contactEmail: true,
-          logoUrl: true,
           userMobile: true,
           createdAt: true,
           user: {
@@ -238,7 +233,6 @@ export async function PATCH(req: NextRequest) {
     pincode,
     contactNo,
     contactEmail,
-    logoUrl,
     userName,
     userMobile,
     userEmail,
@@ -254,7 +248,6 @@ export async function PATCH(req: NextRequest) {
     pincode?: string;
     contactNo?: string;
     contactEmail?: string;
-    logoUrl?: string | null;
     userName?: string | null;
     userMobile?: string;
     userEmail?: string;
@@ -281,7 +274,6 @@ export async function PATCH(req: NextRequest) {
     franchiseData.contactNo = contactNo;
   }
   if (typeof contactEmail === "string" && contactEmail) franchiseData.contactEmail = contactEmail;
-  if (typeof logoUrl === "string" || logoUrl === null) franchiseData.logoUrl = logoUrl || null;
   if (typeof userMobile === "string" && userMobile) {
     if (!/^[0-9]{10}$/.test(userMobile)) return Error("Mobile must be 10 digits", 400);
     franchiseData.userMobile = userMobile;
@@ -317,7 +309,6 @@ export async function PATCH(req: NextRequest) {
         pincode: true,
         contactNo: true,
         contactEmail: true,
-        logoUrl: true,
         userMobile: true,
         createdAt: true,
         user: {

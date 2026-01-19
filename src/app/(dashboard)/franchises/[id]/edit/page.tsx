@@ -27,7 +27,6 @@ export default function EditFranchisePage() {
           pincode: string;
           contactNo: string;
           contactEmail: string;
-          logoUrl: string | null;
           userMobile: string;
           user: { id: number; name: string | null; email: string; status: boolean };
         }>(`/api/franchises/${id}`);
@@ -42,7 +41,6 @@ export default function EditFranchisePage() {
           pincode: data.pincode,
           contactNo: data.contactNo,
           contactEmail: data.contactEmail,
-          logoUrl: data.logoUrl,
           userMobile: data.userMobile,
           userName: data.user?.name || '',
           userEmail: data.user?.email || '',

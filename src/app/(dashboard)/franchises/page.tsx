@@ -27,7 +27,6 @@ type FranchiseListItem = {
   pincode: string;
   contactNo: string;
   contactEmail: string;
-  logoUrl: string | null;
   userMobile: string;
   createdAt: string;
   user: { id: number; name: string | null; email: string; status: boolean };

@@ -24,7 +24,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         pincode: true,
         contactNo: true,
         contactEmail: true,
-        logoUrl: true,
         userMobile: true,
         createdAt: true,
         user: {
