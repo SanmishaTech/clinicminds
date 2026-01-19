@@ -154,6 +154,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       DELETE: [PERMISSIONS.DELETE_ROOMS],
     },
   },
+  {
+    prefix: "/api/teams",
+    methods: {
+      GET: [PERMISSIONS.READ_TEAMS],
+      POST: [PERMISSIONS.CREATE_TEAMS],
+      PATCH: [PERMISSIONS.EDIT_TEAMS],
+      DELETE: [PERMISSIONS.DELETE_TEAMS],
+    },
+  },
 ];
 
 export type AccessRuleMatch = {

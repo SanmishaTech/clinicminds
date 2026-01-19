@@ -71,7 +71,7 @@ export function TextInput({
 			control={control}
 			name={name}
 			render={({ field }) => (
-				<FormItem className={cn('col-span-12', itemClassName, spanClass)}>
+				<FormItem className={cn(itemClassName, spanClass)}>
 					{label !== undefined ? (
 						<FormLabel>
 							{label}

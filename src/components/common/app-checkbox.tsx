@@ -46,7 +46,7 @@ export function AppCheckbox({
   const spanMap = spanFrom === 'md' ? MAP_MD : MAP_LG;
   const spanClass = span && span>=1 && span<=12 ? spanMap[span] : undefined;
   return (
-    <div className={cn('flex items-center h-full mt-3 col-span-12', spanClass, className)}>
+    <div className={cn('flex items-center h-full mt-3', spanClass, className)}>
       <div className="flex items-center gap-2">
         <Checkbox
           id={cid}
