@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Control, FieldValues, Path } from "react-hook-form"
 import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { cn } from "@/lib/utils"
 import { AppCombobox } from "./app-combobox"
 
 interface ComboboxOption {
@@ -42,7 +43,7 @@ export function ComboboxInput<T extends FieldValues>({
       control={control}
       name={name}
       render={({ field }) => (
-        <FormItem className={className}>
+        <FormItem className={cn("w-full min-w-0", className)}>
           {label && (
             <FormLabel>
               {label}

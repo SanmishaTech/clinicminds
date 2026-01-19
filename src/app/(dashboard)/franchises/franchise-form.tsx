@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import useSWR from 'swr';
 import { useForm } from 'react-hook-form';
 import { Form } from '@/components/ui/form';
 import { z } from 'zod';
@@ -10,9 +11,26 @@ import { AppCheckbox } from '@/components/common/app-checkbox';
 import { AppCard } from '@/components/common/app-card';
 import { TextInput } from '@/components/common/text-input';
 import { FormSection, FormRow } from '@/components/common/app-form';
-import { apiPost, apiPatch } from '@/lib/api-client';
+import { ComboboxInput } from '@/components/common/combobox-input';
+import { apiGet, apiPost, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
+
+type StatesResponse = {
+  data: { id: number; state: string }[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+};
+
+type CitiesResponse = {
+  data: { id: number; city: string; stateId: number }[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+};
 
 export interface FranchiseFormInitialData {
   id?: number;
@@ -49,17 +67,17 @@ export function FranchiseForm({
 
   const schema = z.object({
     name: z.string().min(1, 'Franchise Name is required'),
-    addressLine1: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    addressLine1: z.string().min(1, 'Address Line 1 is required'),
     addressLine2: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-    city: z.string().min(1, 'City is required'),
-    state: z.string().min(1, 'State is required'),
+    stateId: z.string().min(1, 'State is required'),
+    cityId: z.string().min(1, 'City is required'),
     pincode: z.string().min(1, 'Pincode is required'),
-    contactNo: z.string().min(1, 'Contact No is required'),
+    contactNo: z.string().regex(/^[0-9]{10}$/, 'Contact No must be 10 digits'),
     contactEmail: z.string().email('Invalid contact email'),
     logoUrl: z.string().nullable().optional(),
 
     userName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-    userMobile: z.string().min(1, 'Mobile is required'),
+    userMobile: z.string().regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
     userEmail: z.string().email('Invalid email'),
     password: (mode === 'create'
       ? z.string().min(6, 'Password must be at least 6 characters')
@@ -79,8 +97,8 @@ export function FranchiseForm({
       name: initial?.name || '',
       addressLine1: initial?.addressLine1 || '',
       addressLine2: initial?.addressLine2 || '',
-      city: initial?.city || '',
-      state: initial?.state || '',
+      stateId: '',
+      cityId: '',
       pincode: initial?.pincode || '',
       contactNo: initial?.contactNo || '',
       contactEmail: initial?.contactEmail || '',
@@ -96,18 +114,70 @@ export function FranchiseForm({
 
   const { control, handleSubmit } = form;
   const statusValue = form.watch('status');
+  const stateIdValue = form.watch('stateId');
+  const cityIdValue = form.watch('cityId');
   const isCreate = mode === 'create';
+
+  const { data: statesResp } = useSWR<StatesResponse>(
+    '/api/states?page=1&perPage=100&sort=state&order=asc',
+    apiGet
+  );
+
+  const { data: citiesResp } = useSWR<CitiesResponse>(
+    '/api/cities?page=1&perPage=500&sort=city&order=asc',
+    apiGet
+  );
+
+  const stateOptions = useMemo(() => {
+    return (statesResp?.data || []).map((s) => ({ value: String(s.id), label: s.state }));
+  }, [statesResp]);
+
+  const cityOptions = useMemo(() => {
+    const all = citiesResp?.data || [];
+    const filtered = stateIdValue ? all.filter((c) => String(c.stateId) === String(stateIdValue)) : [];
+    return filtered.map((c) => ({ value: String(c.id), label: c.city }));
+  }, [citiesResp, stateIdValue]);
+
+  useEffect(() => {
+    if (!stateIdValue) {
+      if (cityIdValue) form.setValue('cityId', '');
+      return;
+    }
+    if (!cityIdValue) return;
+    const exists = cityOptions.some((c) => c.value === cityIdValue);
+    if (!exists) form.setValue('cityId', '');
+  }, [stateIdValue, cityIdValue, cityOptions, form]);
+
+  useEffect(() => {
+    if (!statesResp?.data?.length) return;
+    if (mode === 'create') return;
+    if (!initial?.state || !initial?.city) return;
+    if (form.getValues('stateId')) return;
+
+    const stateMatch = statesResp.data.find((s) => s.state === initial.state);
+    if (!stateMatch) return;
+    form.setValue('stateId', String(stateMatch.id), { shouldDirty: false, shouldValidate: true });
+
+    const cityMatch = (citiesResp?.data || []).find(
+      (c) => c.city === initial.city && String(c.stateId) === String(stateMatch.id)
+    );
+    if (!cityMatch) return;
+    form.setValue('cityId', String(cityMatch.id), { shouldDirty: false, shouldValidate: true });
+  }, [mode, initial, statesResp, citiesResp, form]);
 
   async function onSubmit(values: RawFormValues) {
     setSubmitting(true);
     try {
+      const stateLabel = stateOptions.find((s) => s.value === values.stateId)?.label || '';
+      const cityLabel = cityOptions.find((c) => c.value === values.cityId)?.label || '';
+
       if (mode === 'create') {
         const res = await apiPost('/api/franchises', {
           name: values.name,
-          addressLine1: values.addressLine1 || null,
+          addressLine1: values.addressLine1,
           addressLine2: values.addressLine2 || null,
-          city: values.city,
-          state: values.state,
+          city: cityLabel,
+          state: stateLabel,
           pincode: values.pincode,
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
@@ -125,10 +195,10 @@ export function FranchiseForm({
         const res = await apiPatch('/api/franchises', {
           id: initial.id,
           name: values.name,
-          addressLine1: values.addressLine1 || null,
+          addressLine1: values.addressLine1,
           addressLine2: values.addressLine2 || null,
-          city: values.city,
-          state: values.state,
+          city: cityLabel,
+          state: stateLabel,
           pincode: values.pincode,
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
@@ -176,16 +246,45 @@ export function FranchiseForm({
                 />
               </FormRow>
               <FormRow cols={2}>
-                <TextInput control={control} name='addressLine1' label='Address Line 1' placeholder='Address line 1' />
+                <TextInput control={control} name='addressLine1' label='Address Line 1' required placeholder='Address line 1' />
                 <TextInput control={control} name='addressLine2' label='Address Line 2' placeholder='Address line 2' />
               </FormRow>
-              <FormRow cols={3}>
-                <TextInput control={control} name='city' label='City' required placeholder='City' />
-                <TextInput control={control} name='state' label='State' required placeholder='State' />
+              <FormRow cols={2}>
+                <ComboboxInput
+                  control={control}
+                  name='stateId'
+                  label='State'
+                  options={stateOptions}
+                  placeholder='Select state'
+                  searchPlaceholder='Search states...'
+                  emptyText='No state found.'
+                  required
+                />
+                <ComboboxInput
+                  control={control}
+                  name='cityId'
+                  label='City'
+                  options={cityOptions}
+                  placeholder={stateIdValue ? 'Select city' : 'Select state first'}
+                  searchPlaceholder='Search cities...'
+                  emptyText={stateIdValue ? 'No city found.' : 'Select state first'}
+                  required
+                />
+              </FormRow>
+              <FormRow>
                 <TextInput control={control} name='pincode' label='Pincode' required placeholder='Pincode' />
               </FormRow>
               <FormRow cols={2}>
-                <TextInput control={control} name='contactNo' label='Contact No' required placeholder='Contact number' />
+                <TextInput
+                  control={control}
+                  name='contactNo'
+                  label='Contact No'
+                  required
+                  placeholder='Contact number'
+                  type='tel'
+                  maxLength={10}
+                  pattern='[0-9]{10}'
+                />
                 <EmailInput control={control} name='contactEmail' label='Contact Email' required placeholder='contact@example.com' />
               </FormRow>
             </FormSection>
@@ -195,7 +294,16 @@ export function FranchiseForm({
                 <TextInput control={control} name='userName' label='Name' placeholder='Optional full name' />
               </FormRow>
               <FormRow cols={2}>
-                <TextInput control={control} name='userMobile' label='Mobile' required placeholder='Mobile number' />
+                <TextInput
+                  control={control}
+                  name='userMobile'
+                  label='Mobile'
+                  required
+                  placeholder='Mobile number'
+                  type='tel'
+                  maxLength={10}
+                  pattern='[0-9]{10}'
+                />
                 <EmailInput control={control} name='userEmail' label='Email' required placeholder='user@example.com' />
               </FormRow>
               <FormRow cols={2}>

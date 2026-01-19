@@ -14,10 +14,9 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
 import { formatRelativeTime } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
-import { useScrollRestoration } from '@/hooks/use-scroll-restoration';
-import { useProtectPage } from '@/hooks/use-protect-page';
 import { EditButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
+import Link from 'next/link';
 
 type ServiceListItem = {
   id: number;
@@ -37,9 +36,6 @@ type ServicesResponse = {
 };
 
 export default function ServicesPage() {
-  useProtectPage();
-  const { pushWithScrollSave } = useScrollRestoration('client-list');
-  
   const [qp, setQp] = useQueryParamsState({
     page: 1,
     perPage: 10,
@@ -123,14 +119,11 @@ export default function ServicesPage() {
         <AppCard.Description>Manage Services</AppCard.Description>
         {can(PERMISSIONS.CREATE_SERVICES) && (
           <AppCard.Action>
-            <AppButton 
-              size='sm' 
-              iconName='Plus' 
-              type='button'
-              onClick={() => pushWithScrollSave('/services/new')}
-            >
-              Add
-            </AppButton>
+            <Link href='/services/new'>
+              <AppButton size='sm' iconName='Plus' type='button'>
+                Add
+              </AppButton>
+            </Link>
           </AppCard.Action>
         )}
       </AppCard.Header>
@@ -172,13 +165,11 @@ export default function ServicesPage() {
           renderRowActions={(row) => {
             if (!can(PERMISSIONS.EDIT_SERVICES) && !can(PERMISSIONS.DELETE_SERVICES)) return null;
             return (
-              <div className='flex items-center gap-1'>
+              <div className='flex'>
                 {can(PERMISSIONS.EDIT_SERVICES) && (
-                  <EditButton 
-                    tooltip='Edit Service' 
-                    aria-label='Edit Service' 
-                    onClick={() => pushWithScrollSave(`/services/${row.id}/edit`)}
-                  />
+                  <Link href={`/services/${row.id}/edit`}>
+                    <EditButton tooltip='Edit Service' aria-label='Edit Service' />
+                  </Link>
                 )}
                 <DeleteButton
                   onDelete={() => handleDelete(row.id)}
