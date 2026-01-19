@@ -16,7 +16,7 @@ export const packageMedicineSchema = z.object({
 });
 
 export const createPackageSchema = z.object({
-  name: z.string().min(1),
+  name: z.string().trim().min(1, 'Package name is required').max(255, 'Package name must be less than 255 characters'),
   totalAmount: z.number().nonnegative(),
   packageDetails: z
     .array(packageDetailSchema)

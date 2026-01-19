@@ -58,6 +58,12 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const data = createPackageSchema.parse(body) as CreatePackageInput;
 
+    const existingByName = await packageModel.findFirst({
+      where: { name: data.name },
+      select: { id: true },
+    });
+    if (existingByName) return Error('Package name already exists', 409);
+
     const created = await (prisma as any).$transaction(async (tx: any) => {
       const pkg = await tx.package.create({
         data: {
@@ -101,7 +107,7 @@ export async function POST(req: NextRequest) {
   } catch (e: unknown) {
     if (e instanceof z.ZodError) return BadRequest(e.errors);
     const err = e as { code?: string };
-    if (err?.code === 'P2002') return Error('Package already exists', 409);
+    if (err?.code === 'P2002') return Error('Package name already exists', 409);
     console.error('Create package error:', e);
     return Error('Failed to create package');
   }
@@ -123,6 +129,14 @@ export async function PATCH(req: NextRequest) {
 
   try {
     const parsed = updatePackageSchema.parse(rest) as UpdatePackageInput;
+
+    if (typeof parsed.name === 'string') {
+      const existingByName = await packageModel.findFirst({
+        where: { name: parsed.name, NOT: { id: Number(id) } },
+        select: { id: true },
+      });
+      if (existingByName) return Error('Package name already exists', 409);
+    }
 
     const updated = await (prisma as any).$transaction(async (tx: any) => {
       const data: any = {};
@@ -180,7 +194,7 @@ export async function PATCH(req: NextRequest) {
     if (e instanceof z.ZodError) return BadRequest(e.errors);
     const err = e as { code?: string };
     if (err?.code === 'P2025') return Error('Package not found', 404);
-    if (err?.code === 'P2002') return Error('Package already exists', 409);
+    if (err?.code === 'P2002') return Error('Package name already exists', 409);
     console.error('Update package error:', e);
     return Error('Failed to update package');
   }

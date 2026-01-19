@@ -176,7 +176,7 @@ export function PackageForm({
     },
   });
 
-  const { control, handleSubmit, setValue } = form;
+  const { control, handleSubmit, setValue, setError, clearErrors } = form;
 
   const serviceOptions = useMemo(() => {
     return services.map((s) => ({
@@ -284,6 +284,7 @@ export function PackageForm({
   }, []);
 
   async function onSubmit(values: PackagesFormValues) {
+    clearErrors('name');
     setSubmitting(true);
 
     try {
@@ -316,8 +317,13 @@ export function PackageForm({
       }
 
       router.push(redirectOnSuccess);
-    } catch (e) {
-      toast.error((e as Error).message || 'Failed');
+    } catch (err) {
+      const e = err as Error & { status?: number };
+      if (e?.status === 409) {
+        setError('name', { type: 'server', message: e.message || 'Package name already exists' }, { shouldFocus: true });
+        return;
+      }
+      toast.error((err as Error).message || 'Failed');
     } finally {
       setSubmitting(false);
     }
@@ -351,7 +357,14 @@ export function PackageForm({
               </FormRow>
             </FormSection>
 
-            <FormSection legend='Package Details'>
+            <div className='space-y-2'>
+              <div className='flex items-center gap-3'>
+                <div className='text-base font-semibold shrink-0 px-0'>Package Details</div>
+                <div className='h-px bg-border flex-1' />
+              </div>
+            </div>
+
+            <FormSection legend='Services'>
               <div className='border rounded-lg overflow-hidden'>
                 <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
                   <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
@@ -502,7 +515,7 @@ export function PackageForm({
               </div>
             </FormSection>
 
-            <FormSection legend='Package Medicines'>
+            <FormSection legend='Medicines'>
               <div className='border rounded-lg overflow-hidden'>
                 <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
                   <div className='col-span-4 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
