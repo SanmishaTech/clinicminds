@@ -115,10 +115,21 @@ model Service{
   @@map("services")
 }
 
+model Brand{
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@map("brands")
+}
+
 model Medicine{
   id          Int      @id @default(autoincrement())
   name        String   @unique
-  brand       String
+  brandId     Int
+  brand       Brand    @relation(fields: [brandId], references: [id])
   rate        Decimal  @db.Decimal(10, 2)
   mrp         Decimal  @db.Decimal(10, 2)
   createdAt   DateTime @default(now())
@@ -127,7 +138,7 @@ model Medicine{
   saleDetail SaleDetail[]
 
   @@index([name])                    // For searching by name
-  @@index([brand])                   // For filtering by brand
+  @@index([brandId])                   // For filtering by brand
   @@index([rate])                    // For sorting by rate
   @@index([mrp])                     // For sorting by mrp
   @@index([createdAt])                // For sorting by creation date
