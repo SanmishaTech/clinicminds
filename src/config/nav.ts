@@ -12,6 +12,7 @@ import {
   Pill,
   Receipt,
   Package,
+  Calendar,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -68,6 +69,12 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/patients",
         icon: Users,
         permission: PERMISSIONS.VIEW_PATIENTS,
+      },
+      {
+        title: "Appointments",
+        href: "/appointments",
+        icon: Calendar,
+        permission: PERMISSIONS.VIEW_APPOINTMENTS,
       },
       {
         title: "Services",
