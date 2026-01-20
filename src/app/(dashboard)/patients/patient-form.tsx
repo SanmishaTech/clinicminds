@@ -3,7 +3,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { useForm } from 'react-hook-form';
-import { Form } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppButton } from '@/components/common/app-button';
@@ -19,6 +19,9 @@ import { SelectInput } from '@/components/common/select-input';
 import { EmailInput } from '@/components/common/email-input';
 import { MASTER_CONFIG } from '@/config/master';
 import { formatDateForInput } from '@/lib/locales';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Info } from 'lucide-react';
 
 type StatesResponse = {
   data: { id: number; state: string }[];
@@ -36,26 +39,50 @@ type CitiesResponse = {
   totalPages: number;
 };
 
+type TeamsResponse = {
+  data: { id: number; name: string }[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+};
+
 export interface PatientFormInitialData {
   id?: number;
   patientNo?: string;
-  team?: string;
-  name?: string;
+  franchiseId?: number | null;
+  teamId?: number | null;
+  firstName?: string;
+  middleName?: string;
+  lastName?: string;
   dateOfBirth?: string | null;
   age?: number | null;
   gender?: string;
-  status?: string;
-  address?: string | null;
+  bloodGroup?: string;
+  height?: string | null;
+  weight?: string | null;
+  bmi?: string | null;
+  address?: string;
   stateId?: number;
   cityId?: number;
   pincode?: string | null;
-  mobile1?: string;
-  mobile2?: string | null;
+  mobile?: string;
   email?: string | null;
-  contactPerson?: string | null;
+  aadharNo?: string;
+  occupation?: string | null;
+  maritalStatus?: string | null;
+  contactPersonName?: string | null;
   contactPersonRelation?: string | null;
-  contactPersonMobile1?: string | null;
-  contactPersonMobile2?: string | null;
+  contactPersonAddress?: string | null;
+  contactPersonMobile?: string | null;
+  contactPersonEmail?: string | null;
+  medicalInsurance?: boolean;
+  primaryInsuranceName?: string | null;
+  primaryInsuranceHolderName?: string | null;
+  primaryInsuranceId?: string | null;
+  secondaryInsuranceName?: string | null;
+  secondaryInsuranceHolderName?: string | null;
+  secondaryInsuranceId?: string | null;
   balanceAmount?: number | null;
 }
 
@@ -67,6 +94,8 @@ export interface PatientFormProps {
 }
 
 const GENDER_OPTIONS = MASTER_CONFIG.gender.map((g) => ({ value: g.value, label: g.label }));
+const BLOOD_GROUP_OPTIONS = MASTER_CONFIG.bloodGroup.map((b) => ({ value: b.value, label: b.label }));
+const MARITAL_STATUS_OPTIONS = MASTER_CONFIG.maritalStatus.map((m) => ({ value: m.value, label: m.label }));
 
 export function PatientForm({
   mode,
@@ -98,37 +127,61 @@ export function PatientForm({
     return age;
   }
 
+  function computeBmiFromInputs(heightStr: string | undefined, weightStr: string | undefined): string | null {
+    const hRaw = (heightStr || '').trim();
+    const wRaw = (weightStr || '').trim();
+    if (!hRaw || !wRaw) return null;
+
+    const h = Number(String(hRaw).replace(/[^0-9.]/g, ''));
+    const w = Number(String(wRaw).replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(h) || !Number.isFinite(w) || h <= 0 || w <= 0) return null;
+
+    // Height is expected in centimeters; convert to meters for BMI.
+    const hMeters = h / 100;
+    if (hMeters <= 0) return null;
+
+    const bmi = w / (hMeters * hMeters);
+    if (!Number.isFinite(bmi) || Number.isNaN(bmi)) return null;
+    return bmi.toFixed(2);
+  }
+
   const schema = z.object({
     patientNo: z.string().optional(),
-    team: z.string().min(1, 'Team is required'),
-    name: z.string().min(1, 'Name is required'),
+    teamId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    firstName: z.string().min(1, 'First name is required'),
+    middleName: z.string().min(1, 'Middle name is required'),
+    lastName: z.string().min(1, 'Last name is required'),
     dateOfBirth: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     age: z
       .string()
-      .min(1, 'Age is required')
-      .refine((v) => {
-        const n = Number(v);
-        return Number.isFinite(n) && !Number.isNaN(n) && n >= 0;
-      }, 'Invalid age'),
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine(
+        (v) => {
+          if (!v) return true;
+          const n = Number(v);
+          return Number.isFinite(n) && !Number.isNaN(n) && n >= 0;
+        },
+        'Invalid age'
+      ),
     gender: z.string().min(1, 'Gender is required'),
-    status: z.string().min(1, 'Status is required'),
+    bloodGroup: z.string().min(1, 'Blood group is required'),
 
-    address: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    height: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    weight: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    bmi: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+
+    address: z.string().min(1, 'Address is required'),
 
     stateId: z.string().min(1, 'State is required'),
     cityId: z.string().min(1, 'City is required'),
 
     pincode: z.string().optional().transform((v) => (v === '' ? undefined : v)),
 
-    mobile1: z
+    mobile: z
       .string()
-      .min(1, 'Mobile 1 is required')
-      .regex(/^[0-9]{10}$/, 'Mobile 1 must be 10 digits'),
-    mobile2: z
-      .string()
-      .optional()
-      .transform((v) => (v === '' ? undefined : v))
-      .refine((v) => !v || /^[0-9]{10}$/.test(v), 'Mobile 2 must be 10 digits'),
+      .min(1, 'Mobile is required')
+      .regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
 
     email: z
       .string()
@@ -136,18 +189,35 @@ export function PatientForm({
       .or(z.literal(''))
       .transform((v) => (v === '' ? undefined : v)),
 
-    contactPerson: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    aadharNo: z
+      .string()
+      .min(1, 'Aadhar No is required')
+      .regex(/^[0-9]{12}$/, 'Aadhar No must be 12 digits'),
+
+    occupation: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    maritalStatus: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+
+    contactPersonName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     contactPersonRelation: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-    contactPersonMobile1: z
+    contactPersonAddress: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    contactPersonMobile: z
       .string()
       .optional()
       .transform((v) => (v === '' ? undefined : v))
-      .refine((v) => !v || /^[0-9]{10}$/.test(v), 'Contact Person Mobile 1 must be 10 digits'),
-    contactPersonMobile2: z
+      .refine((v) => !v || /^[0-9]{10}$/.test(v), 'Contact Person Mobile must be 10 digits'),
+    contactPersonEmail: z
       .string()
-      .optional()
-      .transform((v) => (v === '' ? undefined : v))
-      .refine((v) => !v || /^[0-9]{10}$/.test(v), 'Contact Person Mobile 2 must be 10 digits'),
+      .email('Invalid email')
+      .or(z.literal(''))
+      .transform((v) => (v === '' ? undefined : v)),
+
+    medicalInsurance: z.boolean().optional(),
+    primaryInsuranceName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    primaryInsuranceHolderName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    primaryInsuranceId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    secondaryInsuranceName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    secondaryInsuranceHolderName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    secondaryInsuranceId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
 
     balanceAmount: z.string().optional().transform((v) => (v === '' ? undefined : v)),
   });
@@ -160,31 +230,49 @@ export function PatientForm({
     reValidateMode: 'onChange',
     defaultValues: {
       patientNo: initial?.patientNo || '',
-      team: initial?.team || '',
-      name: initial?.name || '',
+      teamId: initial?.teamId != null ? String(initial.teamId) : '',
+      firstName: initial?.firstName || '',
+      middleName: initial?.middleName || '',
+      lastName: initial?.lastName || '',
       dateOfBirth: initial?.dateOfBirth ? formatDateForInput(initial.dateOfBirth) : '',
       age: initial?.age != null ? String(initial.age) : '',
       gender: initial?.gender || '',
-      status: initial?.status || 'Enquiry',
+      bloodGroup: initial?.bloodGroup || undefined,
+      height: initial?.height || '',
+      weight: initial?.weight || '',
+      bmi: initial?.bmi || '',
       address: initial?.address || '',
       stateId: initial?.stateId ? String(initial.stateId) : '',
       cityId: initial?.cityId ? String(initial.cityId) : '',
       pincode: initial?.pincode || '',
-      mobile1: initial?.mobile1 || '',
-      mobile2: initial?.mobile2 || '',
+      mobile: initial?.mobile || '',
       email: initial?.email || '',
-      contactPerson: initial?.contactPerson || '',
+      aadharNo: initial?.aadharNo || '',
+      occupation: initial?.occupation || '',
+      maritalStatus: initial?.maritalStatus || undefined,
+      contactPersonName: initial?.contactPersonName || '',
       contactPersonRelation: initial?.contactPersonRelation || '',
-      contactPersonMobile1: initial?.contactPersonMobile1 || '',
-      contactPersonMobile2: initial?.contactPersonMobile2 || '',
+      contactPersonAddress: initial?.contactPersonAddress || '',
+      contactPersonMobile: initial?.contactPersonMobile || '',
+      contactPersonEmail: initial?.contactPersonEmail || '',
+      medicalInsurance: initial?.medicalInsurance ?? false,
+      primaryInsuranceName: initial?.primaryInsuranceName || '',
+      primaryInsuranceHolderName: initial?.primaryInsuranceHolderName || '',
+      primaryInsuranceId: initial?.primaryInsuranceId || '',
+      secondaryInsuranceName: initial?.secondaryInsuranceName || '',
+      secondaryInsuranceHolderName: initial?.secondaryInsuranceHolderName || '',
+      secondaryInsuranceId: initial?.secondaryInsuranceId || '',
       balanceAmount: initial?.balanceAmount != null ? String(initial.balanceAmount) : '',
     },
   });
 
   const { control, handleSubmit } = form;
   const dateOfBirthValue = form.watch('dateOfBirth');
+  const heightValue = form.watch('height');
+  const weightValue = form.watch('weight');
   const stateIdValue = form.watch('stateId');
   const cityIdValue = form.watch('cityId');
+  const medicalInsuranceValue = form.watch('medicalInsurance');
   const isCreate = mode === 'create';
 
   useEffect(() => {
@@ -194,6 +282,14 @@ export function PatientForm({
     form.setValue('age', String(computed), { shouldDirty: true, shouldValidate: true });
   }, [dateOfBirthValue, form]);
 
+  useEffect(() => {
+    const computed = computeBmiFromInputs(heightValue, weightValue);
+    const current = String(form.getValues('bmi') ?? '');
+    const next = computed ?? '';
+    if (current === next) return;
+    form.setValue('bmi', next, { shouldDirty: true, shouldValidate: true });
+  }, [heightValue, weightValue, form]);
+
   const { data: statesResp } = useSWR<StatesResponse>(
     '/api/states?page=1&perPage=100&sort=state&order=asc',
     apiGet
@@ -201,6 +297,11 @@ export function PatientForm({
 
   const { data: citiesResp } = useSWR<CitiesResponse>(
     '/api/cities?page=1&perPage=100&sort=city&order=asc',
+    apiGet
+  );
+
+  const { data: teamsResp } = useSWR<TeamsResponse>(
+    '/api/teams?page=1&perPage=100&sort=name&order=asc',
     apiGet
   );
 
@@ -214,6 +315,10 @@ export function PatientForm({
     return filtered.map((c) => ({ value: String(c.id), label: c.city }));
   }, [citiesResp, stateIdValue]);
 
+  const teamOptions = useMemo(() => {
+    return (teamsResp?.data || []).map((t) => ({ value: String(t.id), label: t.name }));
+  }, [teamsResp]);
+
   useEffect(() => {
     if (!stateIdValue) {
       if (cityIdValue) form.setValue('cityId', '');
@@ -224,27 +329,53 @@ export function PatientForm({
     if (!exists) form.setValue('cityId', '');
   }, [stateIdValue, cityIdValue, cityOptions, form]);
 
+  useEffect(() => {
+    if (medicalInsuranceValue) return;
+    form.setValue('primaryInsuranceName', '');
+    form.setValue('primaryInsuranceHolderName', '');
+    form.setValue('primaryInsuranceId', '');
+    form.setValue('secondaryInsuranceName', '');
+    form.setValue('secondaryInsuranceHolderName', '');
+    form.setValue('secondaryInsuranceId', '');
+  }, [medicalInsuranceValue, form]);
+
   async function onSubmit(values: RawFormValues) {
     setSubmitting(true);
     try {
+      const hasInsurance = values.medicalInsurance ?? false;
       const payload = {
-        team: values.team,
-        name: values.name,
+        teamId: values.teamId ? Number(values.teamId) : null,
+        firstName: values.firstName,
+        middleName: values.middleName,
+        lastName: values.lastName,
         dateOfBirth: values.dateOfBirth || null,
-        age: values.age,
+        age: values.age ?? null,
         gender: values.gender,
-        status: values.status,
-        address: values.address || null,
+        bloodGroup: values.bloodGroup,
+        height: values.height || null,
+        weight: values.weight || null,
+        bmi: values.bmi || null,
+        address: values.address,
         stateId: Number(values.stateId),
         cityId: Number(values.cityId),
         pincode: values.pincode || null,
-        mobile1: values.mobile1,
-        mobile2: values.mobile2 || null,
+        mobile: values.mobile,
         email: values.email || null,
-        contactPerson: values.contactPerson || null,
+        aadharNo: values.aadharNo,
+        occupation: values.occupation || null,
+        maritalStatus: values.maritalStatus || null,
+        contactPersonName: values.contactPersonName || null,
         contactPersonRelation: values.contactPersonRelation || null,
-        contactPersonMobile1: values.contactPersonMobile1 || null,
-        contactPersonMobile2: values.contactPersonMobile2 || null,
+        contactPersonAddress: values.contactPersonAddress || null,
+        contactPersonMobile: values.contactPersonMobile || null,
+        contactPersonEmail: values.contactPersonEmail || null,
+        medicalInsurance: hasInsurance,
+        primaryInsuranceName: hasInsurance ? values.primaryInsuranceName || null : null,
+        primaryInsuranceHolderName: hasInsurance ? values.primaryInsuranceHolderName || null : null,
+        primaryInsuranceId: hasInsurance ? values.primaryInsuranceId || null : null,
+        secondaryInsuranceName: hasInsurance ? values.secondaryInsuranceName || null : null,
+        secondaryInsuranceHolderName: hasInsurance ? values.secondaryInsuranceHolderName || null : null,
+        secondaryInsuranceId: hasInsurance ? values.secondaryInsuranceId || null : null,
         balanceAmount: values.balanceAmount || null,
       };
 
@@ -288,14 +419,26 @@ export function PatientForm({
                   placeholder={isCreate ? 'Auto-generated' : 'Patient number'}
                   disabled
                 />
-                <TextInput control={control} name='team' label='Team' required placeholder='Team' />
+                <ComboboxInput
+                  control={control as any}
+                  name={'teamId' as any}
+                  label='Team'
+                  options={teamOptions}
+                  placeholder='Select team'
+                  searchPlaceholder='Search teams...'
+                  emptyText='No team found.'
+                />
               </FormRow>
               <FormRow cols={3}>
-                <TextInput control={control} name='name' label='Name' required placeholder='Patient name' />
+                <TextInput control={control} name='firstName' label='First Name' required placeholder='First name' />
+                <TextInput control={control} name='middleName' label='Middle Name' required placeholder='Middle name' />
+                <TextInput control={control} name='lastName' label='Last Name' required placeholder='Last name' />
+              </FormRow>
+              <FormRow cols={2}>
                 <TextInput control={control} name='dateOfBirth' label='Date of Birth' type='date' />
-                <TextInput control={control} name='age' label='Age' required type='number' min={0} placeholder='Enter Age' />
+                <TextInput control={control} name='age' label='Age' type='number' min={0} placeholder='Enter Age' />
               </FormRow>
-              <FormRow cols={3}>
+              <FormRow cols={2}>
                 <SelectInput
                   control={control}
                   name='gender'
@@ -304,15 +447,57 @@ export function PatientForm({
                   options={GENDER_OPTIONS}
                   required
                 />
-                <TextInput control={control} name='status' label='Status' required placeholder='Status' />
+                <SelectInput
+                  control={control}
+                  name='bloodGroup'
+                  label='Blood Group'
+                  placeholder='Select blood group'
+                  options={BLOOD_GROUP_OPTIONS}
+                  required
+                />
+              </FormRow>
+              <FormRow cols={3}>
+                <TextInput control={control} name='height' label='Height (cm)' placeholder='Height (cm)' />
+                <TextInput control={control} name='weight' label='Weight (kg)' placeholder='Weight (kg)' />
+                <FormField
+                  control={control}
+                  name='bmi'
+                  render={({ field }) => (
+                    <FormItem className='w-full min-w-0'>
+                      <div className='flex items-center gap-2'>
+                        <FormLabel className='mb-0'>BMI</FormLabel>
+                        <div className='relative inline-flex items-center group'>
+                          <button
+                            type='button'
+                            className='text-muted-foreground hover:text-foreground inline-flex items-center'
+                          >
+                            <Info className='h-4 w-4' />
+                          </button>
+                          <div className='pointer-events-none absolute left-0 top-full mt-1 z-50 w-max max-w-[320px] rounded-md border bg-background px-2 py-1 text-xs text-foreground shadow-md opacity-0 group-hover:opacity-100 transition-none whitespace-normal'>
+                            BMI = weight (kg) / (height (m) × height (m)). Height is taken in cm and converted to meters.
+                          </div>
+                        </div>
+                      </div>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          value={field.value ?? ''}
+                          placeholder='Auto-calculated'
+                          readOnly
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </FormRow>
             </FormSection>
 
             <FormSection legend='Address Details'>
               <FormRow cols={1}>
-                <TextareaInput control={control} name='address' label='Address' placeholder='Address' rows={3} />
+                <TextareaInput control={control} name='address' label='Address' placeholder='Address' rows={3} required />
               </FormRow>
-              <FormRow cols={2}>
+              <FormRow cols={3}>
                 <ComboboxInput
                   control={control as any}
                   name={'stateId' as any}
@@ -333,62 +518,151 @@ export function PatientForm({
                   emptyText={stateIdValue ? 'No city found.' : 'Select a state first.'}
                   required
                 />
-              </FormRow>
-              <FormRow cols={1}>
                 <TextInput control={control} name='pincode' label='Pincode' placeholder='Pincode' />
               </FormRow>
             </FormSection>
 
             <FormSection legend='Contact Details'>
-              <FormRow cols={3}>
+              <FormRow cols={2}>
                 <TextInput
                   control={control}
-                  name='mobile1'
-                  label='Mobile 1'
+                  name='mobile'
+                  label='Mobile'
                   required
                   placeholder='Mobile number'
                   type='tel'
                   maxLength={10}
                   pattern='[0-9]{10}'
                 />
+                <EmailInput control={control} name='email' label='Email' placeholder='email@example.com' />
+              </FormRow>
+              <FormRow cols={3}>
+                <TextInput control={control} name='occupation' label='Occupation' placeholder='Occupation' />
+                <SelectInput
+                  control={control}
+                  name='maritalStatus'
+                  label='Marital Status'
+                  placeholder='Select marital status'
+                  options={MARITAL_STATUS_OPTIONS}
+                />
                 <TextInput
                   control={control}
-                  name='mobile2'
-                  label='Mobile 2'
-                  placeholder='Alternate mobile'
-                  type='tel'
-                  maxLength={10}
-                  pattern='[0-9]{10}'
+                  name='aadharNo'
+                  label='Aadhar No'
+                  required
+                  placeholder='12-digit Aadhar'
+                  maxLength={12}
+                  pattern='[0-9]{12}'
                 />
-                <EmailInput control={control} name='email' label='Email' placeholder='email@example.com' />
               </FormRow>
             </FormSection>
 
             <FormSection legend='Contact Person Details'>
-              <FormRow cols={3}>
-                <TextInput control={control} name='contactPerson' label='Contact Person Name' placeholder='Contact person' />
+              <FormRow cols={2}>
+                <TextInput control={control} name='contactPersonName' label='Contact Person Name' placeholder='Contact person' />
                 <TextInput control={control} name='contactPersonRelation' label='Contact Person Relation' placeholder='Relation' />
+              </FormRow>
+              <FormRow cols={2}>
                 <TextInput
                   control={control}
-                  name='contactPersonMobile1'
-                  label='Contact Person Mobile 1'
+                  name='contactPersonMobile'
+                  label='Contact Person Mobile'
                   placeholder='Mobile number'
                   type='tel'
                   maxLength={10}
                   pattern='[0-9]{10}'
                 />
-              </FormRow>
-              <FormRow cols={3}>
-                <TextInput
+                <EmailInput
                   control={control}
-                  name='contactPersonMobile2'
-                  label='Contact Person Mobile 2'
-                  placeholder='Alternate mobile'
-                  type='tel'
-                  maxLength={10}
-                  pattern='[0-9]{10}'
+                  name='contactPersonEmail'
+                  label='Contact Person Email'
+                  placeholder='email@example.com'
                 />
               </FormRow>
+              <FormRow cols={1}>
+                <TextareaInput
+                  control={control}
+                  name='contactPersonAddress'
+                  label='Contact Person Address'
+                  placeholder='Address'
+                  rows={2}
+                />
+              </FormRow>
+            </FormSection>
+
+            <FormSection legend='Insurance Details'>
+              <FormRow cols={1}>
+                <FormField
+                  control={control}
+                  name='medicalInsurance'
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className='flex items-center gap-4'>
+                        <FormLabel className='mb-0'>Medical Insurance:</FormLabel>
+                        <div className='flex items-center gap-6'>
+                          <div className='flex items-center space-x-2'>
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value === true}
+                                onCheckedChange={(checked) => {
+                                  if (checked) field.onChange(true);
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className='text-sm font-normal cursor-pointer'>Yes</FormLabel>
+                          </div>
+                          <div className='flex items-center space-x-2'>
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value === false}
+                                onCheckedChange={(checked) => {
+                                  if (checked) field.onChange(false);
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className='text-sm font-normal cursor-pointer'>No</FormLabel>
+                          </div>
+                        </div>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </FormRow>
+              {medicalInsuranceValue ? (
+                <>
+                  <FormRow cols={3}>
+                    <TextInput
+                      control={control}
+                      name='primaryInsuranceName'
+                      label='Primary Insurance Name'
+                      placeholder='Insurance name'
+                    />
+                    <TextInput
+                      control={control}
+                      name='primaryInsuranceHolderName'
+                      label='Primary Insurance Holder'
+                      placeholder='Holder name'
+                    />
+                    <TextInput control={control} name='primaryInsuranceId' label='Primary Insurance ID' placeholder='ID' />
+                  </FormRow>
+                  <FormRow cols={3}>
+                    <TextInput
+                      control={control}
+                      name='secondaryInsuranceName'
+                      label='Secondary Insurance Name'
+                      placeholder='Insurance name'
+                    />
+                    <TextInput
+                      control={control}
+                      name='secondaryInsuranceHolderName'
+                      label='Secondary Insurance Holder'
+                      placeholder='Holder name'
+                    />
+                    <TextInput control={control} name='secondaryInsuranceId' label='Secondary Insurance ID' placeholder='ID' />
+                  </FormRow>
+                </>
+              ) : null}
             </FormSection>
 
             <FormSection legend='Balance'>

@@ -90,7 +90,7 @@ export function SelectInput({
 			control={control}
 			name={name}
 			render={({ field }) => (
-				<FormItem className={cn('col-span-12', spanClass, itemClassName)}>
+				<FormItem className={cn('w-full min-w-0', spanClass, itemClassName)}>
 					<FormLabel>
 						{label}
 						{required ? (

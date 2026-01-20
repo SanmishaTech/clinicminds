@@ -56,16 +56,83 @@ export const FormRow = React.forwardRef<HTMLDivElement, FormRowProps>(function F
   { className, cols = 1, smCols, mdCols, lgCols, from = 'lg', children, ...rest }, ref
 ) {
   // Inherently desktop-first: base is 1 column; add earlier breakpoints only if specified.
-  const classes: string[] = ['grid', 'grid-cols-1'];
-  if (smCols) classes.push(`sm:grid-cols-${smCols}`);
-  if (mdCols) classes.push(`md:grid-cols-${mdCols}`);
+  const clampCols = (v: number) => Math.min(Math.max(v, 1), 12);
+
+  const GRID_COLS = [
+    '',
+    'grid-cols-1',
+    'grid-cols-2',
+    'grid-cols-3',
+    'grid-cols-4',
+    'grid-cols-5',
+    'grid-cols-6',
+    'grid-cols-7',
+    'grid-cols-8',
+    'grid-cols-9',
+    'grid-cols-10',
+    'grid-cols-11',
+    'grid-cols-12',
+  ] as const;
+
+  const SM_GRID_COLS = [
+    '',
+    'sm:grid-cols-1',
+    'sm:grid-cols-2',
+    'sm:grid-cols-3',
+    'sm:grid-cols-4',
+    'sm:grid-cols-5',
+    'sm:grid-cols-6',
+    'sm:grid-cols-7',
+    'sm:grid-cols-8',
+    'sm:grid-cols-9',
+    'sm:grid-cols-10',
+    'sm:grid-cols-11',
+    'sm:grid-cols-12',
+  ] as const;
+
+  const MD_GRID_COLS = [
+    '',
+    'md:grid-cols-1',
+    'md:grid-cols-2',
+    'md:grid-cols-3',
+    'md:grid-cols-4',
+    'md:grid-cols-5',
+    'md:grid-cols-6',
+    'md:grid-cols-7',
+    'md:grid-cols-8',
+    'md:grid-cols-9',
+    'md:grid-cols-10',
+    'md:grid-cols-11',
+    'md:grid-cols-12',
+  ] as const;
+
+  const LG_GRID_COLS = [
+    '',
+    'lg:grid-cols-1',
+    'lg:grid-cols-2',
+    'lg:grid-cols-3',
+    'lg:grid-cols-4',
+    'lg:grid-cols-5',
+    'lg:grid-cols-6',
+    'lg:grid-cols-7',
+    'lg:grid-cols-8',
+    'lg:grid-cols-9',
+    'lg:grid-cols-10',
+    'lg:grid-cols-11',
+    'lg:grid-cols-12',
+  ] as const;
+
+  const classes: string[] = ['grid', GRID_COLS[1]];
+  if (smCols) classes.push(SM_GRID_COLS[clampCols(smCols)]);
+  if (mdCols) classes.push(MD_GRID_COLS[clampCols(mdCols)]);
+
   const finalLg = lgCols || cols; // allow explicit override
   if (finalLg && finalLg > 1) {
-    const safe = Math.min(Math.max(finalLg, 1), 12);
+    const safe = clampCols(finalLg);
     if (from === 'md') {
-      classes.push(`md:grid-cols-${safe}`);
+      classes.push(MD_GRID_COLS[safe]);
     } else {
-      classes.push(`lg:grid-cols-${safe}`);
+      classes.push(LG_GRID_COLS[safe]);
     }
   }
 

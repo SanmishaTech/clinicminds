@@ -23,11 +23,12 @@ import { EditButton } from '@/components/common/icon-button';
 type PatientListItem = {
   id: number;
   patientNo: string;
-  team: string;
-  name: string;
+  team: { id: number; name: string } | null;
+  firstName: string;
+  middleName: string;
+  lastName: string;
   gender: string;
-  status: string;
-  mobile1: string;
+  mobile: string;
   createdAt: string;
   state: { id: number; state: string };
   city: { id: number; city: string };
@@ -52,18 +53,16 @@ export default function PatientsPage() {
     search: '',
     team: '',
     gender: '',
-    status: '',
     sort: 'createdAt',
     order: 'desc',
   });
 
-  const { page, perPage, search, team, gender, status, sort, order } = qp as unknown as {
+  const { page, perPage, search, team, gender, sort, order } = qp as unknown as {
     page: number;
     perPage: number;
     search: string;
     team: string;
     gender: string;
-    status: string;
     sort: string;
     order: 'asc' | 'desc';
   };
@@ -71,18 +70,15 @@ export default function PatientsPage() {
   const [searchDraft, setSearchDraft] = useState(search);
   const [teamDraft, setTeamDraft] = useState(team);
   const [genderDraft, setGenderDraft] = useState(gender);
-  const [statusDraft, setStatusDraft] = useState(status);
 
   useEffect(() => setSearchDraft(search), [search]);
   useEffect(() => setTeamDraft(team), [team]);
   useEffect(() => setGenderDraft(gender), [gender]);
-  useEffect(() => setStatusDraft(status), [status]);
 
   const filtersDirty =
     searchDraft !== search ||
     teamDraft !== team ||
-    genderDraft !== gender ||
-    statusDraft !== status;
+    genderDraft !== gender;
 
   function applyFilters() {
     setQp({
@@ -90,7 +86,6 @@ export default function PatientsPage() {
       search: searchDraft.trim(),
       team: teamDraft.trim(),
       gender: genderDraft,
-      status: statusDraft,
     });
   }
 
@@ -98,8 +93,7 @@ export default function PatientsPage() {
     setSearchDraft('');
     setTeamDraft('');
     setGenderDraft('');
-    setStatusDraft('');
-    setQp({ page: 1, search: '', team: '', gender: '', status: '' });
+    setQp({ page: 1, search: '', team: '', gender: '' });
   }
 
   const query = useMemo(() => {
@@ -109,11 +103,10 @@ export default function PatientsPage() {
     if (search) sp.set('search', search);
     if (team) sp.set('team', team);
     if (gender) sp.set('gender', gender);
-    if (status) sp.set('status', status);
     if (sort) sp.set('sort', sort);
     if (order) sp.set('order', order);
     return `/api/patients?${sp.toString()}`;
-  }, [page, perPage, search, team, gender, status, sort, order]);
+  }, [page, perPage, search, team, gender, sort, order]);
 
   const { data, error, isLoading, mutate } = useSWR<PatientsResponse>(query, apiGet);
 
@@ -141,13 +134,15 @@ export default function PatientsPage() {
     {
       key: 'team',
       header: 'Team',
-      sortable: true,
+      sortable: false,
       cellClassName: 'whitespace-nowrap',
+      accessor: (r) => r.team?.name || '—',
     },
     {
-      key: 'name',
+      key: 'firstName',
       header: 'Name',
       sortable: true,
+      accessor: (r) => [r.firstName, r.middleName, r.lastName].filter(Boolean).join(' '),
       cellClassName: 'whitespace-nowrap',
     },
     {
@@ -158,14 +153,7 @@ export default function PatientsPage() {
       cellClassName: 'whitespace-nowrap',
     },
     {
-      key: 'status',
-      header: 'Status',
-      sortable: true,
-      accessor: (r) => r.status || '—',
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'mobile1',
+      key: 'mobile',
       header: 'Mobile',
       sortable: true,
       cellClassName: 'whitespace-nowrap',
@@ -234,13 +222,6 @@ export default function PatientsPage() {
             onChange={(e) => setTeamDraft(e.target.value)}
             containerClassName='w-full'
           />
-          <NonFormTextInput
-            aria-label='Filter by status'
-            placeholder='Status'
-            value={statusDraft}
-            onChange={(e) => setStatusDraft(e.target.value)}
-            containerClassName='w-full'
-          />
           <AppSelect
             value={genderDraft || '__all'}
             onValueChange={(v) => setGenderDraft(v === '__all' ? '' : v)}
@@ -257,12 +238,12 @@ export default function PatientsPage() {
           <AppButton
             size='sm'
             onClick={applyFilters}
-            disabled={!filtersDirty && !searchDraft && !teamDraft && !genderDraft && !statusDraft}
+            disabled={!filtersDirty && !searchDraft && !teamDraft && !genderDraft}
             className='min-w-[84px]'
           >
             Filter
           </AppButton>
-          {(search || team || gender || status) && (
+          {(search || team || gender) && (
             <AppButton
               variant='secondary'
               size='sm'

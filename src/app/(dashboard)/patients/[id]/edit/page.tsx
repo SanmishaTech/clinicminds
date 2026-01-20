@@ -20,46 +20,78 @@ export default function EditPatientPage() {
         const data = await apiGet<{
           id: number;
           patientNo: string;
-          team: string;
-          name: string;
+          franchiseId: number | null;
+          teamId: number | null;
+          firstName: string;
+          middleName: string;
+          lastName: string;
           dateOfBirth: string | null;
           age: number | null;
           gender: string;
-          status: string;
-          address: string | null;
+          bloodGroup: string;
+          height: string | null;
+          weight: string | null;
+          bmi: string | null;
+          address: string;
           stateId: number;
           cityId: number;
           pincode: string | null;
-          mobile1: string;
-          mobile2: string | null;
+          mobile: string;
           email: string | null;
-          contactPerson: string | null;
+          aadharNo: string;
+          occupation: string | null;
+          maritalStatus: string | null;
+          contactPersonName: string | null;
           contactPersonRelation: string | null;
-          contactPersonMobile1: string | null;
-          contactPersonMobile2: string | null;
+          contactPersonAddress: string | null;
+          contactPersonMobile: string | null;
+          contactPersonEmail: string | null;
+          medicalInsurance: boolean;
+          primaryInsuranceName: string | null;
+          primaryInsuranceHolderName: string | null;
+          primaryInsuranceId: string | null;
+          secondaryInsuranceName: string | null;
+          secondaryInsuranceHolderName: string | null;
+          secondaryInsuranceId: string | null;
           balanceAmount: number;
         }>(`/api/patients/${id}`);
 
         setInitial({
           id: data.id,
           patientNo: data.patientNo,
-          team: data.team,
-          name: data.name,
+          franchiseId: data.franchiseId,
+          teamId: data.teamId,
+          firstName: data.firstName,
+          middleName: data.middleName,
+          lastName: data.lastName,
           dateOfBirth: data.dateOfBirth,
           age: data.age,
           gender: data.gender,
-          status: data.status,
+          bloodGroup: data.bloodGroup,
+          height: data.height,
+          weight: data.weight,
+          bmi: data.bmi,
           address: data.address,
           stateId: data.stateId,
           cityId: data.cityId,
           pincode: data.pincode,
-          mobile1: data.mobile1,
-          mobile2: data.mobile2,
+          mobile: data.mobile,
           email: data.email,
-          contactPerson: data.contactPerson,
+          aadharNo: data.aadharNo,
+          occupation: data.occupation,
+          maritalStatus: data.maritalStatus,
+          contactPersonName: data.contactPersonName,
           contactPersonRelation: data.contactPersonRelation,
-          contactPersonMobile1: data.contactPersonMobile1,
-          contactPersonMobile2: data.contactPersonMobile2,
+          contactPersonAddress: data.contactPersonAddress,
+          contactPersonMobile: data.contactPersonMobile,
+          contactPersonEmail: data.contactPersonEmail,
+          medicalInsurance: data.medicalInsurance,
+          primaryInsuranceName: data.primaryInsuranceName,
+          primaryInsuranceHolderName: data.primaryInsuranceHolderName,
+          primaryInsuranceId: data.primaryInsuranceId,
+          secondaryInsuranceName: data.secondaryInsuranceName,
+          secondaryInsuranceHolderName: data.secondaryInsuranceHolderName,
+          secondaryInsuranceId: data.secondaryInsuranceId,
           balanceAmount: data.balanceAmount,
         });
       } catch (e) {

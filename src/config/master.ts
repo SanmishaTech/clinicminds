@@ -22,4 +22,5 @@ export const MASTER_CONFIG = {
 } as const;
 
 export type Gender = (typeof MASTER_CONFIG.gender)[number]['value'];
+export type BloodGroup = (typeof MASTER_CONFIG.bloodGroup)[number]['value'];
 export type MaritalStatus = (typeof MASTER_CONFIG.maritalStatus)[number]['value'];

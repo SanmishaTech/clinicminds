@@ -24,11 +24,12 @@ function normalizeGender(input: unknown): string {
 type PatientListItem = {
   id: number;
   patientNo: string;
-  team: string;
-  name: string;
+  team: { id: number; name: string } | null;
+  firstName: string;
+  middleName: string;
+  lastName: string;
   gender: string;
-  status: string;
-  mobile1: string;
+  mobile: string;
   createdAt: Date;
   state: { id: number; state: string };
   city: { id: number; city: string };
@@ -44,43 +45,36 @@ export async function GET(req: NextRequest) {
   const search = searchParams.get("search")?.trim() || "";
   const team = searchParams.get("team")?.trim() || "";
   const gender = searchParams.get("gender")?.trim() || "";
-  const status = searchParams.get("status")?.trim() || "";
   const sort = (searchParams.get("sort") || "createdAt") as string;
   const order = (searchParams.get("order") === "asc" ? "asc" : "desc") as "asc" | "desc";
 
-  type PatientWhere = {
-    OR?: { patientNo?: { contains: string }; name?: { contains: string }; mobile1?: { contains: string }; mobile2?: { contains: string }; email?: { contains: string } }[];
-    team?: { contains: string };
-    gender?: string;
-    status?: { contains: string };
-  };
-
-  const where: PatientWhere = {};
+  const where: any = {};
   if (search) {
     where.OR = [
       { patientNo: { contains: search } },
-      { name: { contains: search } },
-      { mobile1: { contains: search } },
-      { mobile2: { contains: search } },
+      { firstName: { contains: search } },
+      { middleName: { contains: search } },
+      { lastName: { contains: search } },
+      { mobile: { contains: search } },
       { email: { contains: search } },
+      { aadharNo: { contains: search } },
     ];
   }
-  if (team) where.team = { contains: team };
+  if (team) where.team = { is: { name: { contains: team } } };
   if (gender) {
     const g = normalizeGender(gender);
     if (!g) return ApiError("Invalid gender", 400);
     where.gender = g;
   }
-  if (status) where.status = { contains: status };
 
-  const sortableFields = new Set(["patientNo", "team", "name", "gender", "status", "mobile1", "createdAt"]);
+  const sortableFields = new Set(["patientNo", "firstName", "gender", "mobile", "createdAt"]);
   const orderBy: Record<string, "asc" | "desc"> = sortableFields.has(sort) ? { [sort]: order } : { createdAt: "desc" };
 
   try {
     const patientModel = (prisma as any).patient;
     if (!patientModel) return ApiError("Prisma client is out of date. Run prisma generate and restart the dev server.", 500);
 
-    const result = await paginate<any, PatientWhere, PatientListItem>({
+    const result = await paginate<any, any, PatientListItem>({
       model: patientModel,
       where,
       orderBy,
@@ -89,11 +83,12 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         patientNo: true,
-        team: true,
-        name: true,
+        team: { select: { id: true, name: true } },
+        firstName: true,
+        middleName: true,
+        lastName: true,
         gender: true,
-        status: true,
-        mobile1: true,
+        mobile: true,
         createdAt: true,
         state: { select: { id: true, state: true } },
         city: { select: { id: true, city: true } },
@@ -120,58 +115,92 @@ export async function POST(req: NextRequest) {
   }
 
   const {
-    team,
-    name,
+    franchiseId,
+    teamId,
+    firstName,
+    middleName,
+    lastName,
     dateOfBirth,
     age,
     gender,
-    status = "Enquiry",
+    bloodGroup,
+    height,
+    weight,
+    bmi,
     address,
     stateId,
     cityId,
     pincode,
-    mobile1,
-    mobile2,
     email,
-    contactPerson,
+    mobile,
+    aadharNo,
+    occupation,
+    maritalStatus,
+    contactPersonName,
     contactPersonRelation,
-    contactPersonMobile1,
-    contactPersonMobile2,
+    contactPersonAddress,
+    contactPersonMobile,
+    contactPersonEmail,
+    medicalInsurance,
+    primaryInsuranceName,
+    primaryInsuranceHolderName,
+    primaryInsuranceId,
+    secondaryInsuranceName,
+    secondaryInsuranceHolderName,
+    secondaryInsuranceId,
     balanceAmount,
   } =
     (body as Partial<{
-      team: string;
-      name: string;
+      franchiseId?: number | string | null;
+      teamId?: number | string | null;
+      firstName: string;
+      middleName: string;
+      lastName: string;
       dateOfBirth?: string | null;
       age?: number | string | null;
       gender: string;
-      status?: string;
-      address?: string | null;
+      bloodGroup: string;
+      height?: string | null;
+      weight?: string | null;
+      bmi?: string | null;
+      address: string;
       stateId: number | string;
       cityId: number | string;
       pincode?: string | null;
-      mobile1: string;
-      mobile2?: string | null;
       email?: string | null;
-      contactPerson?: string | null;
+      mobile: string;
+      aadharNo: string;
+      occupation?: string | null;
+      maritalStatus?: string | null;
+      contactPersonName?: string | null;
       contactPersonRelation?: string | null;
-      contactPersonMobile1?: string | null;
-      contactPersonMobile2?: string | null;
+      contactPersonAddress?: string | null;
+      contactPersonMobile?: string | null;
+      contactPersonEmail?: string | null;
+      medicalInsurance?: boolean | string | null;
+      primaryInsuranceName?: string | null;
+      primaryInsuranceHolderName?: string | null;
+      primaryInsuranceId?: string | null;
+      secondaryInsuranceName?: string | null;
+      secondaryInsuranceHolderName?: string | null;
+      secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
     }>) || {};
 
-  if (!team) return ApiError("Team is required", 400);
-  if (!name) return ApiError("Name is required", 400);
-  if (age === undefined || age === null || age === "") return ApiError("Age is required", 400);
+  if (!firstName) return ApiError("First name is required", 400);
+  if (!middleName) return ApiError("Middle name is required", 400);
+  if (!lastName) return ApiError("Last name is required", 400);
   if (!gender) return ApiError("Gender is required", 400);
+  if (!bloodGroup) return ApiError("Blood group is required", 400);
+  if (!address) return ApiError("Address is required", 400);
   if (!stateId) return ApiError("State is required", 400);
   if (!cityId) return ApiError("City is required", 400);
-  if (!mobile1) return ApiError("Mobile 1 is required", 400);
+  if (!mobile) return ApiError("Mobile is required", 400);
+  if (!aadharNo) return ApiError("Aadhar No is required", 400);
 
-  if (!/^[0-9]{10}$/.test(String(mobile1).trim())) return ApiError("Mobile 1 must be 10 digits", 400);
-  if (mobile2 && !/^[0-9]{10}$/.test(String(mobile2).trim())) return ApiError("Mobile 2 must be 10 digits", 400);
-  if (contactPersonMobile1 && !/^[0-9]{10}$/.test(String(contactPersonMobile1).trim())) return ApiError("Contact Person Mobile 1 must be 10 digits", 400);
-  if (contactPersonMobile2 && !/^[0-9]{10}$/.test(String(contactPersonMobile2).trim())) return ApiError("Contact Person Mobile 2 must be 10 digits", 400);
+  if (!/^[0-9]{10}$/.test(String(mobile).trim())) return ApiError("Mobile must be 10 digits", 400);
+  if (!/^[0-9]{12}$/.test(String(aadharNo).trim())) return ApiError("Aadhar No must be 12 digits", 400);
+  if (contactPersonMobile && !/^[0-9]{10}$/.test(String(contactPersonMobile).trim())) return ApiError("Contact Person Mobile must be 10 digits", 400);
 
   const normalizedGender = normalizeGender(gender);
   if (!normalizedGender) return ApiError("Invalid gender", 400);
@@ -180,14 +209,26 @@ export async function POST(req: NextRequest) {
   if (dateOfBirth && Number.isNaN(parsedDob?.getTime() as number)) return ApiError("Invalid date of birth", 400);
 
   const parsedAge = age === null || age === undefined || age === "" ? null : Number(age);
-  if (parsedAge === null || Number.isNaN(parsedAge)) return ApiError("Invalid age", 400);
-  if (parsedAge < 0) return ApiError("Invalid age", 400);
+  if (parsedAge !== null) {
+    if (Number.isNaN(parsedAge)) return ApiError("Invalid age", 400);
+    if (parsedAge < 0) return ApiError("Invalid age", 400);
+  }
 
   const parsedBalance = balanceAmount === null || balanceAmount === undefined || balanceAmount === "" ? 0 : Number(balanceAmount);
   if (Number.isNaN(parsedBalance)) return ApiError("Invalid balance amount", 400);
 
-  const statusText = typeof status === "string" ? status.trim() : "";
-  const finalStatus = statusText || "Enquiry";
+  const parsedFranchiseId = franchiseId === null || franchiseId === undefined || franchiseId === "" ? null : Number(franchiseId);
+  if (parsedFranchiseId !== null && Number.isNaN(parsedFranchiseId)) return ApiError("Invalid franchise", 400);
+
+  const parsedTeamId = teamId === null || teamId === undefined || teamId === "" ? null : Number(teamId);
+  if (parsedTeamId !== null && Number.isNaN(parsedTeamId)) return ApiError("Invalid team", 400);
+
+  const parsedMedicalInsurance =
+    medicalInsurance === true || medicalInsurance === "true"
+      ? true
+      : medicalInsurance === false || medicalInsurance === "false"
+        ? false
+        : undefined;
 
   try {
     const patientModel = (prisma as any).patient;
@@ -220,33 +261,50 @@ export async function POST(req: NextRequest) {
       return (tx as any).patient.create({
         data: {
           patientNo,
-          team: team.trim(),
-          name: name.trim(),
+          franchiseId: parsedFranchiseId,
+          teamId: parsedTeamId,
+          firstName: firstName.trim(),
+          middleName: middleName.trim(),
+          lastName: lastName.trim(),
           dateOfBirth: parsedDob,
           age: parsedAge,
           gender: normalizedGender,
-          status: finalStatus,
-          address: address || null,
+          bloodGroup: bloodGroup.trim(),
+          height: typeof height === "string" ? height : null,
+          weight: typeof weight === "string" ? weight : null,
+          bmi: typeof bmi === "string" ? bmi : null,
+          address: address.trim(),
           stateId: Number(stateId),
           cityId: Number(cityId),
           pincode: pincode || null,
-          mobile1: mobile1.trim(),
-          mobile2: mobile2 || null,
+          mobile: mobile.trim(),
           email: email || null,
-          contactPerson: contactPerson || null,
+          aadharNo: aadharNo.trim(),
+          occupation: occupation || null,
+          maritalStatus: maritalStatus || null,
+          contactPersonName: contactPersonName || null,
           contactPersonRelation: contactPersonRelation || null,
-          contactPersonMobile1: contactPersonMobile1 || null,
-          contactPersonMobile2: contactPersonMobile2 || null,
+          contactPersonAddress: contactPersonAddress || null,
+          contactPersonMobile: contactPersonMobile || null,
+          contactPersonEmail: contactPersonEmail || null,
+          medicalInsurance: parsedMedicalInsurance ?? false,
+          primaryInsuranceName: primaryInsuranceName || null,
+          primaryInsuranceHolderName: primaryInsuranceHolderName || null,
+          primaryInsuranceId: primaryInsuranceId || null,
+          secondaryInsuranceName: secondaryInsuranceName || null,
+          secondaryInsuranceHolderName: secondaryInsuranceHolderName || null,
+          secondaryInsuranceId: secondaryInsuranceId || null,
           balanceAmount: parsedBalance,
         },
         select: {
           id: true,
           patientNo: true,
-          team: true,
-          name: true,
+          team: { select: { id: true, name: true } },
+          firstName: true,
+          middleName: true,
+          lastName: true,
           gender: true,
-          status: true,
-          mobile1: true,
+          mobile: true,
           createdAt: true,
           state: { select: { id: true, state: true } },
           city: { select: { id: true, city: true } },
@@ -280,44 +338,76 @@ export async function PATCH(req: NextRequest) {
 
   const {
     id,
-    team,
-    name,
+    franchiseId,
+    teamId,
+    firstName,
+    middleName,
+    lastName,
     dateOfBirth,
     age,
     gender,
-    status,
+    bloodGroup,
+    height,
+    weight,
+    bmi,
     address,
     stateId,
     cityId,
     pincode,
-    mobile1,
-    mobile2,
     email,
-    contactPerson,
+    mobile,
+    aadharNo,
+    occupation,
+    maritalStatus,
+    contactPersonName,
     contactPersonRelation,
-    contactPersonMobile1,
-    contactPersonMobile2,
+    contactPersonAddress,
+    contactPersonMobile,
+    contactPersonEmail,
+    medicalInsurance,
+    primaryInsuranceName,
+    primaryInsuranceHolderName,
+    primaryInsuranceId,
+    secondaryInsuranceName,
+    secondaryInsuranceHolderName,
+    secondaryInsuranceId,
     balanceAmount,
   } =
     (body as Partial<{
       id: number | string;
-      team?: string;
-      name?: string;
+      franchiseId?: number | string | null;
+      teamId?: number | string | null;
+      firstName?: string;
+      middleName?: string;
+      lastName?: string;
       dateOfBirth?: string | null;
       age?: number | string | null;
       gender?: string;
-      status?: string;
-      address?: string | null;
+      bloodGroup?: string;
+      height?: string | null;
+      weight?: string | null;
+      bmi?: string | null;
+      address?: string;
       stateId?: number | string;
       cityId?: number | string;
       pincode?: string | null;
-      mobile1?: string;
-      mobile2?: string | null;
       email?: string | null;
-      contactPerson?: string | null;
+      mobile?: string;
+      aadharNo?: string;
+      occupation?: string | null;
+      maritalStatus?: string | null;
+      contactPersonName?: string | null;
       contactPersonRelation?: string | null;
-      contactPersonMobile1?: string | null;
-      contactPersonMobile2?: string | null;
+      contactPersonAddress?: string | null;
+      contactPersonMobile?: string | null;
+      contactPersonEmail?: string | null;
+      medicalInsurance?: boolean | string | null;
+      primaryInsuranceName?: string | null;
+      primaryInsuranceHolderName?: string | null;
+      primaryInsuranceId?: string | null;
+      secondaryInsuranceName?: string | null;
+      secondaryInsuranceHolderName?: string | null;
+      secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
     }>) || {};
 
@@ -325,8 +415,39 @@ export async function PATCH(req: NextRequest) {
 
   const data: Record<string, unknown> = {};
 
-  if (typeof team === "string") data.team = team.trim();
-  if (typeof name === "string") data.name = name.trim();
+  if (franchiseId !== undefined) {
+    if (franchiseId === null || franchiseId === "") data.franchiseId = null;
+    else {
+      const n = Number(franchiseId);
+      if (Number.isNaN(n)) return ApiError("Invalid franchise", 400);
+      data.franchiseId = n;
+    }
+  }
+
+  if (teamId !== undefined) {
+    if (teamId === null || teamId === "") data.teamId = null;
+    else {
+      const n = Number(teamId);
+      if (Number.isNaN(n)) return ApiError("Invalid team", 400);
+      data.teamId = n;
+    }
+  }
+
+  if (typeof firstName === "string") {
+    const v = firstName.trim();
+    if (!v) return ApiError("First name is required", 400);
+    data.firstName = v;
+  }
+  if (typeof middleName === "string") {
+    const v = middleName.trim();
+    if (!v) return ApiError("Middle name is required", 400);
+    data.middleName = v;
+  }
+  if (typeof lastName === "string") {
+    const v = lastName.trim();
+    if (!v) return ApiError("Last name is required", 400);
+    data.lastName = v;
+  }
 
   if (dateOfBirth !== undefined) {
     if (!dateOfBirth) data.dateOfBirth = null;
@@ -338,10 +459,12 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (age !== undefined) {
-    if (age === null || age === "") return ApiError("Age is required", 400);
-    const n = Number(age);
-    if (Number.isNaN(n) || n < 0) return ApiError("Invalid age", 400);
-    data.age = n;
+    if (age === null || age === "") data.age = null;
+    else {
+      const n = Number(age);
+      if (Number.isNaN(n) || n < 0) return ApiError("Invalid age", 400);
+      data.age = n;
+    }
   }
 
   if (gender !== undefined) {
@@ -350,46 +473,60 @@ export async function PATCH(req: NextRequest) {
     data.gender = g;
   }
 
-  if (status !== undefined) {
-    if (typeof status !== "string") return ApiError("Invalid status", 400);
-    const s = status.trim();
-    if (!s) return ApiError("Status is required", 400);
-    data.status = s;
+  if (typeof bloodGroup === "string") {
+    const v = bloodGroup.trim();
+    if (!v) return ApiError("Blood group is required", 400);
+    data.bloodGroup = v;
   }
-  if (typeof address === "string" || address === null) data.address = address || null;
+  if (typeof height === "string" || height === null) data.height = height || null;
+  if (typeof weight === "string" || weight === null) data.weight = weight || null;
+  if (typeof bmi === "string" || bmi === null) data.bmi = bmi || null;
+  if (typeof address === "string") {
+    const v = address.trim();
+    if (!v) return ApiError("Address is required", 400);
+    data.address = v;
+  }
   if (typeof pincode === "string" || pincode === null) data.pincode = pincode || null;
-  if (typeof mobile1 === "string") {
-    const m = mobile1.trim();
-    if (!/^[0-9]{10}$/.test(m)) return ApiError("Mobile 1 must be 10 digits", 400);
-    data.mobile1 = m;
-  }
-  if (typeof mobile2 === "string" || mobile2 === null) {
-    if (!mobile2) data.mobile2 = null;
-    else {
-      const m = mobile2.trim();
-      if (!/^[0-9]{10}$/.test(m)) return ApiError("Mobile 2 must be 10 digits", 400);
-      data.mobile2 = m;
-    }
+  if (typeof mobile === "string") {
+    const m = mobile.trim();
+    if (!/^[0-9]{10}$/.test(m)) return ApiError("Mobile must be 10 digits", 400);
+    data.mobile = m;
   }
   if (typeof email === "string" || email === null) data.email = email || null;
-  if (typeof contactPerson === "string" || contactPerson === null) data.contactPerson = contactPerson || null;
+  if (typeof aadharNo === "string") {
+    const a = aadharNo.trim();
+    if (!/^[0-9]{12}$/.test(a)) return ApiError("Aadhar No must be 12 digits", 400);
+    data.aadharNo = a;
+  }
+  if (typeof occupation === "string" || occupation === null) data.occupation = occupation || null;
+  if (typeof maritalStatus === "string" || maritalStatus === null) data.maritalStatus = maritalStatus || null;
+  if (typeof contactPersonName === "string" || contactPersonName === null) data.contactPersonName = contactPersonName || null;
   if (typeof contactPersonRelation === "string" || contactPersonRelation === null) data.contactPersonRelation = contactPersonRelation || null;
-  if (typeof contactPersonMobile1 === "string" || contactPersonMobile1 === null) {
-    if (!contactPersonMobile1) data.contactPersonMobile1 = null;
+  if (typeof contactPersonAddress === "string" || contactPersonAddress === null) data.contactPersonAddress = contactPersonAddress || null;
+  if (typeof contactPersonMobile === "string" || contactPersonMobile === null) {
+    if (!contactPersonMobile) data.contactPersonMobile = null;
     else {
-      const m = contactPersonMobile1.trim();
-      if (!/^[0-9]{10}$/.test(m)) return ApiError("Contact Person Mobile 1 must be 10 digits", 400);
-      data.contactPersonMobile1 = m;
+      const m = contactPersonMobile.trim();
+      if (!/^[0-9]{10}$/.test(m)) return ApiError("Contact Person Mobile must be 10 digits", 400);
+      data.contactPersonMobile = m;
     }
   }
-  if (typeof contactPersonMobile2 === "string" || contactPersonMobile2 === null) {
-    if (!contactPersonMobile2) data.contactPersonMobile2 = null;
-    else {
-      const m = contactPersonMobile2.trim();
-      if (!/^[0-9]{10}$/.test(m)) return ApiError("Contact Person Mobile 2 must be 10 digits", 400);
-      data.contactPersonMobile2 = m;
-    }
+  if (typeof contactPersonEmail === "string" || contactPersonEmail === null) data.contactPersonEmail = contactPersonEmail || null;
+
+  if (medicalInsurance !== undefined) {
+    if (medicalInsurance === null || medicalInsurance === "") data.medicalInsurance = false;
+    else if (medicalInsurance === true || medicalInsurance === "true") data.medicalInsurance = true;
+    else if (medicalInsurance === false || medicalInsurance === "false") data.medicalInsurance = false;
+    else return ApiError("Invalid medical insurance", 400);
   }
+  if (typeof primaryInsuranceName === "string" || primaryInsuranceName === null) data.primaryInsuranceName = primaryInsuranceName || null;
+  if (typeof primaryInsuranceHolderName === "string" || primaryInsuranceHolderName === null)
+    data.primaryInsuranceHolderName = primaryInsuranceHolderName || null;
+  if (typeof primaryInsuranceId === "string" || primaryInsuranceId === null) data.primaryInsuranceId = primaryInsuranceId || null;
+  if (typeof secondaryInsuranceName === "string" || secondaryInsuranceName === null) data.secondaryInsuranceName = secondaryInsuranceName || null;
+  if (typeof secondaryInsuranceHolderName === "string" || secondaryInsuranceHolderName === null)
+    data.secondaryInsuranceHolderName = secondaryInsuranceHolderName || null;
+  if (typeof secondaryInsuranceId === "string" || secondaryInsuranceId === null) data.secondaryInsuranceId = secondaryInsuranceId || null;
 
   if (balanceAmount !== undefined) {
     if (balanceAmount === null || balanceAmount === "") data.balanceAmount = 0;
@@ -438,11 +575,12 @@ export async function PATCH(req: NextRequest) {
         select: {
           id: true,
           patientNo: true,
-          team: true,
-          name: true,
+          team: { select: { id: true, name: true } },
+          firstName: true,
+          middleName: true,
+          lastName: true,
           gender: true,
-          status: true,
-          mobile1: true,
+          mobile: true,
           createdAt: true,
           state: { select: { id: true, state: true } },
           city: { select: { id: true, city: true } },
