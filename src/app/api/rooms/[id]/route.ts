@@ -8,24 +8,39 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
+  // Get current user's franchise ID
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      franchise: {
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return Error("Current user not found", 404);
+  }
+
+  if (!currentUser.franchise) {
+    return Error("Current user is not associated with any franchise", 400);
+  }
+
   const { id } = await context.params;
   const idNum = Number(id);
   if (Number.isNaN(idNum)) return Error('Invalid id', 400);
   
   try {
-   
-    let where: any = { id: idNum };
-      const select = {
+    const record = await prisma.room.findUnique({
+      where: { id: idNum, franchiseId: currentUser.franchise.id },
+      select: {
         id: true,
         name: true,
         description: true,
         createdAt: true,
         updatedAt: true,
-      };
-    
-    const record = await prisma.room.findUnique({
-      where,
-      select,
+      },
     });
     
     if (!record) return Error('Room not found', 404);
@@ -40,12 +55,32 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
+  // Get current user's franchise ID
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      franchise: {
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return Error("Current user not found", 404);
+  }
+
+  if (!currentUser.franchise) {
+    return Error("Current user is not associated with any franchise", 400);
+  }
+
   const { id } = await context.params;
   const idNum = Number(id);
   if (Number.isNaN(idNum)) return Error('Invalid id', 400);
+  
   try {
     const record = await prisma.room.findUnique({
-      where: { id: idNum },
+      where: { id: idNum, franchiseId: currentUser.franchise.id },
       select: { id: true }
     });
     
