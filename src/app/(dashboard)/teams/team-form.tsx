@@ -66,12 +66,12 @@ export function TeamForm({
   const [submitting, setSubmitting] = useState(false);
 
   const schema = z.object({
-    name: z.string().min(1, 'Team Name is required'),
-    addressLine1: z.string().min(1, 'Address Line 1 is required'),
-    addressLine2: z.string().nullable().optional(),
+    name: z.string().min(1, 'Team Name is required').max(255, 'Team Name must be less than 255 characters'),
+    addressLine1: z.string().min(1, 'Address Line 1 is required').max(500, 'Address Line 1 must be less than 500 characters'),
+    addressLine2: z.string().max(500, 'Address Line 2 must be less than 500 characters').nullable().optional(),
     stateId: z.string().min(1, 'State is required'),
     cityId: z.string().min(1, 'City is required'),
-    pincode: z.string().min(1, 'Pincode is required'),
+    pincode: z.string().regex(/^[0-9]{6}$/, 'Pincode must be exactly 6 digits'),
     joiningDate: z.string().nullable().optional(),
     leavingDate: z.string().nullable().optional(),
     role: z.enum(['FRANCHISE', 'DOCTOR'], {
@@ -79,10 +79,12 @@ export function TeamForm({
       invalid_type_error: 'Role must be either FRANCHISE or DOCTOR',
     }),
     userMobile: z.string().regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
-    email: z.string().email('Invalid email'),
+    email: z.string().email('Invalid email').max(255, 'Email must be less than 255 characters'),
     password: (mode === 'create'
-      ? z.string().min(8, "Password must be at least 8 characters long")
-      : z.string().optional()
+      ? z.string().min(8, "Password must be at least 8 characters long").max(255, "Password must be less than 255 characters")
+      : z.string().optional().refine(val => !val || val.trim().length === 0 || val.length >= 8, {
+          message: "Password must be at least 8 characters long"
+        })
     ),
 
     status: z.boolean().default(true),
@@ -177,17 +179,17 @@ export function TeamForm({
 
       if (mode === 'create') {
         const res = await apiPost('/api/teams', {
-          name: values.name,
-          email: values.email,
+          name: values.name.trim(),
+          email: values.email.trim().toLowerCase(),
           password: values.password,
           role: values.role,
           status: values.status,
-          addressLine1: values.addressLine1,
-          addressLine2: values.addressLine2 || null,
-          city: cityLabel,
-          state: stateLabel,
-          pincode: values.pincode,
-          userMobile: values.userMobile,
+          addressLine1: values.addressLine1.trim(),
+          addressLine2: values.addressLine2?.trim() || null,
+          city: cityLabel.trim(),
+          state: stateLabel.trim(),
+          pincode: values.pincode.trim(),
+          userMobile: values.userMobile.trim(),
           joiningDate: values.joiningDate ? new Date(values.joiningDate).toISOString() : null,
           leavingDate: values.leavingDate ? new Date(values.leavingDate).toISOString() : null,
         });
@@ -196,19 +198,19 @@ export function TeamForm({
       } else if (mode === 'edit' && initial?.id) {
         const res = await apiPatch('/api/teams', {
           id: initial.id,
-          name: values.name,
-          email: values.email,
+          name: values.name.trim(),
+          email: values.email.trim().toLowerCase(),
           role: values.role,
           status: values.status,
-          addressLine1: values.addressLine1,
-          addressLine2: values.addressLine2 || null,
-          city: cityLabel,
-          state: stateLabel,
-          pincode: values.pincode,
-          userMobile: values.userMobile,
+          addressLine1: values.addressLine1.trim(),
+          addressLine2: values.addressLine2?.trim() || null,
+          city: cityLabel.trim(),
+          state: stateLabel.trim(),
+          pincode: values.pincode.trim(),
+          userMobile: values.userMobile.trim(),
           joiningDate: values.joiningDate ? new Date(values.joiningDate).toISOString() : null,
           leavingDate: values.leavingDate ? new Date(values.leavingDate).toISOString() : null,
-          password: values.password || undefined,
+          password: values.password?.trim() || undefined,
         });
         toast.success('Team updated');
         onSuccess?.(res);
