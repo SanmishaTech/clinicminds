@@ -11,6 +11,26 @@ import { roomSchema } from '@/lib/schemas/backend/rooms';
 export async function GET(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
+  
+  // Get current user's franchise ID
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      franchise: {
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return Error("Current user not found", 404);
+  }
+
+  if (!currentUser.franchise) {
+    return Error("Current user is not associated with any franchise", 400);
+  }
+
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search")?.trim() || "";
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
@@ -22,6 +42,7 @@ export async function GET(req: NextRequest) {
   ? { [sort]: order } 
   : { name: "asc" };
   const where = {
+    franchiseId: currentUser.franchise.id,
     OR: [
       { name: { contains: search } },
     ],
@@ -51,18 +72,43 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
+  
+  // Get current user's franchise ID
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      franchise: {
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return Error("Current user not found", 404);
+  }
+
+  if (!currentUser.franchise) {
+    return Error("Current user is not associated with any franchise", 400);
+  }
+
+  const franchiseId = currentUser.franchise.id;
+
   try {
     const body = await req.json();
     const data = roomSchema.parse(body);
 
     const existingRoomByName = await prisma.room.findFirst({
-      where: { name: data.name },
+      where: { name: data.name, franchiseId },
       select: { id: true },
     });
     if (existingRoomByName) return Error('Room name already exists', 409);
    
     const room = await prisma.room.create({
-      data: data as any
+      data: {
+        ...data,
+        franchiseId
+      }
     });
     return Success(room, 201);
   } catch (error) {
@@ -81,6 +127,27 @@ export async function PATCH(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
   
+  // Get current user's franchise ID
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      franchise: {
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return Error("Current user not found", 404);
+  }
+
+  if (!currentUser.franchise) {
+    return Error("Current user is not associated with any franchise", 400);
+  }
+
+  const franchiseId = currentUser.franchise.id;
+  
   try {
     const body = await req.json();
     const { id, ...updateData } = body;
@@ -89,11 +156,25 @@ export async function PATCH(req: NextRequest) {
       return BadRequest('Room ID is required');
     }
     
+    // Verify the room belongs to the user's franchise
+    const existingRoom = await prisma.room.findUnique({
+      where: { id: Number(id) },
+      select: { franchiseId: true }
+    });
+
+    if (!existingRoom) {
+      return Error("Room not found", 404);
+    }
+
+    if (existingRoom.franchiseId !== franchiseId) {
+      return Error("Room does not belong to your franchise", 403);
+    }
+    
     const parsedData = roomSchema.partial().parse(updateData);
 
     if (typeof parsedData.name === 'string') {
       const existingRoomByName = await prisma.room.findFirst({
-        where: { name: parsedData.name, NOT: { id: Number(id) } },
+        where: { name: parsedData.name, franchiseId, NOT: { id: Number(id) } },
         select: { id: true },
       });
       if (existingRoomByName) return Error('Room name already exists', 409);

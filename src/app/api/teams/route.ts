@@ -20,7 +20,29 @@ export async function GET(req: NextRequest) {
   const sort = (searchParams.get("sort") || "createdAt") as string;
   const order = (searchParams.get("order") === "asc" ? "asc" : "desc") as "asc" | "desc";
 
-  const where: any = {};
+  // Get current user's franchise ID
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      franchise: {
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return Error("Current user not found", 404);
+  }
+
+  if (!currentUser.franchise) {
+    return Error("Current user is not associated with any franchise", 400);
+  }
+
+  const where: any = {
+    franchiseId: currentUser.franchise.id,
+  };
+  
   if (search) {
     where.OR = [
       { name: { contains: search } },
@@ -90,6 +112,27 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    // Get current user's franchise ID
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.user.id },
+      select: { 
+        id: true,
+        franchise: {
+          select: { id: true }
+        }
+      }
+    });
+
+    if (!currentUser) {
+      return Error("Current user not found", 404);
+    }
+
+    if (!currentUser.franchise) {
+      return Error("Current user is not associated with any franchise", 400);
+    }
+
+    const franchiseId = currentUser.franchise.id;
+
     const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
@@ -112,6 +155,7 @@ export async function POST(req: NextRequest) {
           ...teamData,
           name,
           userId: user.id,
+          franchiseId,
         },
         select: {
           id: true,
@@ -175,6 +219,27 @@ export async function PATCH(req: NextRequest) {
       return BadRequest("Team id required");
     }
 
+    // Get current user's franchise ID
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.user.id },
+      select: { 
+        id: true,
+        franchise: {
+          select: { id: true }
+        }
+      }
+    });
+
+    if (!currentUser) {
+      return Error("Current user not found", 404);
+    }
+
+    if (!currentUser.franchise) {
+      return Error("Current user is not associated with any franchise", 400);
+    }
+
+    const franchiseId = currentUser.franchise.id;
+
     const parsedData = teamSchema.partial().extend({
       password: z.string().min(8, "Password must be at least 8 characters").max(255, "Password must be less than 255 characters").optional(),
       addressLine1: z.string().min(1, "Address Line 1 is required").max(500, "Address Line 1 must be less than 500 characters").optional(),
@@ -228,9 +293,26 @@ export async function PATCH(req: NextRequest) {
       return BadRequest("Nothing to update");
     }
 
+    // Verify the team belongs to the user's franchise
+    const existingTeam = await prisma.team.findUnique({
+      where: { id: Number(id) },
+      select: { franchiseId: true }
+    });
+
+    if (!existingTeam) {
+      return Error("Team not found", 404);
+    }
+
+    if (existingTeam.franchiseId !== franchiseId) {
+      return Error("Team does not belong to your franchise", 403);
+    }
+
     const updated = await prisma.team.update({
       where: { id: Number(id) },
-      data,
+      data:{
+        ...data,
+        name: name || undefined,
+      },
       select: {
         id: true,
         name: true,
