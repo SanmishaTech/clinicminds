@@ -67,6 +67,7 @@ model Franchise {
   patients   Patient[]
   team       Team[]
   room       Room[]
+  appointments Appointment[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -245,22 +246,22 @@ model Patient {
   franchiseId                   Int?
   teamId                        Int?
   firstName                     String
-  middleName                    String
+  middleName                    String?
   lastName                      String
   dateOfBirth                   DateTime?
   age                           Int?
-  gender                        String
-  bloodGroup                    String
+  gender                        String?
+  bloodGroup                    String?
   height                        String?
   weight                        String?
   bmi                           String?
-  address                       String
-  stateId                       Int
-  cityId                        Int
+  address                       String?
+  stateId                       Int?
+  cityId                        Int?
   pincode                       String?
   mobile                        String
   email                         String?
-  aadharNo                      String
+  aadharNo                      String?
   occupation                    String?
   maritalStatus                 String?
   contactPersonName             String?
@@ -277,15 +278,16 @@ model Patient {
   secondaryInsuranceId          String?
 
   medicalHistory                PatientMedicalHistory?
-
+  referedBy                     String?
   balanceAmount                 Float    @default(0)
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
 
   franchise                     Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
   team                          Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  state State @relation(fields: [stateId], references: [id])
-  city  City  @relation(fields: [cityId], references: [id])
+  appointments                  Appointment[]
+  state State? @relation(fields: [stateId], references: [id])
+  city  City? @relation(fields: [cityId], references: [id])
 
   @@index([patientNo])
   @@index([firstName])
@@ -378,6 +380,7 @@ model Team{
   franchiseId   Int
   franchise     Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   patients      Patient[]
+  appointments  Appointment[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -391,3 +394,16 @@ model Team{
   @@map("teams")
 }
 
+model Appointment{
+  id                    Int     @id @default(autoincrement())
+  franchiseId           Int
+  franchise             Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  patientId             Int
+  patient               Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointmentDateTime   DateTime
+  teamId                Int
+  team                  Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  visitPurpose          String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}

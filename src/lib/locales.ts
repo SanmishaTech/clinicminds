@@ -61,6 +61,22 @@ export function formatDateForInput(value: Date | string | null | undefined): str
   return dfFormat(d, 'yyyy-MM-dd');
 }
 
+// Format datetime for HTML input[type="datetime-local"] - returns YYYY-MM-DDThh:mm format
+export function formatDateTimeForInput(value: Date | string | null | undefined): string {
+  if (!value) return '';
+  const d = toDate(value);
+  if (isNaN(d.getTime())) return '';
+  
+  // Format to local datetime string for input
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export function formatCurrency(amount: number, currencyCode?: string, minimumFractionDigits = 0) {
   const { locale, currency } = ENV;
   return new Intl.NumberFormat(locale, { style: 'currency', currency: currencyCode || currency, minimumFractionDigits }).format(amount);

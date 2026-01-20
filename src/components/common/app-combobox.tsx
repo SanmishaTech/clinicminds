@@ -30,6 +30,7 @@ interface AppComboboxProps {
   placeholder?: string
   searchPlaceholder?: string
   emptyText?: string
+  disabled?: boolean
   className?: string
 }
 
@@ -40,6 +41,7 @@ export function AppCombobox({
   placeholder = "Select option...",
   searchPlaceholder = "Search...",
   emptyText = "No option found.",
+  disabled = false,
   className,
 }: AppComboboxProps) {
   const [open, setOpen] = React.useState(false)
@@ -55,16 +57,18 @@ export function AppCombobox({
   const selectedOption = options.find((option) => option.value === value)
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open && !disabled} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           ref={buttonRef}
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          disabled={disabled}
           className={cn(
             "!w-full min-w-0 justify-between font-normal",
             !value && "text-muted-foreground",
+            disabled && "opacity-50 cursor-not-allowed",
             className
           )}
         >
