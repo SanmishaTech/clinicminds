@@ -186,7 +186,7 @@ export default function TeamsPage() {
       <AppCard.Header>
         <AppCard.Title>Teams</AppCard.Title>
         <AppCard.Description>Manage teams.</AppCard.Description>
-        {can(PERMISSIONS.EDIT_TEAMS) && (
+        {can(PERMISSIONS.CREATE_TEAMS) && (
           <AppCard.Action>
             <Link href='/teams/new'>
               <AppButton size='sm' iconName='Plus' type='button'>
