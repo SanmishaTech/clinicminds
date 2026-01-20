@@ -64,6 +64,7 @@ model Franchise {
   userId     Int    @unique
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   sales      Sale[]
+  patients   Patient[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -237,40 +238,60 @@ model PackageMedicine {
 }
 
 model Patient {
-  id                    Int      @id @default(autoincrement())
-  patientNo             String   @unique
-  team                  String
-  name                  String
-  dateOfBirth           DateTime?
-  age                   Int?
-  gender                String
-  status                String   @default("Active")
-  address               String?
-  stateId               Int
-  cityId                Int
-  pincode               String?
-  mobile1               String
-  mobile2               String?
-  email                 String?
-  contactPerson         String?
-  contactPersonRelation String?
-  contactPersonMobile1  String?
-  contactPersonMobile2  String?
-  balanceAmount         Float    @default(0)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                            Int      @id @default(autoincrement())
+  patientNo                     String   @unique
+  franchiseId                   Int?
+  teamId                        Int?
+  firstName                     String
+  middleName                    String
+  lastName                      String
+  dateOfBirth                   DateTime?
+  age                           Int?
+  gender                        String
+  bloodGroup                    String
+  height                        String?
+  weight                        String?
+  bmi                           String?
+  address                       String
+  stateId                       Int
+  cityId                        Int
+  pincode                       String?
+  mobile                        String
+  email                         String?
+  aadharNo                      String
+  occupation                    String?
+  maritalStatus                 String?
+  contactPersonName             String?
+  contactPersonRelation         String?
+  contactPersonAddress          String?
+  contactPersonMobile           String?
+  contactPersonEmail            String?
+  medicalInsurance              Boolean @default(false)
+  primaryInsuranceName          String?
+  primaryInsuranceHolderName    String?
+  primaryInsuranceId            String?
+  secondaryInsuranceName        String?
+  secondaryInsuranceHolderName  String?
+  secondaryInsuranceId          String?
 
+  balanceAmount                 Float    @default(0)
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  franchise                     Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
+  team                          Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
   state State @relation(fields: [stateId], references: [id])
   city  City  @relation(fields: [cityId], references: [id])
 
   @@index([patientNo])
-  @@index([name])
-  @@index([team])
+  @@index([firstName])
+  @@index([middleName])
+  @@index([lastName])
+  @@index([franchiseId])
   @@index([gender])
-  @@index([status])
   @@index([stateId])
   @@index([cityId])
-  @@index([mobile1])
+  @@index([mobile])
   @@map("patients")
 }
 
@@ -306,6 +327,7 @@ model Team{
   userId        Int    @unique
   user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  patients      Patient[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
