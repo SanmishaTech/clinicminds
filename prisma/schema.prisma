@@ -274,6 +274,8 @@ model Patient {
   secondaryInsuranceHolderName  String?
   secondaryInsuranceId          String?
 
+  medicalHistory                PatientMedicalHistory?
+
   balanceAmount                 Float    @default(0)
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt
@@ -293,6 +295,47 @@ model Patient {
   @@index([cityId])
   @@index([mobile])
   @@map("patients")
+}
+
+model PatientMedicalHistory {
+  id                    Int      @id @default(autoincrement())
+  patientId              Int      @unique
+  patient               Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  reasonForVisit         String?  @db.Text
+  heardAboutUs           String?  @db.Text
+  pharmacyName           String?  @db.Text
+  pharmacyLocation       String?  @db.Text
+
+  diet                  String?  @db.Text
+  smokes                Boolean  @default(false)
+  smokingUnitsPerDay    String?  @db.Text
+  drinksAlcohol         Boolean  @default(false)
+  alcoholHowMuch        String?  @db.Text
+  alcoholFrequency      String?  @db.Text
+
+  hasCurrentMedications  Boolean  @default(false)
+  currentMedications     Json?
+  hasMedicationAllergies Boolean  @default(false)
+  otherAllergies         String?  @db.Text
+
+  hadAllergyTest         Boolean  @default(false)
+  allergyTestDetails     String?  @db.Text
+
+  medicalHistory         Json?
+  medicalHistoryOther    String?  @db.Text
+
+  hasSurgicalHistory     Boolean  @default(false)
+  surgicalHistory        Json?
+
+  familyHistory          Json?
+  familyHistoryOther     String?  @db.Text
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([patientId])
+  @@map("patient_medical_histories")
 }
 
 model PatientSequence {

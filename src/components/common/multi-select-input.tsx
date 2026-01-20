@@ -43,7 +43,9 @@ export function MultiSelectInput<
   spanFrom,
 }: MultiSelectInputProps<TFieldValues, TName>) {
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPlacement, setDropdownPlacement] = useState<'bottom' | 'top'>('bottom');
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -55,6 +57,36 @@ export function MultiSelectInput<
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updatePlacement = () => {
+      const containerEl = containerRef.current;
+      if (!containerEl) return;
+
+      const rect = containerEl.getBoundingClientRect();
+      const dropdownHeight = dropdownRef.current?.offsetHeight ?? 240;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const shouldOpenUp = spaceBelow < dropdownHeight + 8 && spaceAbove > spaceBelow;
+
+      setDropdownPlacement(shouldOpenUp ? 'top' : 'bottom');
+    };
+
+    const raf = requestAnimationFrame(updatePlacement);
+    const handleResize = () => updatePlacement();
+    const handleScroll = () => updatePlacement();
+
+    window.addEventListener('resize', handleResize);
+    document.addEventListener('scroll', handleScroll, true);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('scroll', handleScroll, true);
+    };
+  }, [isOpen]);
 
   const getSpanClasses = () => {
     if (!span || !spanFrom) return '';
@@ -123,7 +155,13 @@ export function MultiSelectInput<
                 </Button>
                 
                 {isOpen && (
-                  <div className="absolute top-full z-50 w-full mt-1 bg-popover border rounded-md shadow-md max-h-60 overflow-auto">
+                  <div
+                    ref={dropdownRef}
+                    className={cn(
+                      'absolute z-50 w-full bg-popover border rounded-md shadow-md max-h-60 overflow-auto',
+                      dropdownPlacement === 'bottom' ? 'top-full mt-1' : 'bottom-full mb-1'
+                    )}
+                  >
                     <div className="p-1">
                       {options.length === 0 ? (
                         <div className="px-2 py-1.5 text-sm text-muted-foreground">
