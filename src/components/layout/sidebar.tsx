@@ -318,6 +318,7 @@ export function Sidebar({
             paddingLeft: depth > 0 ? `${2.25 + depth * 0.75}rem` : "2.25rem",
           }}
         >
+          <leaf.icon className="h-4 w-4 mr-2 flex-shrink-0" />
           <span className="truncate">{leaf.title}</span>
           {/* Left accent bar */}
           <span

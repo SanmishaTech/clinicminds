@@ -78,7 +78,7 @@ export function FranchiseForm({
     userMobile: z.string().regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
     userEmail: z.string().email('Invalid email'),
     password: (mode === 'create'
-      ? z.string().min(6, 'Password must be at least 6 characters')
+      ? z.string().min(8, 'Password must be at least 8 characters')
       : z.string().optional()
     ).transform((v) => (v === '' ? undefined : v)),
 

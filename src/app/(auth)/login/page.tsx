@@ -72,7 +72,6 @@ export default function LoginPage() {
 										onCheckedChange={(v) => form.setValue('remember', v)}
 										disabled={isLoading}
 									/>
-									<a href='/forgot-password' className='text-xs font-medium text-primary hover:underline'>Forgot Password?</a>
 								</div>
 							</div>
 							<AppButton
