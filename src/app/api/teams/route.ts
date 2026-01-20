@@ -197,12 +197,19 @@ export async function PATCH(req: NextRequest) {
       return BadRequest("Team id required");
     }
 
-    const parsedData = teamSchema.partial().omit({ password: true }).parse(updateData);
+    const parsedData = teamSchema.partial().parse(updateData);
 
     const { 
-      name, email, status, role, 
+      name, email, password, status, role, 
       ...teamData 
-    } = parsedData;
+    } = parsedData as {
+      name?: string;
+      email?: string;
+      password?: string;
+      status?: boolean;
+      role?: 'FRANCHISE' | 'DOCTOR';
+      [key: string]: any;
+    };
 
     const data: Record<string, unknown> = {};
     
@@ -210,6 +217,7 @@ export async function PATCH(req: NextRequest) {
     const userUpdates: Record<string, unknown> = {};
     if (name) userUpdates.name = name;
     if (email) userUpdates.email = email;
+    if (password !== undefined) userUpdates.passwordHash = await bcrypt.hash(password, 10);
     if (status !== undefined) userUpdates.status = status;
     if (role) userUpdates.role = role;
 
