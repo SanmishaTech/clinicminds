@@ -304,7 +304,7 @@ export async function PATCH(req: NextRequest) {
   if (typeof userEmail === "string" && userEmail) userData.email = userEmail;
   if (typeof status === "boolean") userData.status = status;
   if (typeof password === "string" && password) {
-    if (password.length < 6) return Error("Password must be at least 6 characters", 400);
+    if (password.length < 8) return Error("Password must be at least 8 characters", 400);
     userData.passwordHash = await bcrypt.hash(password, 10);
   }
 

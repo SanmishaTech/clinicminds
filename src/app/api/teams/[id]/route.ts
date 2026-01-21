@@ -11,9 +11,28 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const idNum = Number(id);
   if (Number.isNaN(idNum)) return Error('Invalid id', 400);
 
+  // Get current user's franchise ID
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      franchise: {
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return Error("Current user not found", 404);
+  }
+
+  if (!currentUser.franchise) {
+    return Error("Current user is not associated with any franchise", 400);
+  }
+
   try {
     const team = await prisma.team.findUnique({
-      where: { id: idNum },
+      where: { id: idNum, franchiseId: currentUser.franchise.id },
       select: {
         id: true,
         name: true,
@@ -54,8 +73,30 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   const idNum = Number(id);
   if (Number.isNaN(idNum)) return Error('Invalid id', 400);
 
+  // Get current user's franchise ID
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      franchise: {
+        select: { id: true }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return Error("Current user not found", 404);
+  }
+
+  if (!currentUser.franchise) {
+    return Error("Current user is not associated with any franchise", 400);
+  }
+
   try {
-    const team = await prisma.team.findUnique({ where: { id: idNum }, select: { id: true, userId: true } });
+    const team = await prisma.team.findUnique({ 
+      where: { id: idNum, franchiseId: currentUser.franchise.id }, 
+      select: { id: true, userId: true } 
+    });
     if (!team) return Error('Team not found', 404);
 
     await prisma.user.delete({ where: { id: team.userId } });
