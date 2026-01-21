@@ -13,6 +13,7 @@ import {
   Receipt,
   Package,
   Calendar,
+  IndianRupee,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -117,12 +118,12 @@ export const NAV_ITEMS: NavItem[] = [
     {
     type: "group",
     title: "Transactions",
-    icon: Receipt,
+    icon: IndianRupee,
     children: [
         {   
         title: "Sales",
         href: "/sales",
-        icon: Receipt,
+        icon: IndianRupee,
         permission: PERMISSIONS.VIEW_SALES,
         },
     ],

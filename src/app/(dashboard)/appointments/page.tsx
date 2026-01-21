@@ -16,6 +16,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
 import { MASTER_CONFIG } from '@/config/master';
 import { formatDate } from '@/lib/locales';
+import { format } from 'date-fns';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
 import { EditButton } from '@/components/common/icon-button';
@@ -50,6 +51,11 @@ type AppointmentsResponse = {
   totalPages: number;
 };
 
+type TeamsResponse = {
+  data: Array<{ id: number; name: string }>;
+  total: number;
+};
+
 const GENDER_LABEL: Record<string, string> = Object.fromEntries(
   MASTER_CONFIG.gender.map((g) => [g.value, g.label])
 );
@@ -60,41 +66,65 @@ export default function AppointmentsPage() {
     perPage: 10,
     search: '',
     team: '',
+    gender: '',
+    startDate: new Date().toISOString().split('T')[0], // Default to today
+    endDate: new Date().toISOString().split('T')[0], // Default to today
     sort: 'appointmentDateTime',
     order: 'desc',
   });
 
-  const { page, perPage, search, team, sort, order } = qp as unknown as {
+  const { page, perPage, search, team, gender, startDate, endDate, sort, order } = qp as unknown as {
     page: number;
     perPage: number;
     search: string;
     team: string;
+    gender: string;
+    startDate: string;
+    endDate: string;
     sort: string;
     order: 'asc' | 'desc';
   };
 
   const [searchDraft, setSearchDraft] = useState(search);
   const [teamDraft, setTeamDraft] = useState(team);
+  const [genderDraft, setGenderDraft] = useState(gender);
+  const [startDateDraft, setStartDateDraft] = useState(startDate);
+  const [endDateDraft, setEndDateDraft] = useState(endDate);
 
   useEffect(() => setSearchDraft(search), [search]);
   useEffect(() => setTeamDraft(team), [team]);
+  useEffect(() => setGenderDraft(gender), [gender]);
+  useEffect(() => setStartDateDraft(startDate), [startDate]);
+  useEffect(() => setEndDateDraft(endDate), [endDate]);
+
+  const { can } = usePermissions();
 
   const filtersDirty =
     searchDraft !== search ||
-    teamDraft !== team;
+    (can(PERMISSIONS.READ_TEAMS) && teamDraft !== team) ||
+    genderDraft !== gender ||
+    startDateDraft !== startDate ||
+    endDateDraft !== endDate;
 
   function applyFilters() {
     setQp({
       page: 1,
       search: searchDraft.trim(),
       team: teamDraft.trim(),
+      gender: genderDraft,
+      startDate: startDateDraft,
+      endDate: endDateDraft,
     });
   }
 
   function resetFilters() {
     setSearchDraft('');
     setTeamDraft('');
-    setQp({ page: 1, search: '', team: '' });
+    setGenderDraft('');
+    const today = new Date().toISOString().split('T')[0];
+    setStartDateDraft(today);
+    setEndDateDraft(today);
+    setQp({ page: 1, search: '', team: '', gender: '', startDate: today, endDate: today });
   }
 
   const query = useMemo(() => {
@@ -103,14 +133,17 @@ export default function AppointmentsPage() {
     sp.set('perPage', String(perPage));
     if (search) sp.set('search', search);
     if (team) sp.set('team', team);
+    if (gender) sp.set('gender', gender);
+    if (startDate) sp.set('startDate', startDate);
+    if (endDate) sp.set('endDate', endDate);
     if (sort) sp.set('sort', sort);
     if (order) sp.set('order', order);
     return `/api/appointments?${sp.toString()}`;
-  }, [page, perPage, search, team, sort, order]);
+  }, [page, perPage, search, team, gender, startDate, endDate, sort, order]);
 
   const { data, error, isLoading, mutate } = useSWR<AppointmentsResponse>(query, apiGet);
-
-  const { can } = usePermissions();
+  const { data: teamsResponse } = useSWR<TeamsResponse>('/api/teams?page=1&perPage=100&sort=name&order=asc&role=DOCTOR', apiGet);
+  const teams = teamsResponse?.data || [];
 
   if (error) {
     toast.error((error as Error).message || 'Failed to load appointments');
@@ -139,7 +172,7 @@ export default function AppointmentsPage() {
       key: 'appointmentDateTime',
       header: 'Date & Time',
       sortable: true,
-      accessor: (r) => formatDate(new Date(r.appointmentDateTime)),
+      accessor: (r) => format(new Date(r.appointmentDateTime), 'dd/MM/yyyy hh:mm a'),
       cellClassName: 'whitespace-nowrap',
     },
     {
@@ -147,6 +180,20 @@ export default function AppointmentsPage() {
       header: 'Patient',
       sortable: false,
       accessor: (r) => `${r.patient.firstName} ${r.patient.middleName} ${r.patient.lastName}`,
+      cellClassName: 'whitespace-nowrap',
+    },
+    {
+      key: 'gender',
+      header: 'Gender',
+      sortable: false,
+      accessor: (r) => r.patient.gender ? (GENDER_LABEL[r.patient.gender] ?? r.patient.gender) : '—',
+      cellClassName: 'whitespace-nowrap',
+    },
+    {
+      key: 'mobile',
+      header: 'Mobile',
+      sortable: false,
+      accessor: (r) => r.patient.mobile,
       cellClassName: 'whitespace-nowrap',
     },
     {
@@ -190,7 +237,7 @@ export default function AppointmentsPage() {
         )}
       </AppCard.Header>
       <AppCard.Content>
-        <FilterBar title='Search & Filter'>
+        <FilterBar title='Search & Filter' className='flex-auto flex-nowrap gap-2'>
           <NonFormTextInput
             aria-label='Search appointments'
             placeholder='Search appointments...'
@@ -198,23 +245,59 @@ export default function AppointmentsPage() {
             onChange={(e) => setSearchDraft(e.target.value)}
             containerClassName='w-full'
           />
+          {can(PERMISSIONS.READ_TEAMS) && (
+            <AppSelect
+              value={teamDraft || '__all'}
+              onValueChange={(v) => setTeamDraft(v === '__all' ? '' : v)}
+              placeholder='Team'
+              className='w-full'
+            >
+              <AppSelect.Item value='__all'>All Teams</AppSelect.Item>
+              {teams.map((team) => (
+                <AppSelect.Item key={team.id} value={String(team.id)}>
+                  {team.name}
+                </AppSelect.Item>
+              ))}
+            </AppSelect>
+          )}
+          <AppSelect
+            value={genderDraft || '__all'}
+            onValueChange={(v) => setGenderDraft(v === '__all' ? '' : v)}
+            placeholder='Gender'
+          >
+            <AppSelect.Item value='__all'>All Genders</AppSelect.Item>
+            {MASTER_CONFIG.gender.map((g) => (
+              <AppSelect.Item key={g.value} value={g.value}>
+                {g.label}
+              </AppSelect.Item>
+            ))}
+          </AppSelect>
           <NonFormTextInput
-            aria-label='Filter by team'
-            placeholder='Team'
-            value={teamDraft}
-            onChange={(e) => setTeamDraft(e.target.value)}
+            type='date'
+            aria-label='Start date'
+            placeholder='Start date…'
+            value={startDateDraft}
+            onChange={(e) => setStartDateDraft(e.target.value)}
+            containerClassName='w-full'
+          />
+          <NonFormTextInput
+            type='date'
+            aria-label='End date'
+            placeholder='End date…'
+            value={endDateDraft}
+            onChange={(e) => setEndDateDraft(e.target.value)}
             containerClassName='w-full'
           />
 
           <AppButton
             size='sm'
             onClick={applyFilters}
-            disabled={!filtersDirty && !searchDraft && !teamDraft}
+            disabled={!filtersDirty && !searchDraft && !teamDraft && !genderDraft && !startDateDraft && !endDateDraft}
             className='min-w-[84px]'
           >
             Filter
           </AppButton>
-          {(search || team) && (
+          {(search || team || gender || startDate || endDate) && (
             <AppButton
               variant='secondary'
               size='sm'

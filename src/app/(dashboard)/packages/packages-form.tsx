@@ -214,19 +214,26 @@ export function PackageForm({
   const watchedMedicines = useWatch({ control, name: 'packageMedicines' });
 
   useEffect(() => {
-    const totalDetails = (watchedDetails || []).reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
+    const calculateTotal = () => {
+      const details = form.getValues('packageDetails') || [];
+      const medicines = form.getValues('packageMedicines') || [];
+      
+      const totalDetails = details.reduce((sum, item) => {
+        const amount = parseFloat(item.amount) || 0;
+        return sum + amount;
+      }, 0);
 
-    const totalMedicines = (watchedMedicines || []).reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
+      const totalMedicines = medicines.reduce((sum, item) => {
+        const amount = parseFloat(item.amount) || 0;
+        return sum + amount;
+      }, 0);
 
-    const total = totalDetails + totalMedicines;
-    setValue('totalAmount', total.toFixed(2));
-  }, [watchedDetails, watchedMedicines, setValue]);
+      const total = totalDetails + totalMedicines;
+      setValue('totalAmount', total.toFixed(2));
+    };
+
+    calculateTotal();
+  }, [watchedDetails, watchedMedicines, setValue, form]);
 
   function updateDetailAmount(index: number, field: 'qty' | 'rate', value: string) {
     const details = [...(watchedDetails || [])];
@@ -243,6 +250,23 @@ export function PackageForm({
     setValue(`packageDetails.${index}.qty`, row.qty);
     setValue(`packageDetails.${index}.rate`, row.rate);
     setValue(`packageDetails.${index}.amount`, row.amount);
+    
+    // Immediately recalculate total
+    const allDetails = form.getValues('packageDetails') || [];
+    const allMedicines = form.getValues('packageMedicines') || [];
+    
+    const totalDetails = allDetails.reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    const totalMedicines = allMedicines.reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    const total = totalDetails + totalMedicines;
+    setValue('totalAmount', total.toFixed(2));
   }
 
   function updateMedicineAmount(index: number, field: 'qty' | 'rate', value: string) {
@@ -260,6 +284,23 @@ export function PackageForm({
     setValue(`packageMedicines.${index}.qty`, row.qty);
     setValue(`packageMedicines.${index}.rate`, row.rate);
     setValue(`packageMedicines.${index}.amount`, row.amount);
+    
+    // Immediately recalculate total
+    const allDetails = form.getValues('packageDetails') || [];
+    const allMedicines = form.getValues('packageMedicines') || [];
+    
+    const totalDetails = allDetails.reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    const totalMedicines = allMedicines.reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    const total = totalDetails + totalMedicines;
+    setValue('totalAmount', total.toFixed(2));
   }
 
   useEffect(() => {
@@ -453,31 +494,37 @@ export function PackageForm({
                         control={control}
                         name={`packageDetails.${index}.rate`}
                         render={({ field }) => (
-                          <Input
-                            {...field}
-                            type='number'
-                            step='0.01'
-                            min='0'
-                            placeholder='0.00'
-                            className='w-full h-10 border'
-                            value={field.value || ''}
-                            onChange={(e) =>
-                              updateDetailAmount(index, 'rate', e.target.value)
-                            }
-                          />
+                          <div className='relative w-full'>
+                            <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
+                            <Input
+                              {...field}
+                              type='number'
+                              step='0.01'
+                              min='0'
+                              placeholder='0.00'
+                              className='w-full h-10 border pl-5.5'
+                              value={field.value || ''}
+                              onChange={(e) =>
+                                updateDetailAmount(index, 'rate', e.target.value)
+                              }
+                            />
+                          </div>
                         )}
                       />
                     </div>
                     <div className='col-span-2 p-3 flex items-center gap-2'>
-                      <Input
-                        value={watchedDetails?.[index]?.amount || '0'}
-                        type='number'
-                        step='0.01'
-                        min='0'
-                        className='w-full h-10 border'
-                        disabled
-                        readOnly
-                      />
+                      <div className='relative w-full'>
+                        <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
+                        <Input
+                          value={watchedDetails?.[index]?.amount || '0'}
+                          type='number'
+                          step='0.01'
+                          min='0'
+                          className='w-full h-10 border pl-5.5'
+                          disabled
+                          readOnly
+                        />
+                      </div>
                       {detailFields.length > 1 && (
                         <AppButton
                           type='button'
@@ -580,31 +627,37 @@ export function PackageForm({
                         control={control}
                         name={`packageMedicines.${index}.rate`}
                         render={({ field }) => (
-                          <Input
-                            {...field}
-                            type='number'
-                            step='0.01'
-                            min='0'
-                            placeholder='0.00'
-                            className='w-full h-10 border'
-                            value={field.value || ''}
-                            onChange={(e) =>
-                              updateMedicineAmount(index, 'rate', e.target.value)
-                            }
-                          />
+                          <div className='relative w-full'>
+                            <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
+                            <Input
+                              {...field}
+                              type='number'
+                              step='0.01'
+                              min='0'
+                              placeholder='0.00'
+                              className='w-full h-10 border pl-5.5'
+                              value={field.value || ''}
+                              onChange={(e) =>
+                                updateMedicineAmount(index, 'rate', e.target.value)
+                              }
+                            />
+                          </div>
                         )}
                       />
                     </div>
                     <div className='col-span-2 p-3 flex items-center gap-2'>
-                      <Input
-                        value={watchedMedicines?.[index]?.amount || '0'}
-                        type='number'
-                        step='0.01'
-                        min='0'
-                        className='w-full h-10 border'
-                        disabled
-                        readOnly
-                      />
+                      <div className='relative w-full'>
+                        <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
+                        <Input
+                          value={watchedMedicines?.[index]?.amount || '0'}
+                          type='number'
+                          step='0.01'
+                          min='0'
+                          className='w-full h-10 border pl-5.5'
+                          disabled
+                          readOnly
+                        />
+                      </div>
                       {medicineFields.length > 1 && (
                         <AppButton
                           type='button'
@@ -633,20 +686,27 @@ export function PackageForm({
                   <Plus className='h-4 w-4' />
                   Add
                 </AppButton>
-
-                <div className='ml-auto w-full max-w-[260px]'>
-                  <div className='text-right text-sm text-muted-foreground'>Total Amount</div>
-                  <Input
-                    value={form.getValues('totalAmount') || '0.00'}
-                    type='number'
-                    step='0.01'
-                    min='0'
-                    className='mt-2 h-10 border text-right'
-                    disabled
-                    readOnly
-                  />
-                </div>
               </div>
+              {/* Total Amount */}
+              <FormRow className='grid-cols-12'>
+                 <div className="col-span-12 flex justify-end">
+                    <div className="text-right">
+                      <div className="text-sm text-muted-foreground">
+                        Total Amount
+                      </div>
+                      <div className="text-lg font-bold text-foreground">
+                        {new Intl.NumberFormat("en-IN", {
+                            style: "currency",
+                            currency: "INR",
+                            minimumFractionDigits: 2,
+                          }).format(
+                            parseFloat(form.getValues('totalAmount')) || 0
+                          )
+                        }
+                      </div>
+                    </div>
+                  </div>
+                </FormRow>
             </FormSection>
           </AppCard.Content>
           <AppCard.Footer className='justify-end gap-2'>

@@ -7,17 +7,22 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
-  const { id } = await context.params;
-  const idNum = Number(id);
-  if (Number.isNaN(idNum)) return Error('Invalid id', 400);
-
-  // Get current user's franchise ID
+  // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
     where: { id: auth.user.id },
     select: { 
       id: true,
+      role: true,
       franchise: {
         select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
       }
     }
   });
@@ -26,13 +31,20 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     return Error("Current user not found", 404);
   }
 
-  if (!currentUser.franchise) {
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
     return Error("Current user is not associated with any franchise", 400);
   }
 
+  const { id } = await context.params;
+  const idNum = Number(id);
+  if (Number.isNaN(idNum)) return Error('Invalid id', 400);
+
   try {
     const team = await prisma.team.findUnique({
-      where: { id: idNum, franchiseId: currentUser.franchise.id },
+      where: { id: idNum, franchiseId: franchiseId },
       select: {
         id: true,
         name: true,
@@ -73,13 +85,22 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   const idNum = Number(id);
   if (Number.isNaN(idNum)) return Error('Invalid id', 400);
 
-  // Get current user's franchise ID
+  // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
     where: { id: auth.user.id },
     select: { 
       id: true,
+      role: true,
       franchise: {
         select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
       }
     }
   });
@@ -88,13 +109,16 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     return Error("Current user not found", 404);
   }
 
-  if (!currentUser.franchise) {
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
     return Error("Current user is not associated with any franchise", 400);
   }
 
   try {
     const team = await prisma.team.findUnique({ 
-      where: { id: idNum, franchiseId: currentUser.franchise.id }, 
+      where: { id: idNum, franchiseId }, 
       select: { id: true, userId: true } 
     });
     if (!team) return Error('Team not found', 404);

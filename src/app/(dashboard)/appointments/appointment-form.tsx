@@ -3,7 +3,7 @@
 import { useMemo, useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { useForm } from 'react-hook-form';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form } from '@/components/ui/form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppButton } from '@/components/common/app-button';
@@ -18,10 +18,7 @@ import { useRouter } from 'next/navigation';
 import { ComboboxInput } from '@/components/common/combobox-input';
 import { EmailInput } from '@/components/common/email-input';
 import { MASTER_CONFIG } from '@/config/master';
-import { formatDateForInput, formatDateTimeForInput } from '@/lib/locales';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Info } from 'lucide-react';
+import { formatDateTimeForInput } from '@/lib/locales';
 
 type TeamsResponse = {
   data: { id: number; name: string }[];
@@ -32,7 +29,7 @@ type TeamsResponse = {
 };
 
 type PatientsResponse = {
-  data: { id: number; firstName: string; middleName: string; lastName: string; mobile: string }[];
+  data: { id: number; patientNo: string; firstName: string; middleName: string; lastName: string; mobile: string }[];
   page: number;
   perPage: number;
   total: number;
@@ -81,7 +78,18 @@ const appointmentFormSchema = z.object({
     middleName: z.string().optional(),
     lastName: z.string().min(1, 'Last name is required'),
     dateOfBirth: z.string().optional(),
-    age: z.string().transform((v) => v ? Number(v) : 0).refine((v) => v > 0, 'Age must be positive'),
+    age: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine(
+        (v) => {
+          if (!v) return true;
+          const n = Number(v);
+          return Number.isFinite(n) && !Number.isNaN(n) && n >= 0;
+        },
+        'Invalid age'
+      ),
     gender: z.string(),
     referedBy: z.string().optional(),
     email: z.string().email().optional(),
@@ -139,7 +147,7 @@ export function AppointmentForm({
   const patientOptions = useMemo(() =>
     patients.map((patient) => ({
       value: patient.id.toString(),
-      label: `${patient.firstName} ${patient.middleName} ${patient.lastName} (${patient.mobile})`,
+      label: `${patient.patientNo} | ${patient.firstName} ${patient.middleName} ${patient.lastName} | ${patient.mobile}`,
     })),
     [patients]
   );
@@ -170,7 +178,7 @@ export function AppointmentForm({
         middleName: '',
         lastName: '',
         dateOfBirth: '',
-        age: 0,
+        age: '',
         gender: '',
         referedBy: '',
         email: '',
@@ -181,13 +189,7 @@ export function AppointmentForm({
   
   const { control, handleSubmit } = form;
   const watchedPatientId = form.watch('patientId');
-  const watchedPatient = form.watch('patient');
   const watchedDateOfBirth = form.watch('patient.dateOfBirth');
-
-  // Debug: Log form values
-  console.log('Debug - Form initial data:', initial);
-  console.log('Debug - Form default values:', form.getValues());
-  console.log('Debug - Watched appointmentDateTime:', form.watch('appointmentDateTime'));
 
   useEffect(() => {
     setIsNewPatient(!watchedPatientId);
@@ -209,20 +211,23 @@ export function AppointmentForm({
         patientId: !isNewPatient && data.patientId ? Number(data.patientId) : undefined,
         patient: isNewPatient ? {
           ...data.patient,
-          age: Number(data.patient.age)
+          age: data.patient.age ? Number(data.patient.age) : undefined
         } : undefined,
       };
 
-      let result;
+      console.log("Payload",payload);
       if (mode === 'create') {
-        result = await apiPost('/api/appointments', payload);
+        const res = await apiPost('/api/appointments', payload);
         toast.success('Appointment created successfully');
-      } else {
-        result = await apiPatch(`/api/appointments/${initial?.id}`, payload);
+        onSuccess?.(res);
+      } else if (mode === 'edit' && initial?.id){
+        const res = await apiPatch('/api/appointments',{
+          id: initial.id,
+          ...payload,
+        });
         toast.success('Appointment updated successfully');
+        onSuccess?.(res);
       }
-
-      onSuccess?.(result);
       router.push(redirectOnSuccess);
     } catch (err: any) {
       toast.error(err.message || `Failed to ${mode} appointment`);
@@ -242,7 +247,7 @@ export function AppointmentForm({
         middleName: '',
         lastName: '',
         dateOfBirth: '',
-        age: 0,
+        age: '',
         gender: '',
         referedBy: '',
         email: '',
@@ -261,7 +266,7 @@ export function AppointmentForm({
             {mode === 'create' ? 'Schedule a new appointment.' : 'Update appointment details.'}
           </AppCard.Description>
         </AppCard.Header>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
             <FormSection legend="Patient Information">
               {mode === 'edit' ? (
