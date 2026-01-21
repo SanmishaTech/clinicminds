@@ -103,6 +103,7 @@ export function UserForm({
 				const res = await apiPatch('/api/users', {
 					id: initial.id,
 					name: form.name || null,
+					email: form.email,
 					role: form.role,
 					status: form.status,
 					password: form.password || undefined,

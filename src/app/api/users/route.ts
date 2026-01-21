@@ -161,12 +161,14 @@ export async function PATCH(req: NextRequest) {
   } catch {
     return Error("Invalid JSON body", 400);
   }
-  const { id, status, role, name } =
+  const { id, status, role, name, email, password } =
     (body as Partial<{
       id: number | string;
       status?: boolean;
       role?: string;
       name?: string;
+      email?: string;
+      password?: string;
     }>) || {};
   if (!id) return Error("User id required", 400);
 
@@ -178,6 +180,22 @@ export async function PATCH(req: NextRequest) {
     data.role = roleCode;
   }
   if (typeof name === "string") data.name = name || null;
+  if (typeof email === "string") {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) return Error("Email required", 400);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return Error("Invalid email", 400);
+    }
+    data.email = normalizedEmail;
+  }
+  if (typeof password === "string") {
+    const pw = password.trim();
+    if (pw) {
+      if (pw.length < 6) return Error("Password must be at least 6 characters", 400);
+      const passwordHash = await bcrypt.hash(pw, 10);
+      data.passwordHash = passwordHash;
+    }
+  }
   if (Object.keys(data).length === 0) return Error("Nothing to update", 400);
 
   try {
@@ -197,6 +215,7 @@ export async function PATCH(req: NextRequest) {
     return Success(updated);
   } catch (e: unknown) {
     const err = e as { code?: string };
+    if (err?.code === "P2002") return Error("Email already exists", 409);
     if (err?.code === "P2025") return Error("User not found", 404);
     return Error("Failed to update user");
   }
