@@ -114,6 +114,7 @@ model Service{
   updatedAt   DateTime @updatedAt
 
   packageDetails PackageDetail[]
+  consultationDetails ConsultationDetail[]
 
   @@index([name])                    // For searching by name
   @@index([rate])                    // For sorting by rate
@@ -145,6 +146,7 @@ model Medicine{
 
   saleDetail SaleDetail[]
   packageMedicines PackageMedicine[]
+  consultationMedicines ConsultationMedicine[]
 
   @@index([name])                    // For searching by name
   @@index([brandId])                   // For filtering by brand
@@ -404,6 +406,52 @@ model Appointment{
   teamId                Int
   team                  Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   visitPurpose          String?   @db.Text
+  
+  consultation          Consultation?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model Consultation{
+  id                    Int       @id @default(autoincrement())
+  appointmentId         Int       @unique
+  appointment           Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  complaint             String?   @db.Text
+  remarks               String?   @db.Text
+  diagnosis             String?   @db.Text
+  casePaperUrl          String?   @db.Text
+  nextFollowUpDate      DateTime?
+  totalAmount           Decimal   @db.Decimal(10, 2)
+  consultationDetails   ConsultationDetail[]
+  consultationMedicines ConsultationMedicine[]
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model ConsultationDetail{
+  id                    Int       @id @default(autoincrement())
+  consultationId        Int
+  consultation          Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  serviceId             Int?
+  service               Service?        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  description           String?   @db.Text
+  qty                   Int
+  rate                  Decimal   @db.Decimal(10, 2)
+  amount                Decimal   @db.Decimal(10, 2)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+}
+
+model ConsultationMedicine{
+  id                    Int       @id @default(autoincrement())
+  consultationId        Int
+  consultation          Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  medicineId            Int?
+  medicine              Medicine? @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  qty                   Int
+  mrp                   Decimal   @db.Decimal(10, 2)
+  amount                Decimal   @db.Decimal(10, 2)
+  doses                 String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 }
