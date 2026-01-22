@@ -1,7 +1,7 @@
 // src/app/api/rooms/route.ts
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Success, Error, BadRequest } from '@/lib/api-response';
+import { Success, Error as ApiError, BadRequest } from '@/lib/api-response';
 import { guardApiAccess } from '@/lib/access-guard';
 import { z } from 'zod';
 import { paginate } from '@/lib/paginate';
@@ -12,23 +12,35 @@ export async function GET(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
   
-  // Get current user's franchise ID
+  // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
     where: { id: auth.user.id },
     select: { 
       id: true,
+      role: true,
       franchise: {
         select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
       }
     }
   });
 
   if (!currentUser) {
-    return Error("Current user not found", 404);
+    return ApiError("Current user not found", 404);
   }
 
-  if (!currentUser.franchise) {
-    return Error("Current user is not associated with any franchise", 400);
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
+    return ApiError("Current user is not associated with any franchise", 400);
   }
 
   const { searchParams } = new URL(req.url);
@@ -42,7 +54,7 @@ export async function GET(req: NextRequest) {
   ? { [sort]: order } 
   : { name: "asc" };
   const where = {
-    franchiseId: currentUser.franchise.id,
+    franchiseId,
     OR: [
       { name: { contains: search } },
     ],
@@ -64,7 +76,7 @@ export async function GET(req: NextRequest) {
     return Success(result);
   } catch (error) {
     console.error('Error fetching rooms:', error);
-    return Error('Failed to fetch rooms');
+    return ApiError('Failed to fetch rooms');
   }
 }
 
@@ -73,26 +85,36 @@ export async function POST(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
   
-  // Get current user's franchise ID
+  // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
     where: { id: auth.user.id },
     select: { 
       id: true,
+      role: true,
       franchise: {
         select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
       }
     }
   });
 
   if (!currentUser) {
-    return Error("Current user not found", 404);
+    return ApiError("Current user not found", 404);
   }
 
-  if (!currentUser.franchise) {
-    return Error("Current user is not associated with any franchise", 400);
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
+    return ApiError("Current user is not associated with any franchise", 400);
   }
-
-  const franchiseId = currentUser.franchise.id;
 
   try {
     const body = await req.json();
@@ -102,7 +124,7 @@ export async function POST(req: NextRequest) {
       where: { name: data.name, franchiseId },
       select: { id: true },
     });
-    if (existingRoomByName) return Error('Room name already exists', 409);
+    if (existingRoomByName) return ApiError('Room name already exists', 409);
    
     const room = await prisma.room.create({
       data: {
@@ -116,9 +138,9 @@ export async function POST(req: NextRequest) {
       return BadRequest(error.errors);
     }
     const err = error as { code?: string };
-    if (err?.code === 'P2002') return Error('Room name already exists', 409);
+    if (err?.code === 'P2002') return ApiError('Room name already exists', 409);
     console.error('Create room error:', error);
-    return Error('Failed to create room');
+    return ApiError('Failed to create room');
   }
 }
 
@@ -127,26 +149,36 @@ export async function PATCH(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
   
-  // Get current user's franchise ID
+  // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
     where: { id: auth.user.id },
     select: { 
       id: true,
+      role: true,
       franchise: {
         select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
       }
     }
   });
 
   if (!currentUser) {
-    return Error("Current user not found", 404);
+    return ApiError("Current user not found", 404);
   }
 
-  if (!currentUser.franchise) {
-    return Error("Current user is not associated with any franchise", 400);
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
+    return ApiError("Current user is not associated with any franchise", 400);
   }
-
-  const franchiseId = currentUser.franchise.id;
   
   try {
     const body = await req.json();
@@ -163,11 +195,11 @@ export async function PATCH(req: NextRequest) {
     });
 
     if (!existingRoom) {
-      return Error("Room not found", 404);
+      return ApiError("Room not found", 404);
     }
 
     if (existingRoom.franchiseId !== franchiseId) {
-      return Error("Room does not belong to your franchise", 403);
+      return ApiError("Room does not belong to your franchise", 403);
     }
     
     const parsedData = roomSchema.partial().parse(updateData);
@@ -177,7 +209,7 @@ export async function PATCH(req: NextRequest) {
         where: { name: parsedData.name, franchiseId, NOT: { id: Number(id) } },
         select: { id: true },
       });
-      if (existingRoomByName) return Error('Room name already exists', 409);
+      if (existingRoomByName) return ApiError('Room name already exists', 409);
     }
     
     const room = await prisma.room.update({
@@ -191,9 +223,9 @@ export async function PATCH(req: NextRequest) {
       return BadRequest(error.errors);
     }
     const err = error as { code?: string };
-    if (err?.code === 'P2025') return Error('Room not found', 404);
-    if (err?.code === 'P2002') return Error('Room name already exists', 409);
+    if (err?.code === 'P2025') return ApiError('Room not found', 404);
+    if (err?.code === 'P2002') return ApiError('Room name already exists', 409);
     console.error('Update room error:', error);
-    return Error('Failed to update room');
+    return ApiError('Failed to update room');
   }
 }

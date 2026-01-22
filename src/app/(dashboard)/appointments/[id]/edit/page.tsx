@@ -17,7 +17,6 @@ export default function EditAppointmentPage() {
     let mounted = true;
     (async () => {
       try {
-        console.log('Debug: Fetching appointment with ID:', id);
         const data = await apiGet<{
           id: number;
           appointmentDateTime: string;
@@ -40,19 +39,20 @@ export default function EditAppointmentPage() {
           };
         }>(`/api/appointments/${id}`);
         
-        console.log('Debug: Received appointment data:', data);
-
         setInitial({
           id: data.id,
           appointmentDateTime: data.appointmentDateTime,
           visitPurpose: data.visitPurpose,
           teamId: data.team?.id.toString(),
           patientId: data.patientId ? data.patientId.toString() : undefined,
-          patient: data.patient,
+          patient: data.patient ? {
+            ...data.patient,
+            age: data.patient.age != null ? String(data.patient.age) : undefined,
+            dateOfBirth: data.patient.dateOfBirth ? new Date(data.patient.dateOfBirth).toISOString().split('T')[0] : null,
+          } : undefined,
           team: data.team,
         });
       } catch (e) {
-        console.error('Debug: Error fetching appointment:', e);
         toast.error((e as Error).message || 'Failed to load appointment');
         router.push('/appointments');
       } finally {

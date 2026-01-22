@@ -18,7 +18,7 @@ import { MASTER_CONFIG } from '@/config/master';
 import { formatDate } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
-import { EditButton } from '@/components/common/icon-button';
+import { EditButton, IconButton } from '@/components/common/icon-button';
 
 type PatientListItem = {
   id: number;
@@ -266,6 +266,11 @@ export default function PatientsPage() {
             if (!can(PERMISSIONS.EDIT_PATIENTS) && !can(PERMISSIONS.DELETE_PATIENTS)) return null;
             return (
               <div className='flex'>
+                {can(PERMISSIONS.EDIT_PATIENTS) && (
+                  <Link href={`/patients/${p.id}/medical-history`}>
+                    <IconButton iconName='FileText' tooltip='Medical History' aria-label='Medical History' />
+                  </Link>
+                )}
                 {can(PERMISSIONS.EDIT_PATIENTS) && (
                   <Link href={`/patients/${p.id}/edit`}>
                     <EditButton tooltip='Edit Patient' aria-label='Edit Patient' />

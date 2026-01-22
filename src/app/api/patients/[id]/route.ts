@@ -11,6 +11,37 @@ export async function GET(
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
+  // Get current user's franchise ID, role, and team
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      role: true,
+      franchise: {
+        select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return ApiError("Current user not found", 404);
+  }
+
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
+    return ApiError("Current user is not associated with any franchise", 400);
+  }
+
   const { id } = await context.params;
   const idNum = Number(id);
   if (Number.isNaN(idNum)) return ApiError("Invalid id", 400);
@@ -83,6 +114,37 @@ export async function DELETE(
 ) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
+
+  // Get current user's franchise ID, role, and team
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      role: true,
+      franchise: {
+        select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return ApiError("Current user not found", 404);
+  }
+
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
+    return ApiError("Current user is not associated with any franchise", 400);
+  }
 
   const { id } = await context.params;
   const idNum = Number(id);
