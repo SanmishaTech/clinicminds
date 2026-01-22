@@ -27,7 +27,7 @@ export default function EditAppointmentPage() {
             middleName: string;
             lastName: string;
             dateOfBirth: string | null;
-            age: number | null;
+            age: number;
             gender: string;
             referedBy: string | null;
             email: string | null;
