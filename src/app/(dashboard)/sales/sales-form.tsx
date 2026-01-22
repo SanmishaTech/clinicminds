@@ -130,12 +130,17 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
 
   // Calculate total amount whenever sale details change
   useEffect(() => {
-    const total = watchedSaleDetails.reduce((sum, detail) => {
-      const amount = parseFloat(detail.amount) || 0;
-      return sum + amount;
-    }, 0);
-    setValue('totalAmount', total.toString());
-  }, [watchedSaleDetails, setValue]);
+    const calculateTotal = () => {
+      const saleDetails = form.getValues('saleDetails') || [];
+      const total = saleDetails.reduce((sum, detail) => {
+        const amount = parseFloat(detail.amount) || 0;
+        return sum + amount;
+      }, 0);
+      setValue('totalAmount', total.toString());
+    };
+
+    calculateTotal();
+  }, [watchedSaleDetails, setValue, form]);
 
   // Update amount when quantity or rate changes
   const updateDetailAmount = (index: number, field: 'quantity' | 'rate', value: string) => {
@@ -155,6 +160,14 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
     setValue(`saleDetails.${index}.quantity`, detail.quantity);
     setValue(`saleDetails.${index}.rate`, detail.rate);
     setValue(`saleDetails.${index}.amount`, detail.amount);
+    
+    // Immediately recalculate total
+    const allDetails = form.getValues('saleDetails') || [];
+    const total = allDetails.reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+    setValue('totalAmount', total.toString());
   };
 
   useEffect(() => {
@@ -272,11 +285,8 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                 <div className="col-span-2 md:col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r">
                   Rate
                 </div>
-                <div className="col-span-2 md:col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r">
+                <div className="col-span-3 md:col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground">
                   Amount
-                </div>
-                <div className="col-span-1 md:col-span-1 px-4 py-3 font-medium text-sm text-muted-foreground text-center">
-                  Action
                 </div>
               </div>
 
@@ -332,35 +342,39 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                       control={control}
                       name={`saleDetails.${index}.rate`}
                       render={({ field }) => (
-                        <Input
-                          {...field}
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          className="w-full h-10 border"
-                          value={field.value || ''}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            updateDetailAmount(index, 'rate', value);
-                          }}
-                        />
+                        <div className='relative w-full'>
+                          <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
+                          <Input
+                            {...field}
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            className="w-full h-10 border pl-5.5"
+                            value={field.value || ''}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              updateDetailAmount(index, 'rate', value);
+                            }}
+                          />
+                        </div>
                       )}
                     />
                   </div>
-                  <div className="col-span-2 md:col-span-2 p-3 border-r">
-                    <Input
-                      value={watchedSaleDetails[index]?.amount || 0}
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className="w-full h-10 border"
-                      disabled
-                      readOnly
-                    />
-                  </div>
-                  <div className="col-span-1 md:col-span-1 p-3 flex items-center justify-center">
+                  <div className="col-span-3 md:col-span-3 p-3 flex items-center gap-2">
+                    <div className='relative w-full'>
+                      <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
+                      <Input
+                        value={watchedSaleDetails[index]?.amount || 0}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        placeholder="0.00"
+                        className="w-full h-10 border pl-5.5"
+                        disabled
+                        readOnly
+                      />
+                    </div>
                     {fields.length > 1 && (
                       <AppButton
                         type="button"
@@ -406,10 +420,13 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                     currency: "INR",
                     minimumFractionDigits: 2,
                   }).format(
-                    watchedSaleDetails?.reduce((sum, item) => {
-                      const amount = parseFloat(item.amount) || 0;
-                      return sum + amount;
-                    }, 0) || 0
+                    (() => {
+                      const saleDetails = form.getValues('saleDetails') || [];
+                      return saleDetails.reduce((sum, item) => {
+                        const amount = parseFloat(item.amount) || 0;
+                        return sum + amount;
+                      }, 0) || 0;
+                    })()
                   )
                 }
                 </div>

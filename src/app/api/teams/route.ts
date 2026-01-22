@@ -17,16 +17,26 @@ export async function GET(req: NextRequest) {
   const perPage = Math.min(100, Math.max(1, Number(searchParams.get("perPage")) || 10));
   const search = searchParams.get("search")?.trim() || "";
   const statusParam = searchParams.get("status");
+  const roleParam = searchParams.get("role")?.trim() || "";
   const sort = (searchParams.get("sort") || "createdAt") as string;
   const order = (searchParams.get("order") === "asc" ? "asc" : "desc") as "asc" | "desc";
 
-  // Get current user's franchise ID
+  // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
     where: { id: auth.user.id },
     select: { 
       id: true,
+      role: true,
       franchise: {
         select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
       }
     }
   });
@@ -35,12 +45,15 @@ export async function GET(req: NextRequest) {
     return Error("Current user not found", 404);
   }
 
-  if (!currentUser.franchise) {
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
     return Error("Current user is not associated with any franchise", 400);
   }
 
   const where: any = {
-    franchiseId: currentUser.franchise.id,
+    franchiseId,
   };
   
   if (search) {
@@ -54,6 +67,14 @@ export async function GET(req: NextRequest) {
 
   if (statusParam === "true" || statusParam === "false") {
     where.user = { status: statusParam === "true" };
+  }
+
+  if (roleParam) {
+    if (where.user) {
+      where.user.role = roleParam;
+    } else {
+      where.user = { role: roleParam };
+    }
   }
 
   const sortableFields = new Set(["name", "city", "state", "createdAt", "joiningDate"]);
@@ -112,13 +133,22 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Get current user's franchise ID
+    // Get current user's franchise ID, role, and team
     const currentUser = await prisma.user.findUnique({
       where: { id: auth.user.id },
       select: { 
         id: true,
+        role: true,
         franchise: {
           select: { id: true }
+        },
+        team: {
+          select: { 
+            id: true,
+            franchise: {
+              select: { id: true }
+            }
+          }
         }
       }
     });
@@ -127,11 +157,12 @@ export async function POST(req: NextRequest) {
       return Error("Current user not found", 404);
     }
 
-    if (!currentUser.franchise) {
+    // Get franchise ID from either direct assignment or through team
+    const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+    
+    if (!franchiseId) {
       return Error("Current user is not associated with any franchise", 400);
     }
-
-    const franchiseId = currentUser.franchise.id;
 
     const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
@@ -226,6 +257,14 @@ export async function PATCH(req: NextRequest) {
         id: true,
         franchise: {
           select: { id: true }
+        },
+         team: {
+          select: { 
+            id: true,
+            franchise: {
+              select: { id: true }
+            }
+          }
         }
       }
     });
@@ -234,11 +273,12 @@ export async function PATCH(req: NextRequest) {
       return Error("Current user not found", 404);
     }
 
-    if (!currentUser.franchise) {
+    // Get franchise ID from either direct assignment or through team
+    const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+    
+    if (!franchiseId) {
       return Error("Current user is not associated with any franchise", 400);
     }
-
-    const franchiseId = currentUser.franchise.id;
 
     const parsedData = teamSchema.partial().extend({
       password: z.string().min(8, "Password must be at least 8 characters").max(255, "Password must be less than 255 characters").optional(),

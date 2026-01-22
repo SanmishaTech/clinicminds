@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Success, Error as ApiError} from '@/lib/api-response';
+import { Success, Error as ApiError } from '@/lib/api-response';
 import { guardApiAccess } from '@/lib/access-guard';
 
-// GET /api/rooms/:id
+// GET /api/appointments/:id
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
@@ -44,25 +44,53 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   if (Number.isNaN(idNum)) return ApiError('Invalid id', 400);
   
   try {
-    const record = await prisma.room.findUnique({
-      where: { id: idNum, franchiseId: franchiseId },
+    const record = await prisma.appointment.findUnique({
+      where: { id: idNum, franchiseId },
       select: {
         id: true,
-        name: true,
-        description: true,
+        appointmentDateTime: true,
+        visitPurpose: true,
         createdAt: true,
         updatedAt: true,
+        patient: {
+          select: {
+            id: true,
+            firstName: true,
+            middleName: true,
+            lastName: true,
+            mobile: true,
+            email: true,
+            age: true,
+            gender: true,
+            dateOfBirth: true,
+            referedBy: true,
+          },
+        },
+        team: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
       },
     });
     
-    if (!record) return ApiError('Room not found', 404);
+    if (!record) return ApiError('Appointment not found', 404);
+    
+    // Role-based access check: DOCTOR can only access appointments from their team
+    if (currentUser.role === 'DOCTOR' && currentUser.team && record.team?.id !== currentUser.team.id) {
+      return ApiError('Access denied: You can only view appointments from your team', 403);
+    }
+    
     return Success(record);
   } catch {
-    return ApiError('Failed to fetch Room');
+    return ApiError('Failed to fetch appointment');
   }
 }
 
-// DELETE /api/rooms/:id
+
+
+// DELETE /api/appointments/:id
 export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
@@ -103,17 +131,22 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   if (Number.isNaN(idNum)) return ApiError('Invalid id', 400);
   
   try {
-    const record = await prisma.room.findUnique({
-      where: { id: idNum, franchiseId: franchiseId },
-      select: { id: true }
+    const record = await prisma.appointment.findUnique({
+      where: { id: idNum, franchiseId },
+      select: { id: true, teamId: true }
     });
     
-    if (!record) return ApiError('Room not found', 404);
+    if (!record) return ApiError('Appointment not found', 404);
     
-    await prisma.room.delete({ where: { id: idNum } });
+    // Role-based access check: DOCTOR can only delete appointments from their team
+    if (currentUser.role === 'DOCTOR' && currentUser.team && record.teamId !== currentUser.team.id) {
+      return ApiError('Access denied: You can only delete appointments from your team', 403);
+    }
+    
+    await prisma.appointment.delete({ where: { id: idNum } });
     return Success({ id: idNum }, 200);
   } catch (e: any) {
-    if (e?.code === 'P2025') return ApiError('Room not found', 404);
-    return ApiError('Failed to delete Room');
+    if (e?.code === 'P2025') return ApiError('Appointment not found', 404);
+    return ApiError('Failed to delete appointment');
   }
 }

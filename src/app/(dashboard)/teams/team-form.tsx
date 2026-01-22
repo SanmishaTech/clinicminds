@@ -232,7 +232,7 @@ export function TeamForm({
             {isCreate ? 'Add a new team.' : 'Update team details or set a new password.'}
           </AppCard.Description>
         </AppCard.Header>
-        <form noValidate onSubmit={handleSubmit(onSubmit)}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
             <FormSection legend='Team Details'>
               <FormRow>

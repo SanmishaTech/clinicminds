@@ -20,6 +20,7 @@ interface ComboboxInputProps<T extends FieldValues> {
   searchPlaceholder?: string
   emptyText?: string
   required?: boolean
+  disabled?: boolean
   className?: string
   inputClassName?: string
   onChange?: (value: string) => void
@@ -34,6 +35,7 @@ export function ComboboxInput<T extends FieldValues>({
   searchPlaceholder = "Search...",
   emptyText = "No option found.",
   required = false,
+  disabled = false,
   className,
   inputClassName,
   onChange,
@@ -61,6 +63,7 @@ export function ComboboxInput<T extends FieldValues>({
               placeholder={placeholder}
               searchPlaceholder={searchPlaceholder}
               emptyText={emptyText}
+              disabled={disabled}
               className={inputClassName}
             />
           </FormControl>

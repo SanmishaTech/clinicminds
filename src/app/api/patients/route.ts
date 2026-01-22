@@ -48,6 +48,37 @@ export async function GET(req: NextRequest) {
   const sort = (searchParams.get("sort") || "createdAt") as string;
   const order = (searchParams.get("order") === "asc" ? "asc" : "desc") as "asc" | "desc";
 
+  // Get current user's franchise ID, role, and team
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      role: true,
+      franchise: {
+        select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return ApiError("Current user not found", 404);
+  }
+
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
+    return ApiError("Current user is not associated with any franchise", 400);
+  }
+
   const where: any = {};
   if (search) {
     where.OR = [
@@ -60,12 +91,17 @@ export async function GET(req: NextRequest) {
       { aadharNo: { contains: search } },
     ];
   }
-  if (team) where.team = { is: { name: { contains: team } } };
   if (gender) {
     const g = normalizeGender(gender);
     if (!g) return ApiError("Invalid gender", 400);
     where.gender = g;
   }
+
+  // Add franchise ID to where clause
+  where.franchiseId = franchiseId;
+  
+  // Add Team filter to where clause
+  if (team) where.team = { is: { name: { contains: team } } };
 
   const sortableFields = new Set(["patientNo", "firstName", "gender", "mobile", "createdAt"]);
   const orderBy: Record<string, "asc" | "desc"> = sortableFields.has(sort) ? { [sort]: order } : { createdAt: "desc" };
@@ -107,6 +143,37 @@ export async function POST(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
+  // Get current user's franchise ID, role, and team
+  const currentUser = await prisma.user.findUnique({
+    where: { id: auth.user.id },
+    select: { 
+      id: true,
+      role: true,
+      franchise: {
+        select: { id: true }
+      },
+      team: {
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          }
+        }
+      }
+    }
+  });
+
+  if (!currentUser) {
+    return ApiError("Current user not found", 404);
+  }
+
+  // Get franchise ID from either direct assignment or through team
+  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  
+  if (!franchiseId) {
+    return ApiError("Current user is not associated with any franchise", 400);
+  }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -115,7 +182,6 @@ export async function POST(req: NextRequest) {
   }
 
   const {
-    franchiseId,
     teamId,
     firstName,
     middleName,
@@ -151,7 +217,6 @@ export async function POST(req: NextRequest) {
     balanceAmount,
   } =
     (body as Partial<{
-      franchiseId?: number | string | null;
       teamId?: number | string | null;
       firstName: string;
       middleName: string;
@@ -217,9 +282,6 @@ export async function POST(req: NextRequest) {
   const parsedBalance = balanceAmount === null || balanceAmount === undefined || balanceAmount === "" ? 0 : Number(balanceAmount);
   if (Number.isNaN(parsedBalance)) return ApiError("Invalid balance amount", 400);
 
-  const parsedFranchiseId = franchiseId === null || franchiseId === undefined || franchiseId === "" ? null : Number(franchiseId);
-  if (parsedFranchiseId !== null && Number.isNaN(parsedFranchiseId)) return ApiError("Invalid franchise", 400);
-
   const parsedTeamId = teamId === null || teamId === undefined || teamId === "" ? null : Number(teamId);
   if (parsedTeamId !== null && Number.isNaN(parsedTeamId)) return ApiError("Invalid team", 400);
 
@@ -261,7 +323,7 @@ export async function POST(req: NextRequest) {
       return (tx as any).patient.create({
         data: {
           patientNo,
-          franchiseId: parsedFranchiseId,
+          franchiseId,
           teamId: parsedTeamId,
           firstName: firstName.trim(),
           middleName: middleName.trim(),
@@ -329,6 +391,37 @@ export async function PATCH(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
+  // Get current user's franchise ID, role, and team
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.user.id },
+      select: { 
+        id: true,
+        role: true,
+        franchise: {
+          select: { id: true }
+        },
+        team: {
+          select: { 
+            id: true,
+            franchise: {
+              select: { id: true }
+            }
+          }
+        }
+      }
+    });
+  
+    if (!currentUser) {
+      return ApiError("Current user not found", 404);
+    }
+  
+    // Get franchise ID from either direct assignment or through team
+    const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+    
+    if (!franchiseId) {
+      return ApiError("Current user is not associated with any franchise", 400);
+    }
+
   let body: unknown;
   try {
     body = await req.json();
@@ -338,7 +431,6 @@ export async function PATCH(req: NextRequest) {
 
   const {
     id,
-    franchiseId,
     teamId,
     firstName,
     middleName,
@@ -375,7 +467,6 @@ export async function PATCH(req: NextRequest) {
   } =
     (body as Partial<{
       id: number | string;
-      franchiseId?: number | string | null;
       teamId?: number | string | null;
       firstName?: string;
       middleName?: string;
@@ -414,15 +505,6 @@ export async function PATCH(req: NextRequest) {
   if (!id) return ApiError("Patient id required", 400);
 
   const data: Record<string, unknown> = {};
-
-  if (franchiseId !== undefined) {
-    if (franchiseId === null || franchiseId === "") data.franchiseId = null;
-    else {
-      const n = Number(franchiseId);
-      if (Number.isNaN(n)) return ApiError("Invalid franchise", 400);
-      data.franchiseId = n;
-    }
-  }
 
   if (teamId !== undefined) {
     if (teamId === null || teamId === "") data.teamId = null;

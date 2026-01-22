@@ -46,6 +46,10 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/packages/new", permissions: [PERMISSIONS.CREATE_PACKAGES] },
   { prefix: "/packages/", permissions: [PERMISSIONS.EDIT_PACKAGES] },
   { prefix: "/packages", permissions: [PERMISSIONS.READ_PACKAGES] },
+
+  { prefix: "/appointments/new", permissions: [PERMISSIONS.CREATE_APPOINTMENTS] },
+  { prefix: "/appointments/", permissions: [PERMISSIONS.EDIT_APPOINTMENTS] },
+  { prefix: "/appointments", permissions: [PERMISSIONS.READ_APPOINTMENTS] },
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -174,6 +178,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.CREATE_PACKAGES],
       PATCH: [PERMISSIONS.EDIT_PACKAGES],
       DELETE: [PERMISSIONS.DELETE_PACKAGES],
+    },
+  },
+  {
+    prefix: "/api/appointments",
+    methods: {
+      GET: [PERMISSIONS.READ_APPOINTMENTS],
+      POST: [PERMISSIONS.CREATE_APPOINTMENTS],
+      PATCH: [PERMISSIONS.EDIT_APPOINTMENTS],
+      DELETE: [PERMISSIONS.DELETE_APPOINTMENTS],
     },
   },
 ];
