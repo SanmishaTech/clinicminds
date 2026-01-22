@@ -18,6 +18,31 @@ async function upsertUser(
   });
 }
 
+async function upsertFranchiseForUser(userId: number, email: string) {
+  return prisma.franchise.upsert({
+    where: { userId },
+    update: {
+      name: "Demo Franchise",
+      city: "Demo City",
+      state: "Demo State",
+      pincode: "000000",
+      contactNo: "9999999999",
+      contactEmail: email,
+      userMobile: "9999999999",
+    },
+    create: {
+      userId,
+      name: "Demo Franchise",
+      city: "Demo City",
+      state: "Demo State",
+      pincode: "000000",
+      contactNo: "9999999999",
+      contactEmail: email,
+      userMobile: "9999999999",
+    },
+  });
+}
+
 async function main() {
   const passwordHash = await bcrypt.hash("abcd123", 10);
 
@@ -32,6 +57,11 @@ async function main() {
       const email = count === 1 ? `${prefix}@demo.com` : `${prefix}${i}@demo.com`;
       const name = count === 1 ? `${ROLES[roleCode]}` : `${ROLES[roleCode]} ${i}`;
       const user = await upsertUser(email, roleCode, name, passwordHash);
+
+      if (roleCode === "FRANCHISE") {
+        await upsertFranchiseForUser(user.id, user.email);
+      }
+
       // For all users except ADMIN, ensure an Employee row linked to this user exists
       if (roleCode !== "ADMIN") {
         // await prisma.employee.upsert({

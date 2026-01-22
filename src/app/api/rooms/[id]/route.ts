@@ -44,8 +44,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   if (Number.isNaN(idNum)) return ApiError('Invalid id', 400);
   
   try {
-    const record = await prisma.room.findUnique({
-      where: { id: idNum, franchiseId: franchiseId },
+    const record = await prisma.room.findFirst({
+      where: { id: idNum, franchiseId },
       select: {
         id: true,
         name: true,
@@ -103,8 +103,8 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   if (Number.isNaN(idNum)) return ApiError('Invalid id', 400);
   
   try {
-    const record = await prisma.room.findUnique({
-      where: { id: idNum, franchiseId: franchiseId },
+    const record = await prisma.room.findFirst({
+      where: { id: idNum, franchiseId },
       select: { id: true }
     });
     
@@ -112,6 +112,7 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     
     await prisma.room.delete({ where: { id: idNum } });
     return Success({ id: idNum }, 200);
+
   } catch (e: any) {
     if (e?.code === 'P2025') return ApiError('Room not found', 404);
     return ApiError('Failed to delete Room');

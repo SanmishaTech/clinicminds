@@ -43,8 +43,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   if (Number.isNaN(idNum)) return Error('Invalid id', 400);
 
   try {
-    const team = await prisma.team.findUnique({
-      where: { id: idNum, franchiseId: franchiseId },
+    const team = await prisma.team.findFirst({
+      where: { id: idNum, franchiseId },
       select: {
         id: true,
         name: true,
@@ -117,7 +117,7 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
   }
 
   try {
-    const team = await prisma.team.findUnique({ 
+    const team = await prisma.team.findFirst({ 
       where: { id: idNum, franchiseId }, 
       select: { id: true, userId: true } 
     });

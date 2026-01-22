@@ -21,7 +21,7 @@ import { MASTER_CONFIG } from '@/config/master';
 import { formatDateTimeForInput } from '@/lib/locales';
 
 type TeamsResponse = {
-  data: { id: number; name: string }[];
+  data: { id: number; name: string; user?: { role?: string; status?: boolean } }[];
   page: number;
   perPage: number;
   total: number;
@@ -68,42 +68,78 @@ export interface AppointmentFormProps {
 
 const GENDER_OPTIONS = MASTER_CONFIG.gender.map((g) => ({ value: g.value, label: g.label }));
 
-const appointmentFormSchema = z.object({
-  appointmentDateTime: z.string().min(1, 'Appointment date and time is required'),
-  teamId: z.string().min(1, 'Team is required'),
-  visitPurpose: z.string().optional(),
-  patientId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-  patient: z.object({
-    firstName: z.string().min(1, 'First name is required'),
-    middleName: z.string().optional(),
-    lastName: z.string().min(1, 'Last name is required'),
-    dateOfBirth: z.string().optional(),
-    age: z
-      .string()
-      .optional()
-      .transform((v) => (v === '' ? undefined : v))
-      .refine(
-        (v) => {
-          if (!v) return true;
-          const n = Number(v);
-          return Number.isFinite(n) && !Number.isNaN(n) && n >= 0;
-        },
-        'Invalid age'
-      ),
-    gender: z.string(),
-    referedBy: z.string().optional(),
-    email: z.string().email().optional(),
-    mobile: z.string().regex(/^[0-9]{10}$/, 'Mobile number must be 10 digits'),
-  }).optional(),
-}).refine((data) => {
-  const hasPatientId = !!data.patientId;
-  const hasPatientData = !!data.patient;
-  return (hasPatientId && !hasPatientData) || (!hasPatientId && hasPatientData);
-}, {
-  message: 'Either patient (for existing patients) OR patient data (for new patients) must be provided, but not both',
+const createPatientSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  middleName: z.string().optional(),
+  lastName: z.string().min(1, 'Last name is required'),
+  dateOfBirth: z.string().optional(),
+  age: z
+    .string()
+    .min(1, 'Age is required')
+    .refine((v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && Number.isInteger(n) && n > 0;
+    }, 'Invalid age'),
+  gender: z.string().min(1, 'Gender is required'),
+  referedBy: z.string().optional(),
+  email: z.string().min(1, 'Email is required').email(),
+  mobile: z.string().regex(/^[0-9]{10}$/, 'Mobile number must be 10 digits'),
 });
 
-type AppointmentFormData = z.infer<typeof appointmentFormSchema>;
+const makeAppointmentFormSchema = (mode: 'create' | 'edit') => {
+  if (mode === 'edit') {
+    return z.object({
+      appointmentDateTime: z.string().min(1, 'Appointment date and time is required'),
+      teamId: z.string().min(1, 'Team is required'),
+      visitPurpose: z.string().optional(),
+      patientId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+      patient: z
+        .object({
+          firstName: z.string().optional(),
+          middleName: z.string().optional(),
+          lastName: z.string().optional(),
+          dateOfBirth: z.string().optional(),
+          age: z.string().optional(),
+          gender: z.string().optional(),
+          referedBy: z.string().optional(),
+          email: z.string().optional(),
+          mobile: z.string().optional(),
+        })
+        .optional(),
+    });
+  }
+
+  return z
+    .object({
+      appointmentDateTime: z.string().min(1, 'Appointment date and time is required'),
+      teamId: z.string().min(1, 'Team is required'),
+      visitPurpose: z.string().optional(),
+      patientId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+      patient: createPatientSchema.optional(),
+    })
+    .superRefine((data, ctx) => {
+      const hasPatientId = !!data.patientId;
+      const hasPatientData = !!data.patient;
+
+      if (!hasPatientId && !hasPatientData) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Patient is required',
+          path: ['patientId'],
+        });
+      }
+
+      if (hasPatientId && hasPatientData) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Select existing patient OR enter new patient details, not both',
+          path: ['patientId'],
+        });
+      }
+    });
+};
+
+type AppointmentFormData = z.infer<ReturnType<typeof makeAppointmentFormSchema>>;
 
 export function AppointmentForm({
   mode,
@@ -113,7 +149,7 @@ export function AppointmentForm({
 }: AppointmentFormProps) {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isNewPatient, setIsNewPatient] = useState(!initial?.patientId);
+  const [isNewPatient, setIsNewPatient] = useState(() => (mode === 'create' ? false : !initial?.patientId));
 
   function computeAgeFromDateInput(dateStr: string): number | null {
     const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(dateStr);
@@ -121,7 +157,7 @@ export function AppointmentForm({
     const year = Number(m[1]);
     const month = Number(m[2]);
     const day = Number(m[3]);
-    
+
     const today = new Date();
     const thisYear = today.getFullYear();
     const thisMonth = today.getMonth() + 1; // 1-12
@@ -133,15 +169,20 @@ export function AppointmentForm({
     return age;
   }
 
-  const { data: teamsResponse } = useSWR<TeamsResponse>('/api/teams', apiGet);
+  const { data: teamsResponse } = useSWR<TeamsResponse>(
+    '/api/teams?page=1&perPage=100&sort=name&order=asc&role=DOCTOR&status=true',
+    apiGet
+  );
   const { data: patientsResponse } = useSWR<PatientsResponse>('/api/patients', apiGet);
 
   const teams = teamsResponse?.data || [];
   const patients = patientsResponse?.data || [];
 
-  const teamOptions = useMemo(() => 
-    teams.map((team) => ({ value: team.id.toString(), label: team.name })),
-    [teams]
+  const doctorTeams = useMemo(() => teams.filter((t) => t.user?.role === 'DOCTOR'), [teams]);
+
+  const teamOptions = useMemo(() =>
+    doctorTeams.map((team) => ({ value: team.id.toString(), label: team.name })),
+    [doctorTeams]
   );
 
   const patientOptions = useMemo(() =>
@@ -152,12 +193,14 @@ export function AppointmentForm({
     [patients]
   );
 
+  const schema = useMemo(() => makeAppointmentFormSchema(mode), [mode]);
+
   const form = useForm<AppointmentFormData>({
-    resolver: zodResolver(appointmentFormSchema),
+    resolver: zodResolver(schema),
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
-      appointmentDateTime: initial?.appointmentDateTime 
+      appointmentDateTime: initial?.appointmentDateTime
         ? formatDateTimeForInput(new Date(initial.appointmentDateTime))
         : '',
       teamId: initial?.teamId || undefined,
@@ -173,7 +216,7 @@ export function AppointmentForm({
         referedBy: initial.patient.referedBy || '',
         email: initial.patient.email || '',
         mobile: initial.patient.mobile || '',
-      } : {
+      } : mode === 'edit' ? {
         firstName: '',
         middleName: '',
         lastName: '',
@@ -183,17 +226,12 @@ export function AppointmentForm({
         referedBy: '',
         email: '',
         mobile: '',
-      },
+      } : undefined,
     },
   });
-  
-  const { control, handleSubmit } = form;
-  const watchedPatientId = form.watch('patientId');
-  const watchedDateOfBirth = form.watch('patient.dateOfBirth');
 
-  useEffect(() => {
-    setIsNewPatient(!watchedPatientId);
-  }, [watchedPatientId]);
+  const { control, handleSubmit } = form;
+  const watchedDateOfBirth = form.watch('patient.dateOfBirth');
 
   useEffect(() => {
     if (!watchedDateOfBirth || !isNewPatient) return;
@@ -215,7 +253,6 @@ export function AppointmentForm({
         } : undefined,
       };
 
-      console.log("Payload",payload);
       if (mode === 'create') {
         const res = await apiPost('/api/appointments', payload);
         toast.success('Appointment created successfully');
@@ -348,12 +385,12 @@ export function AppointmentForm({
                     <AppCheckbox
                       label='Existing Patient'
                       checked={!isNewPatient}
-                      onCheckedChange={(v) => handlePatientTypeChange(v)}
+                      onCheckedChange={(v) => handlePatientTypeChange(v === true)}
                     />
                     <AppCheckbox
                       label='New Patient'
                       checked={isNewPatient}
-                      onCheckedChange={(v) => handlePatientTypeChange(!v)}
+                      onCheckedChange={(v) => handlePatientTypeChange(!(v === true))}
                     />
                   </FormRow>
 

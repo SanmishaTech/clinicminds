@@ -19,7 +19,7 @@ export const generateEntityCode = (prisma: PrismaClient) => {
       const latestInvoice = await prisma.sale.findFirst({
         where: {
           invoiceNo: {
-            startsWith: `I-${dayMonthYear}`
+            startsWith: `S-${dayMonthYear}`
           }
         },
         orderBy: {
@@ -33,7 +33,7 @@ export const generateEntityCode = (prisma: PrismaClient) => {
       const sequence = latestInvoice ? parseInt(latestInvoice.invoiceNo.split('-')[2]) + 1 : 1;
       
       // Set new invoice number (format: "I-DDMMYYYY-XXXX")
-      params.args.data.invoiceNo = `I-${dayMonthYear}-${String(sequence).padStart(4, '0')}`;
+      params.args.data.invoiceNo = `S-${dayMonthYear}-${String(sequence).padStart(4, '0')}`;
     }
 
     // Handle batch create for Sale
@@ -48,7 +48,7 @@ export const generateEntityCode = (prisma: PrismaClient) => {
       const latestInvoice = await prisma.sale.findFirst({
         where: {
           invoiceNo: {
-            startsWith: `I-${dayMonthYear}`
+            startsWith: `S-${dayMonthYear}`
           }
         },
         orderBy: {
@@ -65,7 +65,7 @@ export const generateEntityCode = (prisma: PrismaClient) => {
       if (Array.isArray(params.args.data)) {
         params.args.data = params.args.data.map((item: any) => ({
           ...item,
-          invoiceNo: `I-${dayMonthYear}-${String(sequence++).padStart(4, '0')}`
+          invoiceNo: `S-${dayMonthYear}-${String(sequence++).padStart(4, '0')}`
         }));
       }
     }

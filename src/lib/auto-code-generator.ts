@@ -31,7 +31,7 @@ export function parseAutoCode(code: string): {
   sequence: number;
 } | null {
   // Match pattern: I-DDMMYYYY-0001
-  const match = code.match(/^(I)-(\d{2})(\d{2})(\d{4})-(\d{4})$/);
+  const match = code.match(/^(I|S)-(\d{2})(\d{2})(\d{4})-(\d{4})$/);
   
   if (!match) {
     return null;
