@@ -11,9 +11,9 @@ import {
   Stethoscope,
   Pill,
   Receipt,
+  Landmark,
   Package,
   Calendar,
-  IndianRupee,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -118,13 +118,19 @@ export const NAV_ITEMS: NavItem[] = [
     {
     type: "group",
     title: "Transactions",
-    icon: IndianRupee,
+    icon: Landmark,
     children: [
         {   
         title: "Sales",
         href: "/sales",
-        icon: IndianRupee,
+        icon: Receipt,
         permission: PERMISSIONS.VIEW_SALES,
+        },
+        {
+        title: "Stocks",
+        href: "/stocks",
+        icon: Package,
+        permission: PERMISSIONS.VIEW_STOCKS,
         },
     ],
   },

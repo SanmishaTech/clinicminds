@@ -13,6 +13,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "prisma:rebuild-stock-balances": "tsx prisma/rebuild-stock-balances.ts",
     "seed": "tsx prisma/seed.ts",
     "gen:jwt-secret": "node scripts/generate-jwt-secret.mjs",
     "postinstall": "prisma generate"
