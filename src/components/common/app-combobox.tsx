@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronsUpDown, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -17,6 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import { useRouter } from "next/navigation"
 
 interface ComboboxOption {
   value: string
@@ -32,6 +33,10 @@ interface AppComboboxProps {
   emptyText?: string
   disabled?: boolean
   className?: string
+  stickyActionButton?: {
+    label: string
+    href: string
+  }
 }
 
 export function AppCombobox({
@@ -43,7 +48,9 @@ export function AppCombobox({
   emptyText = "No option found.",
   disabled = false,
   className,
+  stickyActionButton,
 }: AppComboboxProps) {
+  const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const buttonRef = React.useRef<HTMLButtonElement>(null)
   const [buttonWidth, setButtonWidth] = React.useState<number>(0)
@@ -81,6 +88,22 @@ export function AppCombobox({
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
+            {stickyActionButton && (
+              <div className="sticky top-0 bg-background border-b p-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    router.push(stickyActionButton.href)
+                    setOpen(false)
+                  }}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {stickyActionButton.label}
+                </Button>
+              </div>
+            )}
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem
