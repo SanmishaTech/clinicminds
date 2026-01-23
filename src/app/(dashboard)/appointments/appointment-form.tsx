@@ -403,6 +403,10 @@ export function AppointmentForm({
                         options={patientOptions}
                         required
                         placeholder="Select patient"
+                        stickyActionButton={{
+                          label: "Create New Patient",
+                          href: "/patients/new"
+                        }}
                       />
                     </FormRow>
                   ) : (

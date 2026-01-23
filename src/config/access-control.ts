@@ -32,6 +32,8 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/sales/", permissions: [PERMISSIONS.EDIT_SALES] },
   { prefix: "/sales", permissions: [PERMISSIONS.READ_SALES] },
 
+  { prefix: "/stocks", permissions: [PERMISSIONS.READ_STOCKS] },
+
   { prefix: "/medicines/new", permissions: [PERMISSIONS.CREATE_MEDICINES] },
   { prefix: "/medicines/", permissions: [PERMISSIONS.EDIT_MEDICINES] },
   { prefix: "/medicines", permissions: [PERMISSIONS.READ_MEDICINES] },
@@ -124,6 +126,12 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.CREATE_SALES],
       PATCH: [PERMISSIONS.EDIT_SALES],
       DELETE: [PERMISSIONS.DELETE_SALES],
+    },
+  },
+  {
+    prefix: "/api/stocks",
+    methods: {
+      GET: [PERMISSIONS.READ_STOCKS],
     },
   },
   {

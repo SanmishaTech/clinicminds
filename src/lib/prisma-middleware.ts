@@ -70,6 +70,64 @@ export const generateEntityCode = (prisma: PrismaClient) => {
       }
     }
 
+    // Handle single create for StockTransaction
+    if (params.action === 'create' && params.model === 'StockTransaction') {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0'); // DD
+      const month = String(now.getMonth() + 1).padStart(2, '0'); // MM
+      const year = now.getFullYear(); // YYYY
+      const dayMonthYear = `${day}${month}${year}`; // DDMMYYYY
+
+      const latestTxn = await prisma.stockTransaction.findFirst({
+        where: {
+          txnNo: {
+            startsWith: `ST-${dayMonthYear}`,
+          },
+        },
+        orderBy: {
+          txnNo: 'desc',
+        },
+        select: {
+          txnNo: true,
+        },
+      });
+
+      const sequence = latestTxn ? parseInt(latestTxn.txnNo.split('-')[2]) + 1 : 1;
+      params.args.data.txnNo = `ST-${dayMonthYear}-${String(sequence).padStart(4, '0')}`;
+    }
+
+    // Handle batch create for StockTransaction
+    if (params.action === 'createMany' && params.model === 'StockTransaction') {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0'); // DD
+      const month = String(now.getMonth() + 1).padStart(2, '0'); // MM
+      const year = now.getFullYear(); // YYYY
+      const dayMonthYear = `${day}${month}${year}`; // DDMMYYYY
+
+      const latestTxn = await prisma.stockTransaction.findFirst({
+        where: {
+          txnNo: {
+            startsWith: `ST-${dayMonthYear}`,
+          },
+        },
+        orderBy: {
+          txnNo: 'desc',
+        },
+        select: {
+          txnNo: true,
+        },
+      });
+
+      let sequence = latestTxn ? parseInt(latestTxn.txnNo.split('-')[2]) + 1 : 1;
+
+      if (Array.isArray(params.args.data)) {
+        params.args.data = params.args.data.map((item: any) => ({
+          ...item,
+          txnNo: `ST-${dayMonthYear}-${String(sequence++).padStart(4, '0')}`,
+        }));
+      }
+    }
+
     return next(params);
   });
 };
