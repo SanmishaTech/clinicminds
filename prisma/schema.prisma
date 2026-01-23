@@ -205,6 +205,7 @@ model Package {
   id             Int              @id @default(autoincrement())
   name           String           @unique
   totalAmount    Decimal          @db.Decimal(10, 2)
+  discountPercent Decimal         @default(0) @db.Decimal(5, 2)
   packageDetails PackageDetail[]
   packageMedicines PackageMedicine[]
   createdAt      DateTime         @default(now())

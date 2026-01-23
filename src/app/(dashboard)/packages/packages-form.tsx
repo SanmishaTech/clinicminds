@@ -19,6 +19,7 @@ import { Plus, Trash2 } from 'lucide-react';
 export interface PackageFormInitialData {
   id?: number;
   name?: string;
+  discountPercent?: number;
   totalAmount?: number;
   packageDetails?: {
     serviceId: number;
@@ -53,6 +54,7 @@ type Medicine = {
   id: number;
   name: string;
   rate: number;
+  mrp: number;
   brand?: {
     name: string;
   } | null;
@@ -60,6 +62,10 @@ type Medicine = {
 
 const packagesFormSchema = z.object({
   name: z.string().trim().min(1, 'Package is required'),
+  discountPercent: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || (!isNaN(parseFloat(v)) && parseFloat(v) >= 0 && parseFloat(v) <= 100), 'Discount must be 0 to 100'),
   packageDetails: z
     .array(
       z.object({
@@ -155,6 +161,7 @@ export function PackageForm({
     reValidateMode: 'onChange',
     defaultValues: {
       name: initial?.name || '',
+      discountPercent: String(initial?.discountPercent ?? 0),
       totalAmount: (initial?.totalAmount ?? 0).toString(),
       packageDetails:
         initial?.packageDetails?.map((d) => ({
@@ -212,28 +219,26 @@ export function PackageForm({
 
   const watchedDetails = useWatch({ control, name: 'packageDetails' });
   const watchedMedicines = useWatch({ control, name: 'packageMedicines' });
+  const watchedDiscountPercent = useWatch({ control, name: 'discountPercent' });
+
+  const totals = useMemo(() => {
+    const details = watchedDetails || [];
+    const medicinesRows = watchedMedicines || [];
+
+    const subtotalDetails = details.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    const subtotalMedicines = medicinesRows.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+    const subtotal = subtotalDetails + subtotalMedicines;
+
+    const discountPercentNum = Math.min(100, Math.max(0, parseFloat(watchedDiscountPercent || '0') || 0));
+    const discountAmount = subtotal * (discountPercentNum / 100);
+    const total = Math.max(0, subtotal - discountAmount);
+
+    return { subtotal, discountPercentNum, discountAmount, total };
+  }, [watchedDetails, watchedMedicines, watchedDiscountPercent]);
 
   useEffect(() => {
-    const calculateTotal = () => {
-      const details = form.getValues('packageDetails') || [];
-      const medicines = form.getValues('packageMedicines') || [];
-      
-      const totalDetails = details.reduce((sum, item) => {
-        const amount = parseFloat(item.amount) || 0;
-        return sum + amount;
-      }, 0);
-
-      const totalMedicines = medicines.reduce((sum, item) => {
-        const amount = parseFloat(item.amount) || 0;
-        return sum + amount;
-      }, 0);
-
-      const total = totalDetails + totalMedicines;
-      setValue('totalAmount', total.toFixed(2));
-    };
-
-    calculateTotal();
-  }, [watchedDetails, watchedMedicines, setValue, form]);
+    setValue('totalAmount', totals.total.toFixed(2));
+  }, [totals.total, setValue]);
 
   function updateDetailAmount(index: number, field: 'qty' | 'rate', value: string) {
     const details = [...(watchedDetails || [])];
@@ -250,23 +255,6 @@ export function PackageForm({
     setValue(`packageDetails.${index}.qty`, row.qty);
     setValue(`packageDetails.${index}.rate`, row.rate);
     setValue(`packageDetails.${index}.amount`, row.amount);
-    
-    // Immediately recalculate total
-    const allDetails = form.getValues('packageDetails') || [];
-    const allMedicines = form.getValues('packageMedicines') || [];
-    
-    const totalDetails = allDetails.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-
-    const totalMedicines = allMedicines.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-
-    const total = totalDetails + totalMedicines;
-    setValue('totalAmount', total.toFixed(2));
   }
 
   function updateMedicineAmount(index: number, field: 'qty' | 'rate', value: string) {
@@ -284,23 +272,6 @@ export function PackageForm({
     setValue(`packageMedicines.${index}.qty`, row.qty);
     setValue(`packageMedicines.${index}.rate`, row.rate);
     setValue(`packageMedicines.${index}.amount`, row.amount);
-    
-    // Immediately recalculate total
-    const allDetails = form.getValues('packageDetails') || [];
-    const allMedicines = form.getValues('packageMedicines') || [];
-    
-    const totalDetails = allDetails.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-
-    const totalMedicines = allMedicines.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-
-    const total = totalDetails + totalMedicines;
-    setValue('totalAmount', total.toFixed(2));
   }
 
   useEffect(() => {
@@ -331,6 +302,7 @@ export function PackageForm({
     try {
       const apiData = {
         name: values.name.trim(),
+        discountPercent: Math.min(100, Math.max(0, parseFloat(values.discountPercent || '0') || 0)),
         totalAmount: parseFloat(values.totalAmount),
         packageDetails: values.packageDetails.map((d) => ({
           serviceId: parseInt(d.serviceId),
@@ -565,14 +537,14 @@ export function PackageForm({
             <FormSection legend='Medicines'>
               <div className='border rounded-lg overflow-hidden'>
                 <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
-                  <div className='col-span-4 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                  <div className='col-span-5 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                     Medicine
                   </div>
-                  <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                  <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                     Qty
                   </div>
                   <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
-                    Rate
+                    MRP
                   </div>
                   <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground text-center'>
                     Amount
@@ -581,7 +553,7 @@ export function PackageForm({
 
                 {medicineFields.map((field, index) => (
                   <div key={field.id} className='grid grid-cols-12 gap-0 border-b last:border-b-0 hover:bg-accent/50'>
-                    <div className='col-span-4 p-3 border-r'>
+                    <div className='col-span-5 p-3 border-r'>
                       <ComboboxInput
                         control={control}
                         name={`packageMedicines.${index}.medicineId`}
@@ -595,17 +567,17 @@ export function PackageForm({
                           if (!medicine) return;
                           setValue(
                             `packageMedicines.${index}.rate`,
-                            String(medicine.rate)
+                            String(medicine.mrp)
                           );
                           const qty = parseFloat(watchedMedicines?.[index]?.qty || '1') || 0;
                           setValue(
                             `packageMedicines.${index}.amount`,
-                            (qty * Number(medicine.rate)).toFixed(2)
+                            (qty * Number(medicine.mrp)).toFixed(2)
                           );
                         }}
                       />
                     </div>
-                    <div className='col-span-3 p-3 border-r'>
+                    <div className='col-span-2 p-3 border-r'>
                       <Controller
                         control={control}
                         name={`packageMedicines.${index}.qty`}
@@ -623,27 +595,23 @@ export function PackageForm({
                       />
                     </div>
                     <div className='col-span-3 p-3 border-r'>
-                      <Controller
-                        control={control}
-                        name={`packageMedicines.${index}.rate`}
-                        render={({ field }) => (
-                          <div className='relative w-full'>
-                            <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
-                            <Input
-                              {...field}
-                              type='number'
-                              step='0.01'
-                              min='0'
-                              placeholder='0.00'
-                              className='w-full h-10 border pl-5.5'
-                              value={field.value || ''}
-                              onChange={(e) =>
-                                updateMedicineAmount(index, 'rate', e.target.value)
-                              }
-                            />
-                          </div>
-                        )}
-                      />
+                      <div className='relative w-full'>
+                        <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
+                        <Input
+                          value={(() => {
+                            const medicineIdStr = watchedMedicines?.[index]?.medicineId;
+                            const medicineId = medicineIdStr ? parseInt(medicineIdStr) : NaN;
+                            const medicine = medicines.find((m) => m.id === medicineId);
+                            return String(medicine?.mrp ?? 0);
+                          })()}
+                          type='number'
+                          step='0.01'
+                          min='0'
+                          className='w-full h-10 border pl-5.5'
+                          disabled
+                          readOnly
+                        />
+                      </div>
                     </div>
                     <div className='col-span-2 p-3 flex items-center gap-2'>
                       <div className='relative w-full'>
@@ -687,26 +655,72 @@ export function PackageForm({
                   Add
                 </AppButton>
               </div>
-              {/* Total Amount */}
               <FormRow className='grid-cols-12'>
-                 <div className="col-span-12 flex justify-end">
-                    <div className="text-right">
-                      <div className="text-sm text-muted-foreground">
-                        Total Amount
+                <div className='col-span-12 flex justify-end'>
+                  <div className='w-full max-w-sm space-y-3'>
+                    <div>
+                      <div className='text-sm text-muted-foreground'>Discount (%)</div>
+                      <Controller
+                        control={control}
+                        name='discountPercent'
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            type='number'
+                            min='0'
+                            max='100'
+                            step='0.01'
+                            placeholder='Discount %'
+                            className='w-full h-10 border'
+                            value={field.value || ''}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              if (raw === '') {
+                                field.onChange(raw);
+                                return;
+                              }
+                              const num = Number(raw);
+                              if (Number.isNaN(num)) return;
+                              const clamped = Math.min(100, Math.max(0, num));
+                              field.onChange(String(clamped));
+                            }}
+                          />
+                        )}
+                      />
+                    </div>
+                    <div className='text-right'>
+                      <div className='text-sm text-muted-foreground'>Subtotal</div>
+                      <div className='text-base font-semibold text-foreground'>
+                        {new Intl.NumberFormat('en-IN', {
+                          style: 'currency',
+                          currency: 'INR',
+                          minimumFractionDigits: 2,
+                        }).format(totals.subtotal)}
                       </div>
-                      <div className="text-lg font-bold text-foreground">
-                        {new Intl.NumberFormat("en-IN", {
-                            style: "currency",
-                            currency: "INR",
-                            minimumFractionDigits: 2,
-                          }).format(
-                            parseFloat(form.getValues('totalAmount')) || 0
-                          )
-                        }
+                    </div>
+                    <div className='text-right'>
+                      <div className='text-sm text-muted-foreground'>Discount ({totals.discountPercentNum}%)</div>
+                      <div className='text-base font-semibold text-foreground'>
+                        {new Intl.NumberFormat('en-IN', {
+                          style: 'currency',
+                          currency: 'INR',
+                          minimumFractionDigits: 2,
+                        }).format(totals.discountAmount)}
+                      </div>
+                    </div>
+                    <div className='text-right'>
+                      <div className='text-sm text-muted-foreground'>Total Amount</div>
+                      <div className='text-lg font-bold text-foreground'>
+                        {new Intl.NumberFormat('en-IN', {
+                          style: 'currency',
+                          currency: 'INR',
+                          minimumFractionDigits: 2,
+                        }).format(totals.total)}
                       </div>
                     </div>
                   </div>
-                </FormRow>
+                </div>
+              </FormRow>
             </FormSection>
           </AppCard.Content>
           <AppCard.Footer className='justify-end gap-2'>

@@ -9,6 +9,7 @@ import PackageForm, { PackageFormInitialData } from '../../packages-form';
 type PackageApiResponse = {
   id: number;
   name: string;
+  discountPercent?: number | string;
   totalAmount: number | string;
   packageDetails: {
     serviceId: number;
@@ -22,6 +23,9 @@ type PackageApiResponse = {
     qty: number;
     rate: number | string;
     amount: number | string;
+    medicine?: {
+      mrp?: number | string;
+    } | null;
   }[];
 };
 
@@ -48,6 +52,7 @@ export default function EditPackagePage() {
         setInitial({
           id: data.id,
           name: data.name,
+          discountPercent: Number(data.discountPercent) || 0,
           totalAmount: Number(data.totalAmount) || 0,
           packageDetails: (data.packageDetails || []).map((d) => ({
             serviceId: d.serviceId,
@@ -59,8 +64,8 @@ export default function EditPackagePage() {
           packageMedicines: (data.packageMedicines || []).map((m) => ({
             medicineId: m.medicineId,
             qty: Number(m.qty) || 0,
-            rate: Number(m.rate) || 0,
-            amount: Number(m.amount) || 0,
+            rate: Number(m.medicine?.mrp ?? m.rate) || 0,
+            amount: ((Number(m.qty) || 0) * (Number(m.medicine?.mrp ?? m.rate) || 0)) || 0,
           })),
         });
       } catch (e) {

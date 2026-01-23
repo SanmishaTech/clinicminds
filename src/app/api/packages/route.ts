@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   const sort = searchParams.get('sort') || 'name';
   const order = (searchParams.get('order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
 
-  const sortable = new Set(['name', 'totalAmount', 'createdAt', 'updatedAt']);
+  const sortable = new Set(['name', 'discountPercent', 'totalAmount', 'createdAt', 'updatedAt']);
   const orderBy: Record<string, 'asc' | 'desc'> = sortable.has(sort)
     ? { [sort]: order }
     : { name: 'asc' };
@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         name: true,
+        discountPercent: true,
         totalAmount: true,
         createdAt: true,
         updatedAt: true,
@@ -65,14 +66,54 @@ export async function POST(req: NextRequest) {
     if (existingByName) return Error('Package name already exists', 409);
 
     const created = await (prisma as any).$transaction(async (tx: any) => {
+      const medicineIds = Array.from(new Set(data.packageMedicines.map((m) => m.medicineId)));
+      const medicines = await tx.medicine.findMany({
+        where: { id: { in: medicineIds } },
+        select: { id: true, mrp: true },
+      });
+      const mrpByMedicineId = new Map<number, number>(
+        medicines.map((m: any) => [m.id, Number(m.mrp ?? 0)])
+      );
+
+      const detailsData = data.packageDetails.map((d) => {
+        const qty = Number(d.qty) || 0;
+        const rate = Number(d.rate) || 0;
+        return {
+          serviceId: d.serviceId,
+          description: d.description || null,
+          qty,
+          rate,
+          amount: qty * rate,
+        };
+      });
+
+      const medicinesData = data.packageMedicines.map((m) => {
+        const qty = Number(m.qty) || 0;
+        const mrp = mrpByMedicineId.get(m.medicineId) ?? 0;
+        return {
+          medicineId: m.medicineId,
+          qty,
+          rate: mrp,
+          amount: qty * mrp,
+        };
+      });
+
+      const subtotal =
+        detailsData.reduce((sum, d) => sum + (Number(d.amount) || 0), 0) +
+        medicinesData.reduce((sum, m) => sum + (Number(m.amount) || 0), 0);
+      const discountPercent = Math.min(100, Math.max(0, Number(data.discountPercent) || 0));
+      const totalAmount = Math.max(0, subtotal - subtotal * (discountPercent / 100));
+
       const pkg = await tx.package.create({
         data: {
           name: data.name,
-          totalAmount: data.totalAmount,
+          discountPercent,
+          totalAmount,
         },
         select: {
           id: true,
           name: true,
+          discountPercent: true,
           totalAmount: true,
           createdAt: true,
           updatedAt: true,
@@ -80,10 +121,10 @@ export async function POST(req: NextRequest) {
       });
 
       await tx.packageDetail.createMany({
-        data: data.packageDetails.map((d) => ({
+        data: detailsData.map((d) => ({
           packageId: pkg.id,
           serviceId: d.serviceId,
-          description: d.description || null,
+          description: d.description,
           qty: d.qty,
           rate: d.rate,
           amount: d.amount,
@@ -91,7 +132,7 @@ export async function POST(req: NextRequest) {
       });
 
       await tx.packageMedicine.createMany({
-        data: data.packageMedicines.map((m) => ({
+        data: medicinesData.map((m) => ({
           packageId: pkg.id,
           medicineId: m.medicineId,
           qty: m.qty,
@@ -141,7 +182,71 @@ export async function PATCH(req: NextRequest) {
     const updated = await (prisma as any).$transaction(async (tx: any) => {
       const data: any = {};
       if (parsed.name !== undefined) data.name = parsed.name;
-      if (parsed.totalAmount !== undefined) data.totalAmount = parsed.totalAmount;
+
+      const shouldRecalcTotal =
+        parsed.discountPercent !== undefined ||
+        parsed.packageDetails !== undefined ||
+        parsed.packageMedicines !== undefined;
+
+      if (shouldRecalcTotal) {
+        const existingPkg = await tx.package.findUnique({
+          where: { id: Number(id) },
+          select: { discountPercent: true },
+        });
+        const discountPercent = Math.min(
+          100,
+          Math.max(0, Number(parsed.discountPercent ?? existingPkg?.discountPercent ?? 0) || 0)
+        );
+        data.discountPercent = discountPercent;
+
+        const subtotalDetails = await (async () => {
+          if (parsed.packageDetails !== undefined) {
+            return (parsed.packageDetails || []).reduce((sum, d) => {
+              const qty = Number(d.qty ?? 0) || 0;
+              const rate = Number(d.rate ?? 0) || 0;
+              return sum + qty * rate;
+            }, 0);
+          }
+
+          const existingDetails = await tx.packageDetail.findMany({
+            where: { packageId: Number(id) },
+            select: { qty: true, rate: true },
+          });
+          return existingDetails.reduce((sum, d) => sum + (Number(d.qty) || 0) * (Number(d.rate) || 0), 0);
+        })();
+
+        const subtotalMedicines = await (async () => {
+          if (parsed.packageMedicines !== undefined) {
+            const meds = parsed.packageMedicines || [];
+            const medicineIds = Array.from(
+              new Set(meds.map((m) => m.medicineId).filter((v): v is number => typeof v === 'number'))
+            );
+            const medicines = await tx.medicine.findMany({
+              where: { id: { in: medicineIds } },
+              select: { id: true, mrp: true },
+            });
+            const mrpByMedicineId = new Map<number, number>(
+              medicines.map((m: any) => [m.id, Number(m.mrp ?? 0)])
+            );
+
+            return meds.reduce((sum, m) => {
+              const qty = Number(m.qty ?? 0) || 0;
+              const medicineId = Number(m.medicineId);
+              const mrp = mrpByMedicineId.get(medicineId) ?? 0;
+              return sum + qty * mrp;
+            }, 0);
+          }
+
+          const existingMeds = await tx.packageMedicine.findMany({
+            where: { packageId: Number(id) },
+            select: { qty: true, rate: true },
+          });
+          return existingMeds.reduce((sum, m) => sum + (Number(m.qty) || 0) * (Number(m.rate) || 0), 0);
+        })();
+
+        const subtotal = subtotalDetails + subtotalMedicines;
+        data.totalAmount = Math.max(0, subtotal - subtotal * (discountPercent / 100));
+      }
 
       const pkg = await tx.package.update({
         where: { id: Number(id) },
@@ -149,6 +254,7 @@ export async function PATCH(req: NextRequest) {
         select: {
           id: true,
           name: true,
+          discountPercent: true,
           totalAmount: true,
           createdAt: true,
           updatedAt: true,
@@ -165,7 +271,7 @@ export async function PATCH(req: NextRequest) {
               description: d.description || null,
               qty: d.qty!,
               rate: d.rate!,
-              amount: d.amount!,
+              amount: (Number(d.qty!) || 0) * (Number(d.rate!) || 0),
             })),
           });
         }
@@ -174,13 +280,28 @@ export async function PATCH(req: NextRequest) {
       if (parsed.packageMedicines) {
         await tx.packageMedicine.deleteMany({ where: { packageId: Number(id) } });
         if (parsed.packageMedicines.length) {
+          const medicineIds = Array.from(
+            new Set(
+              parsed.packageMedicines
+                .map((m) => m.medicineId)
+                .filter((v): v is number => typeof v === 'number')
+            )
+          );
+          const medicines = await tx.medicine.findMany({
+            where: { id: { in: medicineIds } },
+            select: { id: true, mrp: true },
+          });
+          const mrpByMedicineId = new Map<number, number>(
+            medicines.map((m: any) => [m.id, Number(m.mrp ?? 0)])
+          );
+
           await tx.packageMedicine.createMany({
             data: parsed.packageMedicines.map((m) => ({
               packageId: Number(id),
               medicineId: m.medicineId!,
               qty: m.qty!,
-              rate: m.rate!,
-              amount: m.amount!,
+              rate: mrpByMedicineId.get(m.medicineId!) ?? 0,
+              amount: (Number(m.qty!) || 0) * (mrpByMedicineId.get(m.medicineId!) ?? 0),
             })),
           });
         }
