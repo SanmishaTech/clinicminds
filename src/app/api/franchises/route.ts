@@ -68,6 +68,7 @@ export async function GET(req: NextRequest) {
       pincode: true,
       contactNo: true,
       contactEmail: true,
+      franchiseFeeAmount: true,
       userMobile: true,
       createdAt: true,
       user: {
@@ -104,6 +105,7 @@ export async function POST(req: NextRequest) {
     pincode,
     contactNo,
     contactEmail,
+    franchiseFeeAmount,
     userName,
     userMobile,
     userEmail,
@@ -118,6 +120,7 @@ export async function POST(req: NextRequest) {
     pincode: string;
     contactNo: string;
     contactEmail: string;
+    franchiseFeeAmount: number;
     userName: string;
     userMobile: string;
     userEmail: string;
@@ -180,6 +183,7 @@ export async function POST(req: NextRequest) {
           pincode,
           contactNo,
           contactEmail,
+          franchiseFeeAmount: typeof franchiseFeeAmount === 'number' ? franchiseFeeAmount : undefined,
           userMobile,
           userId: user.id,
         },
@@ -193,6 +197,7 @@ export async function POST(req: NextRequest) {
           pincode: true,
           contactNo: true,
           contactEmail: true,
+          franchiseFeeAmount: true,
           userMobile: true,
           createdAt: true,
           user: {
@@ -244,6 +249,7 @@ export async function PATCH(req: NextRequest) {
     pincode,
     contactNo,
     contactEmail,
+    franchiseFeeAmount,
     userName,
     userMobile,
     userEmail,
@@ -259,6 +265,7 @@ export async function PATCH(req: NextRequest) {
     pincode?: string;
     contactNo?: string;
     contactEmail?: string;
+    franchiseFeeAmount?: number;
     userName?: string;
     userMobile?: string;
     userEmail?: string;
@@ -291,6 +298,7 @@ export async function PATCH(req: NextRequest) {
     franchiseData.contactNo = contactNo;
   }
   if (typeof contactEmail === "string" && contactEmail) franchiseData.contactEmail = contactEmail;
+  if (typeof franchiseFeeAmount === 'number') franchiseData.franchiseFeeAmount = franchiseFeeAmount;
   if (typeof userMobile === "string" && userMobile) {
     if (!/^[0-9]{10}$/.test(userMobile)) return Error("Mobile must be 10 digits", 400);
     franchiseData.userMobile = userMobile;
@@ -337,6 +345,7 @@ export async function PATCH(req: NextRequest) {
         pincode: true,
         contactNo: true,
         contactEmail: true,
+        franchiseFeeAmount: true,
         userMobile: true,
         createdAt: true,
         user: {

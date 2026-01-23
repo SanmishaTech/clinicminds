@@ -17,7 +17,7 @@ import { StatusBadge } from '@/components/common/status-badge';
 import { formatDate } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
-import { EditButton } from '@/components/common/icon-button';
+import { EditButton, IconButton } from '@/components/common/icon-button';
 
 type FranchiseListItem = {
   id: number;
@@ -224,6 +224,11 @@ export default function FranchisesPage() {
             if (!can(PERMISSIONS.EDIT_FRANCHISES) && !can(PERMISSIONS.DELETE_FRANCHISES)) return null;
             return (
               <div className='flex'>
+                {can(PERMISSIONS.EDIT_FRANCHISES) && (
+                  <Link href={`/franchises/${f.id}/fees`}>
+                    <IconButton iconName='IndianRupee' tooltip='Franchise Fee' aria-label='Franchise Fee' />
+                  </Link>
+                )}
                 {can(PERMISSIONS.EDIT_FRANCHISES) && (
                   <Link href={`/franchises/${f.id}/edit`}>
                     <EditButton tooltip='Edit Franchise' aria-label='Edit Franchise' />

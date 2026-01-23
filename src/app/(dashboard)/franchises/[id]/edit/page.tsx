@@ -27,6 +27,7 @@ export default function EditFranchisePage() {
           pincode: string;
           contactNo: string;
           contactEmail: string;
+          franchiseFeeAmount: number | null;
           userMobile: string;
           user: { id: number; name: string | null; email: string; status: boolean };
         }>(`/api/franchises/${id}`);
@@ -41,6 +42,7 @@ export default function EditFranchisePage() {
           pincode: data.pincode,
           contactNo: data.contactNo,
           contactEmail: data.contactEmail,
+          franchiseFeeAmount: data.franchiseFeeAmount ?? undefined,
           userMobile: data.userMobile,
           userName: data.user?.name || '',
           userEmail: data.user?.email || '',

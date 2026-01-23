@@ -42,6 +42,7 @@ export interface FranchiseFormInitialData {
   pincode?: string;
   contactNo?: string;
   contactEmail?: string;
+  franchiseFeeAmount?: number;
   userName?: string | null;
   userMobile?: string;
   userEmail?: string;
@@ -73,6 +74,11 @@ export function FranchiseForm({
     pincode: z.string().min(1, 'Pincode is required'),
     contactNo: z.string().regex(/^[0-9]{10}$/, 'Contact No must be 10 digits'),
     contactEmail: z.string().email('Invalid contact email'),
+    franchiseFeeAmount: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine((v) => v === undefined || (!isNaN(Number(v)) && Number(v) >= 0), 'Fee must be a valid number'),
 
     userName: z.string().trim().min(1, 'Name is required'),
     userMobile: z.string().regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
@@ -100,6 +106,7 @@ export function FranchiseForm({
       pincode: initial?.pincode || '',
       contactNo: initial?.contactNo || '',
       contactEmail: initial?.contactEmail || '',
+      franchiseFeeAmount: initial?.franchiseFeeAmount?.toString() || '',
 
       userName: initial?.userName || '',
       userMobile: initial?.userMobile || '',
@@ -179,6 +186,7 @@ export function FranchiseForm({
           pincode: values.pincode,
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
+          franchiseFeeAmount: values.franchiseFeeAmount ? Number(values.franchiseFeeAmount) : undefined,
 
           userName: values.userName,
           userMobile: values.userMobile,
@@ -199,6 +207,7 @@ export function FranchiseForm({
           pincode: values.pincode,
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
+          franchiseFeeAmount: values.franchiseFeeAmount ? Number(values.franchiseFeeAmount) : undefined,
 
           userName: values.userName,
           userMobile: values.userMobile,
@@ -243,6 +252,17 @@ export function FranchiseForm({
             <FormSection legend='Franchise Details'>
               <FormRow>
                 <TextInput control={control} name='name' label='Franchise Name' required placeholder='Franchise name' />
+              </FormRow>
+              <FormRow>
+                <TextInput
+                  control={control}
+                  name='franchiseFeeAmount'
+                  label='Franchise Fee Amount'
+                  placeholder='0'
+                  type='number'
+                  disabled={!isCreate}
+                  itemClassName='col-span-12 md:col-span-6'
+                />
               </FormRow>
               <FormRow cols={2}>
                 <TextInput control={control} name='addressLine1' label='Address Line 1' required placeholder='Address line 1' />

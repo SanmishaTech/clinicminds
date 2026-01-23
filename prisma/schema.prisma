@@ -30,6 +30,7 @@ model User {
   franchise                  Franchise?
   team                       Team?
   stockTransactionsCreated    StockTransaction[]
+  franchiseFeePaymentsCreated FranchiseFeePayment[] @relation("FranchiseFeePaymentCreatedBy")
 
   @@index([role])
   @@map("users")
@@ -60,6 +61,7 @@ model Franchise {
   pincode      String
   contactNo    String
   contactEmail String
+  franchiseFeeAmount Decimal? @db.Decimal(10, 2)
    
   userMobile String
   userId     Int    @unique
@@ -73,6 +75,7 @@ model Franchise {
   stockLedgerEntries StockLedger[]
   stockBalances StockBalance[]
   stockBatchBalances StockBatchBalance[]
+  franchiseFeePayments FranchiseFeePayment[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -80,6 +83,28 @@ model Franchise {
   @@index([city])
   @@index([state])
   @@map("franchises")
+}
+
+model FranchiseFeePayment {
+  id             Int      @id @default(autoincrement())
+  franchiseId    Int
+  franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  paymentDate    DateTime
+  amount         Decimal  @db.Decimal(10, 2)
+  paymentMode    String
+  payerName      String?
+  contactNumber  String?
+  utrNumber      String?
+  chequeNumber   String?
+  notes          String?  @db.Text
+  createdByUserId Int
+  createdByUser  User     @relation("FranchiseFeePaymentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@index([franchiseId])
+  @@index([paymentDate])
+  @@index([createdByUserId])
+  @@map("franchise_fee_payments")
 }
 
 model State {
