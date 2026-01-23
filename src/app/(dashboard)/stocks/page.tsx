@@ -16,6 +16,8 @@ type StockRow = {
   franchiseName: string;
   medicineId: number;
   medicineName: string;
+  batchNumber: string;
+  expiryDate: string;
   rate: string;
   stock: number;
 };
@@ -72,6 +74,19 @@ export default function StocksPage() {
   const columns: Column<StockRow>[] = [
     { key: 'franchiseName', header: 'Franchise', sortable: true, cellClassName: 'font-medium whitespace-nowrap' },
     { key: 'medicineName', header: 'Medicine', sortable: true, cellClassName: 'whitespace-nowrap' },
+    { key: 'batchNumber', header: 'Batch No', sortable: true, cellClassName: 'whitespace-nowrap' },
+    {
+      key: 'expiryDate',
+      header: 'Expiry Date',
+      sortable: true,
+      cellClassName: 'whitespace-nowrap',
+      accessor: (row) => {
+        if (!row.expiryDate) return '—';
+        const d = new Date(row.expiryDate);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toISOString().split('T')[0];
+      },
+    },
     { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
     { key: 'stock', header: 'Stock', sortable: true, className: 'whitespace-nowrap' },
   ];
@@ -100,6 +115,18 @@ export default function StocksPage() {
           loading={isLoading}
           sort={sortState}
           onSortChange={(s) => toggleSort(s.field)}
+          getRowClassName={(row) => {
+            if (!row.expiryDate) return '';
+            const expiry = new Date(row.expiryDate);
+            if (Number.isNaN(expiry.getTime())) return '';
+            const now = new Date();
+            const in30Days = new Date(now);
+            in30Days.setDate(in30Days.getDate() + 30);
+            if (expiry <= in30Days) {
+              return 'bg-red-50 text-red-900';
+            }
+            return '';
+          }}
           stickyColumns={1}
         />
       </AppCard.Content>

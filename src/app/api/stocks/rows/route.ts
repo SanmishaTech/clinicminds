@@ -9,6 +9,8 @@ type StockRow = {
   franchiseName: string;
   medicineId: number;
   medicineName: string;
+  batchNumber: string;
+  expiryDate: string;
   rate: string;
   stock: number;
 };
@@ -23,7 +25,7 @@ type StocksRowsResponse = {
 
 // GET /api/stocks/rows
 // Flattened, table-friendly view:
-// franchise / medicine / rate / stock
+// franchise / medicine / batch / expiry / rate / stock
 export async function GET(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
@@ -60,6 +62,8 @@ export async function GET(req: NextRequest) {
       return Error("Unauthorized role", 403);
     }
 
+    const stockBatchBalanceModel = (prisma as any).stockBatchBalance;
+
     const whereBalance: any = { quantity: { not: 0 } };
     if (franchiseIds) whereBalance.franchiseId = { in: franchiseIds };
 
@@ -70,6 +74,7 @@ export async function GET(req: NextRequest) {
       whereBalance.OR = [
         { franchise: { name: { contains: search, mode: "insensitive" } } },
         { medicine: { name: { contains: search, mode: "insensitive" } } },
+        { batchNumber: { contains: search, mode: "insensitive" } },
       ];
       if (searchIsNumber) {
         whereBalance.OR.push({ franchiseId: searchNumber });
@@ -77,7 +82,16 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const sortable = new Set(["franchiseName", "medicineName", "rate", "stock", "franchiseId", "medicineId"]);
+    const sortable = new Set([
+      "franchiseName",
+      "medicineName",
+      "batchNumber",
+      "expiryDate",
+      "rate",
+      "stock",
+      "franchiseId",
+      "medicineId",
+    ]);
     const sortKey = sortable.has(sort) ? sort : "franchiseName";
 
     const orderBy: any = (() => {
@@ -88,6 +102,10 @@ export async function GET(req: NextRequest) {
           return { medicineId: order };
         case "medicineName":
           return { medicine: { name: order } };
+        case "batchNumber":
+          return { batchNumber: order };
+        case "expiryDate":
+          return { expiryDate: order };
         case "rate":
           return { medicine: { rate: order } };
         case "stock":
@@ -98,11 +116,11 @@ export async function GET(req: NextRequest) {
       }
     })();
 
-    const total = await prisma.stockBalance.count({ where: whereBalance });
+    const total = await stockBatchBalanceModel.count({ where: whereBalance });
     const totalPages = Math.max(1, Math.ceil(total / perPage));
     const skip = (page - 1) * perPage;
 
-    const balances = await prisma.stockBalance.findMany({
+    const balances = await stockBatchBalanceModel.findMany({
       where: whereBalance,
       orderBy,
       skip,
@@ -110,6 +128,8 @@ export async function GET(req: NextRequest) {
       select: {
         franchiseId: true,
         medicineId: true,
+        batchNumber: true,
+        expiryDate: true,
         quantity: true,
         franchise: { select: { name: true } },
         medicine: { select: { name: true, rate: true } },
@@ -121,6 +141,8 @@ export async function GET(req: NextRequest) {
       franchiseName: b.franchise?.name || `Franchise ${b.franchiseId}`,
       medicineId: b.medicineId,
       medicineName: b.medicine?.name || `Medicine ${b.medicineId}`,
+      batchNumber: String(b.batchNumber ?? ''),
+      expiryDate: b.expiryDate ? new Date(b.expiryDate).toISOString() : '',
       rate: String(b.medicine?.rate ?? 0),
       stock: b.quantity,
     }));

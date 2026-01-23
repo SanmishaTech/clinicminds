@@ -2,6 +2,8 @@ import z from 'zod';
 
 export const saleDetailSchema = z.object({
   medicineId: z.number().int().positive(),
+  batchNumber: z.string().trim().min(1),
+  expiryDate: z.string().datetime(),
   quantity: z.number().int().positive(),
   rate: z.number().positive(),
   amount: z.number().positive(),
@@ -15,7 +17,7 @@ export const createSaleSchema = z.object({
 });
 
 export const updateSaleSchema = createSaleSchema.partial().extend({
-  saleDetails: z.array(saleDetailSchema.partial()).optional(),
+  saleDetails: z.array(saleDetailSchema).optional(),
 });
 
 export type SaleDetailInput = z.infer<typeof saleDetailSchema>;

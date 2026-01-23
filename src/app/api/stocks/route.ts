@@ -48,11 +48,15 @@ export async function GET(req: NextRequest) {
     });
     if (!franchise) return Error("Franchise not found", 404);
 
-    const balances = await prisma.stockBalance.findMany({
+    const stockBatchBalanceModel = (prisma as any).stockBatchBalance;
+
+    const balances = await stockBatchBalanceModel.findMany({
       where: { franchiseId: franchise.id, quantity: { not: 0 } },
-      orderBy: { medicine: { name: "asc" } },
+      orderBy: [{ medicine: { name: "asc" } }, { expiryDate: "asc" }],
       select: {
         medicineId: true,
+        batchNumber: true,
+        expiryDate: true,
         quantity: true,
         medicine: {
           select: {
@@ -65,10 +69,12 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const result = balances.map((b) => ({
+    const result = balances.map((b: any) => ({
       medicineId: b.medicineId,
       medicineName: b.medicine?.name,
       brandName: b.medicine?.brand?.name ?? null,
+      batchNumber: b.batchNumber,
+      expiryDate: b.expiryDate,
       rate: b.medicine?.rate,
       mrp: b.medicine?.mrp,
       quantity: b.quantity,

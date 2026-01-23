@@ -15,6 +15,8 @@ type SaleApiResponse = {
   totalAmount: number;
   saleDetails: {
     medicineId: number;
+    batchNumber?: string | null;
+    expiryDate?: string | null;
     quantity: number;
     rate: number;
     amount: number;
@@ -48,6 +50,8 @@ export default function EditSalePage() {
           totalAmount: sale.totalAmount.toString(),
           saleDetails: sale.saleDetails?.map((detail: any) => ({
             medicineId: detail.medicineId.toString(),
+            batchNumber: (detail.batchNumber ?? '').toString(),
+            expiryDate: (detail.expiryDate ?? '').toString().split('T')[0],
             quantity: detail.quantity.toString(),
             rate: detail.rate.toString(),
             amount: detail.amount.toString()

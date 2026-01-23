@@ -13,6 +13,8 @@ export const salesFormSchema = z.object({
     medicineId: z.string().refine(
       (v) => !v || /^\d+$/.test(v), "Must be a valid number"
     ).refine((v) => v && v.trim().length > 0, "Medicine is required"),
+    batchNumber: z.string().trim().min(1, 'Batch number is required'),
+    expiryDate: z.string().trim().min(1, 'Expiry date is required'),
     quantity: z.string().refine((val) => val && val.trim().length > 0, "Quantity is required")
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, "Quantity must be a valid positive number"),
     rate: z.string().refine((val) => val && val.trim().length > 0, "Rate is required")

@@ -69,7 +69,7 @@ export async function PATCH(
       return NotFound('Sale not found');
     }
     // Start a transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: any) => {
 
       const updateData: any = {};
       if (data.invoiceDate !== undefined) updateData.invoiceDate = new Date(data.invoiceDate);
@@ -102,11 +102,83 @@ export async function PATCH(
 
       const existingLedgerLines = await tx.stockLedger.findMany({
         where: { transactionId: stockTxn.id },
-        select: { franchiseId: true, medicineId: true, qtyChange: true },
+        select: { franchiseId: true, medicineId: true, batchNumber: true, expiryDate: true, qtyChange: true },
       });
 
       // Update sale details if provided
       if (data.saleDetails && data.saleDetails.length > 0) {
+
+        const oldQtyByMedicineId = new Map<number, number>();
+        const oldQtyByBatchKey = new Map<
+          string,
+          { franchiseId: number; medicineId: number; batchNumber: string; expiryDate: Date; qty: number }
+        >();
+        for (const line of existingLedgerLines) {
+          oldQtyByMedicineId.set(
+            line.medicineId,
+            (oldQtyByMedicineId.get(line.medicineId) ?? 0) + (line.qtyChange ?? 0)
+          );
+
+          if (line.batchNumber && line.expiryDate) {
+            const key = `${line.franchiseId}:${line.medicineId}:${line.batchNumber}:${line.expiryDate.toISOString()}`;
+            const existing = oldQtyByBatchKey.get(key);
+            if (existing) {
+              existing.qty += line.qtyChange ?? 0;
+            } else {
+              oldQtyByBatchKey.set(key, {
+                franchiseId: line.franchiseId,
+                medicineId: line.medicineId,
+                batchNumber: line.batchNumber,
+                expiryDate: new Date(line.expiryDate),
+                qty: line.qtyChange ?? 0,
+              });
+            }
+          }
+        }
+
+        for (const [medicineId, qty] of oldQtyByMedicineId.entries()) {
+          if (!qty) continue;
+          await tx.stockBalance.upsert({
+            where: {
+              franchiseId_medicineId: {
+                franchiseId: sale.franchiseId,
+                medicineId,
+              },
+            },
+            create: {
+              franchiseId: sale.franchiseId,
+              medicineId,
+              quantity: -qty,
+            },
+            update: {
+              quantity: { decrement: qty },
+            },
+          });
+        }
+
+        for (const entry of oldQtyByBatchKey.values()) {
+          if (!entry.qty) continue;
+          await tx.stockBatchBalance.upsert({
+            where: {
+              franchiseId_medicineId_batchNumber_expiryDate: {
+                franchiseId: entry.franchiseId,
+                medicineId: entry.medicineId,
+                batchNumber: entry.batchNumber,
+                expiryDate: entry.expiryDate,
+              },
+            },
+            create: {
+              franchiseId: entry.franchiseId,
+              medicineId: entry.medicineId,
+              batchNumber: entry.batchNumber,
+              expiryDate: entry.expiryDate,
+              quantity: -entry.qty,
+            },
+            update: {
+              quantity: { decrement: entry.qty },
+            },
+          });
+        }
 
         // Delete existing sale details and create new ones
         await tx.saleDetail.deleteMany({
@@ -116,6 +188,8 @@ export async function PATCH(
           data: data.saleDetails.map(detail => ({
             saleId: idNum,
             medicineId: detail.medicineId!,
+            batchNumber: detail.batchNumber,
+            expiryDate: new Date(detail.expiryDate),
             quantity: detail.quantity!,
             rate: detail.rate!,
             amount: detail.amount!
@@ -131,36 +205,38 @@ export async function PATCH(
             transactionId: stockTxn.id,
             franchiseId: sale.franchiseId,
             medicineId: detail.medicineId!,
+            batchNumber: detail.batchNumber,
+            expiryDate: new Date(detail.expiryDate),
             qtyChange: detail.quantity!,
             rate: detail.rate!,
             amount: detail.amount!,
           })),
         });
 
-        for (const line of existingLedgerLines) {
-          await tx.stockBalance.upsert({
-            where: {
-              franchiseId_medicineId: {
-                franchiseId: line.franchiseId,
-                medicineId: line.medicineId,
-              },
-            },
-            create: {
-              franchiseId: line.franchiseId,
-              medicineId: line.medicineId,
-              quantity: -line.qtyChange,
-            },
-            update: {
-              quantity: { decrement: line.qtyChange },
-            },
-          });
-        }
-
         const qtyByMedicineId = new Map<number, number>();
+        const qtyByBatchKey = new Map<
+          string,
+          { franchiseId: number; medicineId: number; batchNumber: string; expiryDate: Date; qty: number }
+        >();
         for (const d of data.saleDetails) {
           if (d.medicineId == null || d.quantity == null) continue;
           qtyByMedicineId.set(d.medicineId, (qtyByMedicineId.get(d.medicineId) ?? 0) + d.quantity);
+
+          const key = `${sale.franchiseId}:${d.medicineId}:${d.batchNumber}:${d.expiryDate}`;
+          const existing = qtyByBatchKey.get(key);
+          if (existing) {
+            existing.qty += d.quantity;
+          } else {
+            qtyByBatchKey.set(key, {
+              franchiseId: sale.franchiseId,
+              medicineId: d.medicineId,
+              batchNumber: d.batchNumber,
+              expiryDate: new Date(d.expiryDate),
+              qty: d.quantity,
+            });
+          }
         }
+
         for (const [medicineId, qty] of qtyByMedicineId.entries()) {
           await tx.stockBalance.upsert({
             where: {
@@ -176,6 +252,29 @@ export async function PATCH(
             },
             update: {
               quantity: { increment: qty },
+            },
+          });
+        }
+
+        for (const entry of qtyByBatchKey.values()) {
+          await tx.stockBatchBalance.upsert({
+            where: {
+              franchiseId_medicineId_batchNumber_expiryDate: {
+                franchiseId: entry.franchiseId,
+                medicineId: entry.medicineId,
+                batchNumber: entry.batchNumber,
+                expiryDate: entry.expiryDate,
+              },
+            },
+            create: {
+              franchiseId: entry.franchiseId,
+              medicineId: entry.medicineId,
+              batchNumber: entry.batchNumber,
+              expiryDate: entry.expiryDate,
+              quantity: entry.qty,
+            },
+            update: {
+              quantity: { increment: entry.qty },
             },
           });
         }
@@ -204,6 +303,29 @@ export async function PATCH(
             },
           });
 
+          if (line.batchNumber && line.expiryDate) {
+            await tx.stockBatchBalance.upsert({
+              where: {
+                franchiseId_medicineId_batchNumber_expiryDate: {
+                  franchiseId: line.franchiseId,
+                  medicineId: line.medicineId,
+                  batchNumber: line.batchNumber,
+                  expiryDate: line.expiryDate,
+                },
+              },
+              create: {
+                franchiseId: line.franchiseId,
+                medicineId: line.medicineId,
+                batchNumber: line.batchNumber,
+                expiryDate: line.expiryDate,
+                quantity: -line.qtyChange,
+              },
+              update: {
+                quantity: { decrement: line.qtyChange },
+              },
+            });
+          }
+
           await tx.stockBalance.upsert({
             where: {
               franchiseId_medicineId: {
@@ -220,6 +342,29 @@ export async function PATCH(
               quantity: { increment: line.qtyChange },
             },
           });
+
+          if (line.batchNumber && line.expiryDate) {
+            await tx.stockBatchBalance.upsert({
+              where: {
+                franchiseId_medicineId_batchNumber_expiryDate: {
+                  franchiseId: sale.franchiseId,
+                  medicineId: line.medicineId,
+                  batchNumber: line.batchNumber,
+                  expiryDate: line.expiryDate,
+                },
+              },
+              create: {
+                franchiseId: sale.franchiseId,
+                medicineId: line.medicineId,
+                batchNumber: line.batchNumber,
+                expiryDate: line.expiryDate,
+                quantity: line.qtyChange,
+              },
+              update: {
+                quantity: { increment: line.qtyChange },
+              },
+            });
+          }
         }
       }
 
@@ -243,7 +388,6 @@ export async function PATCH(
     });
     return Success(result);
   } catch (error) {
-
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);
     }
@@ -264,7 +408,7 @@ export async function DELETE(
   const idNum = Number(id);
   if (Number.isNaN(idNum)) return BadRequest('Invalid sale ID');
   try {
-    const deleted = await prisma.$transaction(async (tx) => {
+    const deleted = await prisma.$transaction(async (tx: any) => {
       const existingSale = await tx.sale.findUnique({
         where: { id: idNum },
         select: { id: true },
@@ -281,7 +425,7 @@ export async function DELETE(
       if (stockTxn) {
         const ledgerLines = await tx.stockLedger.findMany({
           where: { transactionId: stockTxn.id },
-          select: { franchiseId: true, medicineId: true, qtyChange: true },
+          select: { franchiseId: true, medicineId: true, batchNumber: true, expiryDate: true, qtyChange: true },
         });
 
         for (const line of ledgerLines) {
@@ -301,6 +445,29 @@ export async function DELETE(
               quantity: { decrement: line.qtyChange },
             },
           });
+
+          if (line.batchNumber && line.expiryDate) {
+            await tx.stockBatchBalance.upsert({
+              where: {
+                franchiseId_medicineId_batchNumber_expiryDate: {
+                  franchiseId: line.franchiseId,
+                  medicineId: line.medicineId,
+                  batchNumber: line.batchNumber,
+                  expiryDate: line.expiryDate,
+                },
+              },
+              create: {
+                franchiseId: line.franchiseId,
+                medicineId: line.medicineId,
+                batchNumber: line.batchNumber,
+                expiryDate: line.expiryDate,
+                quantity: -line.qtyChange,
+              },
+              update: {
+                quantity: { decrement: line.qtyChange },
+              },
+            });
+          }
         }
       }
 

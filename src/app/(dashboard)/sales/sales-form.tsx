@@ -19,6 +19,8 @@ import { salesFormSchema, SalesFormValues } from '@/lib/schemas/frontend/sales';
 
 type SaleDetail = {
   medicineId: string;
+  batchNumber: string;
+  expiryDate: string;
   quantity: string;
   rate: string;
   amount: string;
@@ -86,12 +88,16 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
       totalAmount: (initialData?.totalAmount ?? 0).toString(),
       saleDetails: initialData?.saleDetails?.map(detail => ({
         medicineId: detail.medicineId.toString(),
+        batchNumber: (detail as any).batchNumber?.toString?.() ?? (detail as any).batchNumber ?? '',
+        expiryDate: (detail as any).expiryDate?.toString?.()?.split?.('T')?.[0] ?? (detail as any).expiryDate ?? '',
         quantity: detail.quantity.toString(),
         rate: detail.rate.toString(),
         amount: detail.amount.toString()
       })) || [
         {
           medicineId: '',
+          batchNumber: '',
+          expiryDate: '',
           quantity: '1',
           rate: '0',
           amount: '0',
@@ -201,6 +207,8 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
         totalAmount: parseFloat(data.totalAmount),
         saleDetails: data.saleDetails.map(detail => ({
           medicineId: parseInt(detail.medicineId),
+          batchNumber: detail.batchNumber,
+          expiryDate: new Date(detail.expiryDate).toISOString(),
           quantity: parseFloat(detail.quantity),
           rate: parseFloat(detail.rate),
           amount: parseFloat(detail.amount)
@@ -276,16 +284,22 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
             <div className="border rounded-lg overflow-hidden">
               {/* Table Header */}
               <div className="grid grid-cols-12 gap-0 bg-muted border-b">
-                <div className="col-span-5 md:col-span-5 px-4 py-3 font-medium text-sm text-muted-foreground border-r">
+                <div className="col-span-3 md:col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r">
                   Medicine
                 </div>
                 <div className="col-span-2 md:col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r">
+                  Batch No.
+                </div>
+                <div className="col-span-2 md:col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r">
+                  Expiry Date
+                </div>
+                <div className="col-span-1 md:col-span-1 px-4 py-3 font-medium text-sm text-muted-foreground border-r">
                   Quantity
                 </div>
                 <div className="col-span-2 md:col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r">
                   Rate
                 </div>
-                <div className="col-span-3 md:col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground">
+                <div className="col-span-2 md:col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground">
                   Amount
                 </div>
               </div>
@@ -296,7 +310,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                   key={field.id}
                   className="grid grid-cols-12 gap-0 border-b last:border-b-0 hover:bg-accent/50"
                 >
-                  <div className="col-span-5 md:col-span-5 p-3 border-r">
+                  <div className="col-span-3 md:col-span-3 p-3 border-r">
                     <ComboboxInput
                       control={control}
                       name={`saleDetails.${index}.medicineId`}
@@ -318,6 +332,35 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                     />
                   </div>
                   <div className="col-span-2 md:col-span-2 p-3 border-r">
+                    <Controller
+                      control={control}
+                      name={`saleDetails.${index}.batchNumber`}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          type="text"
+                          placeholder="Batch"
+                          className="w-full h-10 border"
+                          value={field.value || ''}
+                        />
+                      )}
+                    />
+                  </div>
+                  <div className="col-span-2 md:col-span-2 p-3 border-r">
+                    <Controller
+                      control={control}
+                      name={`saleDetails.${index}.expiryDate`}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          type="date"
+                          className="w-full h-10 border"
+                          value={field.value || ''}
+                        />
+                      )}
+                    />
+                  </div>
+                  <div className="col-span-1 md:col-span-1 p-3 border-r">
                     <Controller
                       control={control}
                       name={`saleDetails.${index}.quantity`}
@@ -361,7 +404,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                       )}
                     />
                   </div>
-                  <div className="col-span-3 md:col-span-3 p-3 flex items-center gap-2">
+                  <div className="col-span-2 md:col-span-2 p-3 flex items-center gap-2">
                     <div className='relative w-full'>
                       <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
                       <Input
@@ -397,7 +440,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  append({ medicineId: '', quantity: '1', rate: '0', amount: '0' });
+                  append({ medicineId: '', batchNumber: '', expiryDate: '', quantity: '1', rate: '0', amount: '0' });
                 }}
                 className="gap-2"
               >

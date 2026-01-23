@@ -72,6 +72,7 @@ model Franchise {
   stockTransactions StockTransaction[]
   stockLedgerEntries StockLedger[]
   stockBalances StockBalance[]
+  stockBatchBalances StockBatchBalance[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -153,6 +154,7 @@ model Medicine{
   consultationMedicines ConsultationMedicine[]
   stockLedgerEntries StockLedger[]
   stockBalances StockBalance[]
+  stockBatchBalances StockBatchBalance[]
 
   @@index([name])                    // For searching by name
   @@index([brandId])                   // For filtering by brand
@@ -188,6 +190,8 @@ model SaleDetail{
   sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   medicineId  Int
   medicine    Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  batchNumber String?
+  expiryDate  DateTime?
   quantity    Int
   rate        Decimal  @db.Decimal(10, 2)
   amount      Decimal  @db.Decimal(10, 2)
@@ -496,6 +500,8 @@ model StockLedger {
   franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   medicineId     Int
   medicine       Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  batchNumber    String?
+  expiryDate     DateTime?
   qtyChange      Int
   rate           Decimal? @db.Decimal(10, 2)
   amount         Decimal? @db.Decimal(10, 2)
@@ -506,6 +512,26 @@ model StockLedger {
   @@index([medicineId])
   @@index([franchiseId, medicineId])
   @@map("stock_ledger")
+}
+
+model StockBatchBalance {
+  id          Int      @id @default(autoincrement())
+  franchiseId Int
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  medicineId  Int
+  medicine    Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  batchNumber String
+  expiryDate  DateTime
+  quantity    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([franchiseId, medicineId, batchNumber, expiryDate])
+  @@index([franchiseId])
+  @@index([medicineId])
+  @@index([franchiseId, medicineId])
+  @@index([expiryDate])
+  @@map("stock_batch_balances")
 }
 
 model StockBalance {
