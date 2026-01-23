@@ -24,6 +24,10 @@ interface ComboboxInputProps<T extends FieldValues> {
   className?: string
   inputClassName?: string
   onChange?: (value: string) => void
+  stickyActionButton?: {
+    label: string
+    href: string
+  }
 }
 
 export function ComboboxInput<T extends FieldValues>({
@@ -39,6 +43,7 @@ export function ComboboxInput<T extends FieldValues>({
   className,
   inputClassName,
   onChange,
+  stickyActionButton,
 }: ComboboxInputProps<T>) {
   return (
     <FormField
@@ -65,6 +70,7 @@ export function ComboboxInput<T extends FieldValues>({
               emptyText={emptyText}
               disabled={disabled}
               className={inputClassName}
+              stickyActionButton={stickyActionButton}
             />
           </FormControl>
           <FormMessage />
