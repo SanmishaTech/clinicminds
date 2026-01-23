@@ -17,9 +17,7 @@ import { ComboboxInput } from '@/components/common/combobox-input';
 import { ImprovedUploadInput } from '@/components/common';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
-import { createConsultationSchema, updateConsultationSchema } from '@/lib/schemas/backend/consultations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { ConsultationHistory } from '@/app/(dashboard)/consultations/components/consultation-history';
 
 export interface ConsultationFormInitialData {
@@ -78,6 +76,7 @@ type Appointment = {
     id: number;
     patientNo: string;
     firstName: string;
+    middleName: string;
     lastName: string;
     mobile: string;
   };
@@ -91,6 +90,7 @@ type PatientInfo = {
   id: number;
   patientNo: string;
   firstName: string;
+  middleName: string;
   lastName: string;
   mobile: string;
 };
@@ -229,6 +229,8 @@ export function ConsultationForm({
   const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [servicesTotal, setServicesTotal] = useState(0);
+  const [medicinesTotal, setMedicinesTotal] = useState(0);
 
   const isCreate = mode === 'create';
 
@@ -330,6 +332,10 @@ export function ConsultationForm({
       }, 0);
 
       const total = totalDetails + totalMedicines;
+      
+      // Update individual totals
+      setServicesTotal(totalDetails);
+      setMedicinesTotal(totalMedicines);
       setValue('totalAmount', total.toFixed(2));
     };
 
@@ -367,6 +373,10 @@ export function ConsultationForm({
     }, 0);
 
     const total = totalDetails + totalMedicines;
+    
+    // Update individual totals
+    setServicesTotal(totalDetails);
+    setMedicinesTotal(totalMedicines);
     setValue('totalAmount', total.toFixed(2));
   }
 
@@ -401,6 +411,10 @@ export function ConsultationForm({
     }, 0);
 
     const total = totalDetails + totalMedicines;
+    
+    // Update individual totals
+    setServicesTotal(totalDetails);
+    setMedicinesTotal(totalMedicines);
     setValue('totalAmount', total.toFixed(2));
   }
 
@@ -500,7 +514,7 @@ export function ConsultationForm({
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-lg font-semibold">
-                  Patient Name: {patientInfo.firstName} {patientInfo.lastName}
+                  Patient Name: {patientInfo.firstName} {patientInfo.middleName} {patientInfo.lastName}
                 </h3>
                 <p className="text-sm">
                   Patient No.: {patientInfo.patientNo}
@@ -891,19 +905,49 @@ export function ConsultationForm({
                     {/* Total Amount */}
                     <FormRow cols={12}>
                        <div className="col-span-12 flex justify-end">
-                          <div className="text-right">
-                            <div className="text-sm text-muted-foreground">
-                              Total Amount
+                          <div className="text-right space-y-2">
+                            <div className="flex justify-between gap-8">
+                              <div className="text-sm text-muted-foreground">
+                                Services Total
+                              </div>
+                              <div className="text-sm font-medium">
+                                {new Intl.NumberFormat("en-IN", {
+                                    style: "currency",
+                                    currency: "INR",
+                                    minimumFractionDigits: 2,
+                                  }).format(servicesTotal)
+                                }
+                              </div>
                             </div>
-                            <div className="text-lg font-bold text-foreground">
-                              {new Intl.NumberFormat("en-IN", {
-                                  style: "currency",
-                                  currency: "INR",
-                                  minimumFractionDigits: 2,
-                                }).format(
-                                  parseFloat(form.getValues('totalAmount')) || 0
-                                )
-                              }
+                            <div className="flex justify-between gap-8">
+                              <div className="text-sm text-muted-foreground">
+                                Medicines Total
+                              </div>
+                              <div className="text-sm font-medium">
+                                {new Intl.NumberFormat("en-IN", {
+                                    style: "currency",
+                                    currency: "INR",
+                                    minimumFractionDigits: 2,
+                                  }).format(medicinesTotal)
+                                }
+                              </div>
+                            </div>
+                            <div className="border-t pt-2">
+                              <div className="flex justify-between gap-8">
+                                <div className="text-sm text-muted-foreground">
+                                  Total Amount
+                                </div>
+                                <div className="text-lg font-bold text-foreground">
+                                  {new Intl.NumberFormat("en-IN", {
+                                      style: "currency",
+                                      currency: "INR",
+                                      minimumFractionDigits: 2,
+                                    }).format(
+                                      parseFloat(form.getValues('totalAmount')) || 0
+                                    )
+                                  }
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
