@@ -20,6 +20,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { createConsultationSchema, updateConsultationSchema } from '@/lib/schemas/backend/consultations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { ConsultationHistory } from '@/app/(dashboard)/consultations/components/consultation-history';
 
 export interface ConsultationFormInitialData {
   id?: number;
@@ -75,6 +76,7 @@ type Appointment = {
   visitPurpose: string | null;
   patient: {
     id: number;
+    patientNo: string;
     firstName: string;
     lastName: string;
     mobile: string;
@@ -85,26 +87,9 @@ type Appointment = {
   };
 };
 
-type ConsultationHistory = {
-  id: number;
-  appointmentDateTime: string;
-  complaint: string | null;
-  diagnosis: string | null;
-  remarks: string | null;
-  consultationDetails: Array<{
-    service: { id: number; name: string } | null;
-    description: string | null;
-    qty: number;
-  }>;
-  consultationMedicines: Array<{
-    medicine: { id: number; name: string; brand: { name: string } } | null;
-    qty: number;
-    doses: string | null;
-  }>;
-};
-
 type PatientInfo = {
   id: number;
+  patientNo: string;
   firstName: string;
   lastName: string;
   mobile: string;
@@ -152,7 +137,7 @@ const consultationFormSchema = z.object({
       })
     )
     .refine((details) => {
-      // Validate that if serviceId is provided, all other required fields are also provided
+      // Validate that if serviceId is provided, all other required fields are also provided and not zero
       return details.every((detail) => {
         if (detail.serviceId && detail.serviceId.trim().length > 0) {
           return (
@@ -161,12 +146,12 @@ const consultationFormSchema = z.object({
             detail.amount && detail.amount.trim().length > 0 &&
             !isNaN(parseFloat(detail.qty)) && parseFloat(detail.qty) > 0 &&
             !isNaN(parseFloat(detail.rate)) && parseFloat(detail.rate) >= 0 &&
-            !isNaN(parseFloat(detail.amount)) && parseFloat(detail.amount) >= 0
+            !isNaN(parseFloat(detail.amount)) && parseFloat(detail.amount) > 0
           );
         }
         return true; // Allow empty rows
       });
-    }, 'If service is selected, qty, rate, and amount are required and must be valid numbers')
+    }, 'If service is selected, qty, rate, and amount are required and must be valid numbers greater than 0')
     .optional(),
   consultationMedicines: z
     .array(
@@ -203,7 +188,7 @@ const consultationFormSchema = z.object({
       })
     )
     .refine((medicines) => {
-      // Validate that if medicineId is provided, all other required fields are also provided
+      // Validate that if medicineId is provided, all other required fields are also provided and not zero
       return medicines.every((medicine) => {
         if (medicine.medicineId && medicine.medicineId.trim().length > 0) {
           return (
@@ -212,12 +197,13 @@ const consultationFormSchema = z.object({
             medicine.amount && medicine.amount.trim().length > 0 &&
             !isNaN(parseFloat(medicine.qty)) && parseFloat(medicine.qty) > 0 &&
             !isNaN(parseFloat(medicine.mrp)) && parseFloat(medicine.mrp) >= 0 &&
-            !isNaN(parseFloat(medicine.amount)) && parseFloat(medicine.amount) >= 0
+            !isNaN(parseFloat(medicine.amount)) && parseFloat(medicine.amount) > 0
+            // doses is optional, so we don't require it
           );
         }
         return true; // Allow empty rows
       });
-    }, 'If medicine is selected, qty, mrp, and amount are required and must be valid numbers')
+    }, 'If medicine is selected, qty, mrp, and amount are required and must be valid numbers greater than 0')
     .optional(),
   totalAmount: z
     .string()
@@ -241,7 +227,6 @@ export function ConsultationForm({
   const [services, setServices] = useState<Service[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
-  const [consultationHistory, setConsultationHistory] = useState<ConsultationHistory[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -255,6 +240,7 @@ export function ConsultationForm({
       complaint: initial?.complaint || '',
       diagnosis: initial?.diagnosis || '',
       remarks: initial?.remarks || '',
+      casePaperUrl: initial?.casePaperUrl || '',
       nextFollowUpDate: initial?.nextFollowUpDate 
         ? new Date(initial.nextFollowUpDate).toISOString().split('T')[0]
         : '',
@@ -276,7 +262,8 @@ export function ConsultationForm({
     },
   });
 
-  const { control, handleSubmit, setValue, setError, clearErrors } = form;
+  const { control, handleSubmit, setValue, setError, clearErrors, formState, trigger } = form;
+  const { errors } = formState;
 
   const serviceOptions = useMemo(() => {
     return services.map((s) => ({
@@ -312,6 +299,20 @@ export function ConsultationForm({
 
   const watchedDetails = useWatch({ control, name: 'consultationDetails' });
   const watchedMedicines = useWatch({ control, name: 'consultationMedicines' });
+
+  // Trigger validation only when qty/rate/amount fields change to fix submit button state
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      trigger();
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    // Only watch specific fields that affect validation
+    watchedDetails?.map(d => `${d.serviceId}-${d.qty}-${d.rate}-${d.amount}`).join('|'),
+    watchedMedicines?.map(m => `${m.medicineId}-${m.qty}-${m.mrp}-${m.amount}`).join('|'),
+    trigger
+  ]);
 
   useEffect(() => {
     const calculateTotal = () => {
@@ -415,39 +416,14 @@ export function ConsultationForm({
         setServices((servicesRes as any).data || []);
         setMedicines((medicinesRes as any).data || []);
 
-        // Fetch patient info and consultation history if we have an appointmentId
+        // Fetch patient info if we have an appointmentId
         if (initial?.appointmentId) {
           try {
             const appointmentRes = await apiGet(`/api/appointments/${initial.appointmentId}`);
             const appointment = appointmentRes as Appointment;
             setPatientInfo(appointment.patient);
-
-            // Fetch all consultations for this patient
-            const historyRes = await apiGet(`/api/consultations?patientId=${appointment.patient.id}`);
-            const historyData = historyRes as any;
-            
-            // Transform the data to match our history format
-            const transformedHistory = (historyData.data || []).map((consultation: any) => ({
-              id: consultation.id,
-              appointmentDateTime: consultation.appointment.appointmentDateTime,
-              complaint: consultation.complaint,
-              diagnosis: consultation.diagnosis,
-              remarks: consultation.remarks,
-              consultationDetails: consultation.consultationDetails.map((detail: any) => ({
-                service: detail.service,
-                description: detail.description,
-                qty: detail.qty,
-              })),
-              consultationMedicines: consultation.consultationMedicines.map((medicine: any) => ({
-                medicine: medicine.medicine,
-                qty: medicine.qty,
-                doses: medicine.doses,
-              })),
-            }));
-            
-            setConsultationHistory(transformedHistory);
           } catch (error) {
-            console.error('Failed to fetch patient history:', error);
+            console.error('Failed to fetch patient info:', error);
           }
         }
       } catch (e) {
@@ -527,7 +503,10 @@ export function ConsultationForm({
                   Patient Name: {patientInfo.firstName} {patientInfo.lastName}
                 </h3>
                 <p className="text-sm">
-                  Number: {patientInfo.mobile}
+                  Patient No.: {patientInfo.patientNo}
+                </p>
+                <p className="text-sm">
+                  Phone No.: {patientInfo.mobile}
                 </p>
               </div>
             </div>
@@ -553,34 +532,34 @@ export function ConsultationForm({
                 </AppCard.Header>
                 <AppCard.Content className='space-y-6'>
                   <FormSection legend='Consultation Details'>
-                    <FormRow className='grid-cols-12 gap-6'>
+                    <FormRow cols={1}>
                       <TextareaInput
                         control={control}
                         name='complaint'
                         label='Complaint'
                         placeholder='Enter patient complaint...'
                         rows={3}
-                        itemClassName='col-span-12'
+                        
                       />
                     </FormRow>
-                    <FormRow className='grid-cols-12 gap-6'>
+                    <FormRow cols={1}>
                       <TextareaInput
                         control={control}
                         name='diagnosis'
                         label='Diagnosis'
                         placeholder='Enter diagnosis...'
                         rows={3}
-                        itemClassName='col-span-12'
+                        
                       />
                     </FormRow>
-                    <FormRow className='grid-cols-12 gap-6'>
+                    <FormRow cols={1}>
                       <TextareaInput
                         control={control}
                         name='remarks'
                         label='Remarks'
                         placeholder='Enter any additional remarks...'
                         rows={3}
-                        itemClassName='col-span-12'
+                        
                       />
                     </FormRow>
                     <FormRow cols={2}>
@@ -592,6 +571,7 @@ export function ConsultationForm({
                         type='document'
                         prefix='case-papers'
                         showPreview={false}
+                        existingUrl={initial?.casePaperUrl}
                       />
                       <TextInput
                         control={control}
@@ -641,7 +621,7 @@ export function ConsultationForm({
                                   `consultationDetails.${index}.rate`,
                                   String(service.rate)
                                 );
-                                const qty = parseFloat(watchedDetails?.[index]?.qty || '1') || 0;
+                                const qty = parseFloat(watchedDetails?.[index]?.qty || '') || 0;
                                 setValue(
                                   `consultationDetails.${index}.amount`,
                                   (qty * Number(service.rate)).toFixed(2)
@@ -666,6 +646,7 @@ export function ConsultationForm({
                                   placeholder=''
                                   className='w-full h-10 border'
                                   value={field.value || ''}
+                                  disabled={!watchedDetails?.[index]?.serviceId}
                                 />
                               )}
                             />
@@ -683,6 +664,7 @@ export function ConsultationForm({
                                   className='w-full h-10 border'
                                   value={field.value || ''}
                                   onChange={(e) => updateDetailAmount(index, 'qty', e.target.value)}
+                                  disabled={!watchedDetails?.[index]?.serviceId}
                                 />
                               )}
                             />
@@ -705,6 +687,7 @@ export function ConsultationForm({
                                     onChange={(e) =>
                                       updateDetailAmount(index, 'rate', e.target.value)
                                     }
+                                    disabled={!watchedDetails?.[index]?.serviceId}
                                   />
                                 </div>
                               )}
@@ -747,9 +730,9 @@ export function ConsultationForm({
                           appendDetail({
                             serviceId: '',
                             description: '',
-                            qty: '1',
-                            rate: '0',
-                            amount: '0',
+                            qty: '',
+                            rate: '',
+                            amount: '',
                           })
                         }
                         className='gap-2'
@@ -797,7 +780,7 @@ export function ConsultationForm({
                                   `consultationMedicines.${index}.mrp`,
                                   String(medicine.rate)
                                 );
-                                const qty = parseFloat(watchedMedicines?.[index]?.qty || '1') || 0;
+                                const qty = parseFloat(watchedMedicines?.[index]?.qty || '') || 0;
                                 setValue(
                                   `consultationMedicines.${index}.amount`,
                                   (qty * Number(medicine.rate)).toFixed(2)
@@ -815,6 +798,7 @@ export function ConsultationForm({
                                   placeholder='e.g., 1-1-1'
                                   className='w-full h-10 border'
                                   value={field.value || ''}
+                                  disabled={!watchedMedicines?.[index]?.medicineId}
                                 />
                               )}
                             />
@@ -832,6 +816,7 @@ export function ConsultationForm({
                                   className='w-full h-10 border'
                                   value={field.value || ''}
                                   onChange={(e) => updateMedicineAmount(index, 'qty', e.target.value)}
+                                  disabled={!watchedMedicines?.[index]?.medicineId}
                                 />
                               )}
                             />
@@ -854,6 +839,7 @@ export function ConsultationForm({
                                     onChange={(e) =>
                                       updateMedicineAmount(index, 'mrp', e.target.value)
                                     }
+                                    disabled={!watchedMedicines?.[index]?.medicineId}
                                   />
                                 </div>
                               )}
@@ -893,7 +879,7 @@ export function ConsultationForm({
                         type='button'
                         variant='outline'
                         onClick={() =>
-                          appendMedicine({ medicineId: '', qty: '1', mrp: '0', amount: '0', doses: '' })
+                          appendMedicine({ medicineId: '', qty: '', mrp: '', amount: '', doses: '' })
                         }
                         className='gap-2'
                       >
@@ -903,7 +889,7 @@ export function ConsultationForm({
                     </div>
 
                     {/* Total Amount */}
-                    <FormRow className='grid-cols-12'>
+                    <FormRow cols={12}>
                        <div className="col-span-12 flex justify-end">
                           <div className="text-right">
                             <div className="text-sm text-muted-foreground">
@@ -949,99 +935,7 @@ export function ConsultationForm({
         </TabsContent>
 
         <TabsContent value="history">
-          <AppCard>
-            <AppCard.Header>
-              <AppCard.Title>Consultation History</AppCard.Title>
-              <AppCard.Description>
-                View all previous consultations for this patient
-              </AppCard.Description>
-            </AppCard.Header>
-            <AppCard.Content>
-              {consultationHistory.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  No consultation history available
-                </div>
-              ) : (
-                <Accordion type="multiple" className="space-y-4">
-                  {consultationHistory.map((consultation) => (
-                    <AccordionItem key={consultation.id} value={`consultation-${consultation.id}`} className="border rounded-lg">
-                      <AccordionTrigger className="px-6 py-4 hover:no-underline">
-                        <div className="flex flex-col items-start text-left">
-                          <div className="font-medium">
-                            {new Date(consultation.appointmentDateTime).toLocaleDateString('en-IN', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: '2-digit'
-                            }).replace(/\//g, '/')}
-                          </div>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-6 pb-4">
-                        <div className="space-y-4">
-                          <div className="grid grid-cols-3 gap-4">
-                            <div>
-                              <span className="font-medium">Complaint:</span>
-                              <p>{consultation.complaint || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium">Diagnosis:</span>
-                              <p>{consultation.diagnosis || 'N/A'}</p>
-                            </div>
-                            <div>
-                              <span className="font-medium">Remarks:</span>
-                              <p>{consultation.remarks || 'N/A'}</p>
-                            </div>
-                          </div>
-
-                          {consultation.consultationDetails.length > 0 && (
-                            <div>
-                              <h4 className="font-semibold mb-2">Services</h4>
-                              <div className="border rounded">
-                                <div className="grid grid-cols-3 gap-0 bg-muted border-b">
-                                  <div className="px-4 py-2 font-medium text-sm border-r">Services</div>
-                                  <div className="px-4 py-2 font-medium text-sm border-r">Description</div>
-                                  <div className="px-4 py-2 font-medium text-sm text-center">Qty</div>
-                                </div>
-                                {consultation.consultationDetails.map((detail, index) => (
-                                  <div key={index} className="grid grid-cols-3 gap-0 border-b last:border-b-0">
-                                    <div className="px-4 py-2 border-r">{detail.service?.name || 'N/A'}</div>
-                                    <div className="px-4 py-2 border-r">{detail.description || '—'}</div>
-                                    <div className="px-4 py-2 text-center">{detail.qty}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {consultation.consultationMedicines.length > 0 && (
-                            <div>
-                              <h4 className="font-semibold mb-2">Medicine</h4>
-                              <div className="border rounded">
-                                <div className="grid grid-cols-4 gap-0 bg-muted border-b">
-                                  <div className="px-4 py-2 font-medium text-sm border-r">Medicine</div>
-                                  <div className="px-4 py-2 font-medium text-sm border-r">Brand</div>
-                                  <div className="px-4 py-2 font-medium text-sm border-r">Qty</div>
-                                  <div className="px-4 py-2 font-medium text-sm text-center">Doses</div>
-                                </div>
-                                {consultation.consultationMedicines.map((medicine, index) => (
-                                  <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
-                                    <div className="px-4 py-2 border-r">{medicine.medicine?.name || 'N/A'}</div>
-                                    <div className="px-4 py-2 border-r">{medicine.medicine?.brand?.name || 'N/A'}</div>
-                                    <div className="px-4 py-2 border-r">{medicine.qty}</div>
-                                    <div className="px-4 py-2 text-center">{medicine.doses || '—'}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))}
-                </Accordion>
-              )}
-            </AppCard.Content>
-          </AppCard>
+          <ConsultationHistory appointmentId={initial?.appointmentId} />
         </TabsContent>
       </Tabs>
     </div>

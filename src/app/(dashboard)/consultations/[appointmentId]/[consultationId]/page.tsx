@@ -57,6 +57,7 @@ export default function EditConsultationPage() {
           complaint: data.complaint || '',
           diagnosis: data.diagnosis || '',
           remarks: data.remarks || '',
+          casePaperUrl: data.casePaperUrl || '',  
           nextFollowUpDate: data.nextFollowUpDate || undefined,
           totalAmount: Number(data.totalAmount) || 0,
           consultationDetails: (data.consultationDetails || []).map((d) => ({
