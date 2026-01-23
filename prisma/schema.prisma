@@ -29,6 +29,7 @@ model User {
 
   franchise                  Franchise?
   team                       Team?
+  stockTransactionsCreated    StockTransaction[]
 
   @@index([role])
   @@map("users")
@@ -68,6 +69,9 @@ model Franchise {
   team       Team[]
   room       Room[]
   appointments Appointment[]
+  stockTransactions StockTransaction[]
+  stockLedgerEntries StockLedger[]
+  stockBalances StockBalance[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -147,6 +151,8 @@ model Medicine{
   saleDetail SaleDetail[]
   packageMedicines PackageMedicine[]
   consultationMedicines ConsultationMedicine[]
+  stockLedgerEntries StockLedger[]
+  stockBalances StockBalance[]
 
   @@index([name])                    // For searching by name
   @@index([brandId])                   // For filtering by brand
@@ -163,6 +169,7 @@ model Sale{
   franchiseId Int
   franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   saleDetails SaleDetail[]
+  stockTransaction StockTransaction?
   totalAmount Decimal  @db.Decimal(10, 2)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -454,4 +461,64 @@ model ConsultationMedicine{
   doses                 String?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
+}
+
+model StockTransaction {
+  id              Int      @id @default(autoincrement())
+  txnType         String
+  txnNo           String   @unique
+  txnDate         DateTime
+  franchiseId     Int
+  franchise       Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  createdByUserId Int
+  createdByUser   User     @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
+  saleId          Int?     @unique
+  sale            Sale?    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  notes           String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  ledgerEntries   StockLedger[]
+
+  @@index([franchiseId])
+  @@index([txnType])
+  @@index([txnDate])
+  @@index([createdByUserId])
+  @@map("stock_transactions")
+}
+
+model StockLedger {
+  id             Int      @id @default(autoincrement())
+  transactionId  Int
+  transaction    StockTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  franchiseId    Int
+  franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  medicineId     Int
+  medicine       Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  qtyChange      Int
+  rate           Decimal? @db.Decimal(10, 2)
+  amount         Decimal? @db.Decimal(10, 2)
+  createdAt      DateTime @default(now())
+
+  @@index([transactionId])
+  @@index([franchiseId])
+  @@index([medicineId])
+  @@index([franchiseId, medicineId])
+  @@map("stock_ledger")
+}
+
+model StockBalance {
+  id          Int      @id @default(autoincrement())
+  franchiseId Int
+  franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  medicineId  Int
+  medicine    Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  quantity    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([franchiseId, medicineId])
+  @@index([franchiseId])
+  @@index([medicineId])
+  @@map("stock_balances")
 }
