@@ -413,7 +413,8 @@ model Appointment{
   teamId                Int
   team                  Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   visitPurpose          String?   @db.Text
-  
+  type                  String    @default("CONSULTATION")
+
   consultation          Consultation?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt

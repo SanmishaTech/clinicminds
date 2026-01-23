@@ -47,12 +47,14 @@ const appointmentSchema = z.object({
   teamId: z.number().int().positive("Team ID is required"),
   visitPurpose: z.string().optional(),
   patientId: z.number().int().positive("Patient ID is required"),
+  type: z.enum(["CONSULTATION", "PROCEDURE"]),
 });
 
 const appointmentUpdateSchema = z.object({
   appointmentDateTime: z.string().optional(),
   teamId: z.number().int().positive().optional(),
   visitPurpose: z.string().optional(),
+  type: z.enum(["CONSULTATION", "PROCEDURE"]).optional(),
 });
 
 // GET /api/appointments
@@ -138,7 +140,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const sortableFields = new Set(["appointmentDateTime", "createdAt", "visitPurpose", "gender"]);
+  const sortableFields = new Set(["appointmentDateTime", "createdAt", "visitPurpose", "gender", "type"]);
   let orderBy: any;
   
   if (sortableFields.has(sort)) {
@@ -166,6 +168,7 @@ export async function GET(req: NextRequest) {
       id: true,
       appointmentDateTime: true,
       visitPurpose: true,
+      type: true,
       createdAt: true,
       updatedAt: true,
       patient: {
@@ -252,7 +255,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const data = appointmentSchema.parse(body);
-    const { appointmentDateTime, teamId, visitPurpose, patientId } = data;
+    const { appointmentDateTime, teamId, visitPurpose, patientId, type } = data;
 
     const created = await prisma.$transaction(async (tx) => {
       // Verify team belongs to the same franchise
@@ -284,12 +287,14 @@ export async function POST(req: NextRequest) {
           teamId,
           patientId,
           visitPurpose,
+          type,
           franchiseId,
         },
         select: {
           id: true,
           appointmentDateTime: true,
           visitPurpose: true,
+          type: true,
           createdAt: true,
           updatedAt: true,
           patient: {
@@ -428,6 +433,9 @@ export async function PATCH(req: NextRequest) {
     if (parsedData.visitPurpose !== undefined) {
       data.visitPurpose = parsedData.visitPurpose;
     }
+    if (parsedData.type !== undefined) {
+      data.type = parsedData.type;
+    }
 
     if (Object.keys(data).length === 0) {
       return ApiError("Nothing to update", 400);
@@ -440,6 +448,7 @@ export async function PATCH(req: NextRequest) {
         id: true,
         appointmentDateTime: true,
         visitPurpose: true,
+        type: true,
         createdAt: true,
         updatedAt: true,
         team: {

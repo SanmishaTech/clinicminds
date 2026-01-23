@@ -38,6 +38,7 @@ export interface AppointmentFormInitialData {
   appointmentDateTime?: string;
   teamId?: string;
   patientId?: string;
+  type?: 'CONSULTATION' | 'PROCEDURE';
   visitPurpose?: string | null;
   team?: {
     id: number;
@@ -56,6 +57,7 @@ const appointmentFormSchema = z.object({
   patientId: z.string().min(1, 'Patient is required'),
   appointmentDateTime: z.string().min(1, 'Appointment date and time is required'),
   teamId: z.string().min(1, 'Team is required'),
+  type: z.enum(['CONSULTATION', 'PROCEDURE']),
   visitPurpose: z.string().optional(),
 });
 
@@ -77,7 +79,6 @@ export function AppointmentForm({
     apiGet
   );
   const { data: patientsResponse } = useSWR<PatientsResponse>('/api/patients', apiGet);
-
   const teams = teamsResponse?.data || [];
   const patients = patientsResponse?.data || [];
 
@@ -96,6 +97,12 @@ export function AppointmentForm({
     [patients]
   );
 
+  const typeOptions = useMemo(() =>
+    [{ value: 'CONSULTATION', label: 'Consultation' }, 
+     { value: 'PROCEDURE', label: 'Procedure' }],
+    []
+  );
+
   const schema = useMemo(() => appointmentFormSchema, []);
 
   const form = useForm<AppointmentFormData>({
@@ -108,6 +115,7 @@ export function AppointmentForm({
         ? formatDateTimeForInput(new Date(initial.appointmentDateTime))
         : '',
       teamId: initial?.teamId || undefined,
+      type: initial?.type || undefined,
       visitPurpose: initial?.visitPurpose || '',
     },
   });
@@ -171,18 +179,10 @@ export function AppointmentForm({
                   } : undefined}
                 />
               </FormRow>
-              <FormRow>
-                <TextInput
-                  control={control}
-                  name="patient.referedBy"
-                  label="Referred By"
-                  placeholder="Enter referral information"
-                />
-              </FormRow>
             </FormSection>
 
             <FormSection legend="Appointment Details">
-              <FormRow cols={2}>
+              <FormRow cols={3}>
                 <TextInput
                   control={control}
                   name="appointmentDateTime"
@@ -197,6 +197,14 @@ export function AppointmentForm({
                   required
                   options={teamOptions}
                   placeholder="Select team"
+                />
+                <ComboboxInput
+                  control={control as any}
+                  name="type"
+                  label="Type"
+                  required
+                  options={typeOptions}
+                  placeholder="Select type"
                 />
               </FormRow>
 
