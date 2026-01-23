@@ -21,6 +21,68 @@ import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
 import { EditButton } from '@/components/common/icon-button';
 
+// Function to check if consultation exists for an appointment
+async function checkConsultationExists(appointmentId: number): Promise<{ exists: boolean; consultationId?: number }> {
+  try {
+    const response = await apiGet(`/api/consultations?appointmentId=${appointmentId}&perPage=1`) as any;
+    const consultations = response?.data || [];
+    return {
+      exists: consultations.length > 0,
+      consultationId: consultations[0]?.id
+    };
+  } catch {
+    return { exists: false };
+  }
+}
+
+// ConsultationButton component to handle consultation/edit logic
+function ConsultationButton({ appointmentId }: { appointmentId: number }) {
+  const [consultationStatus, setConsultationStatus] = useState<{ exists: boolean; consultationId?: number } | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    async function checkStatus() {
+      setChecking(true);
+      try {
+        const status = await checkConsultationExists(appointmentId);
+        setConsultationStatus(status);
+      } catch {
+        setConsultationStatus({ exists: false });
+      } finally {
+        setChecking(false);
+      }
+    }
+    
+    checkStatus();
+  }, [appointmentId]);
+
+  if (checking) {
+    return (
+      <AppButton size='sm' variant='outline' className='mr-2' disabled>
+        Checking...
+      </AppButton>
+    );
+  }
+
+  if (consultationStatus?.exists && consultationStatus.consultationId) {
+    return (
+      <Link href={`/consultations/${appointmentId}/${consultationStatus.consultationId}`}>
+        <AppButton size='sm' variant='outline' className='mr-2'>
+          Edit Consultation
+        </AppButton>
+      </Link>
+    );
+  }
+
+  return (
+    <Link href={`/consultations/${appointmentId}/new`}>
+      <AppButton size='sm' variant='outline' className='mr-2'>
+        Consultation
+      </AppButton>
+    </Link>
+  );
+}
+
 type AppointmentListItem = {
   id: number;
   appointmentDateTime: string;
@@ -320,6 +382,7 @@ export default function AppointmentsPage() {
             if (!can(PERMISSIONS.EDIT_APPOINTMENTS) && !can(PERMISSIONS.DELETE_APPOINTMENTS)) return null;
             return (
               <div className='flex'>
+                <ConsultationButton appointmentId={appointment.id} />
                 {can(PERMISSIONS.EDIT_APPOINTMENTS) && (
                   <Link href={`/appointments/${appointment.id}/edit`}>
                     <EditButton tooltip='Edit Appointment' aria-label='Edit Appointment' />

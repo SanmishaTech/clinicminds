@@ -26,6 +26,7 @@ type AppointmentListItem = {
   updatedAt: string;
   patient: {
     id: number;
+    patientNo: string;
     firstName: string;
     middleName: string;
     lastName: string;
@@ -188,6 +189,7 @@ export async function GET(req: NextRequest) {
       patient: {
         select: {
           id: true,
+          patientNo: true,
           firstName: true,
           middleName: true,
           lastName: true,

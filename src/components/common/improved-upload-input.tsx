@@ -141,35 +141,66 @@ export function ImprovedUploadInput({
           <FormLabel>
             {label}{required ? <span className="ml-0.5 text-destructive">*</span> : null}
           </FormLabel>
-          <div className={cn('flex items-center gap-2', className)}>
-            <input
-              ref={inputRef}
-              type="file"
-              className="hidden"
-              disabled={disabled || uploading}
-              aria-required={required}
-              onChange={(e) => handleFileChange(e, onChange)}
-            />
-            <AppButton
-              type="button"
-              size="sm"
-              onClick={pickFile}
-              disabled={disabled || uploading}
-              isLoading={uploading}
-            >
-              {uploading ? 'Uploading...' : fileName ? 'Change File' : 'Choose File'}
-            </AppButton>
-            <div className="text-xs text-muted-foreground truncate max-w-[14rem]" title={fileName}>
-              {fileName || 'No file selected'}
-            </div>
-            {fileName && !uploading && (
-              <button
+          <div className={cn('flex flex-col gap-2', className)}>
+            <div className="flex items-center gap-2">
+              <input
+                ref={inputRef}
+                type="file"
+                className="hidden"
+                disabled={disabled || uploading}
+                aria-required={required}
+                onChange={(e) => handleFileChange(e, onChange)}
+              />
+              <AppButton
                 type="button"
-                onClick={() => clearFile(onChange)}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                size="sm"
+                onClick={pickFile}
+                disabled={disabled || uploading}
+                isLoading={uploading}
               >
-                ×
-              </button>
+                {uploading ? 'Uploading...' : fileName ? 'Change File' : 'Choose File'}
+              </AppButton>
+              <div className="text-xs text-muted-foreground truncate max-w-[14rem]" title={fileName}>
+                {fileName || 'No file selected'}
+              </div>
+              {fileName && !uploading && (
+                <button
+                  type="button"
+                  onClick={() => clearFile(onChange)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+            {uploadedUrl && !uploading && (
+              <div className="flex gap-1">
+                <AppButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.open(resolveUrl(uploadedUrl), '_blank')}
+                  disabled={disabled}
+                >
+                  View
+                </AppButton>
+                <AppButton
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = resolveUrl(uploadedUrl);
+                    link.download = fileName || 'download';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  disabled={disabled}
+                >
+                  Download
+                </AppButton>
+              </div>
             )}
           </div>
           {description ? (
