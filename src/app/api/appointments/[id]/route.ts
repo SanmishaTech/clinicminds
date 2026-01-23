@@ -48,6 +48,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       where: { id: idNum, franchiseId },
       select: {
         id: true,
+        patientId: true, 
         appointmentDateTime: true,
         visitPurpose: true,
         createdAt: true,

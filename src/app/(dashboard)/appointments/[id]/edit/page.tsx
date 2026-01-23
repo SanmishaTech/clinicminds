@@ -22,17 +22,7 @@ export default function EditAppointmentPage() {
           appointmentDateTime: string;
           visitPurpose: string | null;
           patientId: number | null;
-          patient?: {
-            firstName: string;
-            middleName: string;
-            lastName: string;
-            dateOfBirth: string | null;
-            age: number;
-            gender: string;
-            referedBy: string | null;
-            email: string | null;
-            mobile: string;
-          };
+          teamId: number | null;
           team?: {
             id: number;
             name: string;
@@ -43,13 +33,8 @@ export default function EditAppointmentPage() {
           id: data.id,
           appointmentDateTime: data.appointmentDateTime,
           visitPurpose: data.visitPurpose,
-          teamId: data.team?.id.toString(),
+          teamId: data.teamId?.toString(),
           patientId: data.patientId ? data.patientId.toString() : undefined,
-          patient: data.patient ? {
-            ...data.patient,
-            age: data.patient.age != null ? String(data.patient.age) : undefined,
-            dateOfBirth: data.patient.dateOfBirth ? new Date(data.patient.dateOfBirth).toISOString().split('T')[0] : null,
-          } : undefined,
           team: data.team,
         });
       } catch (e) {

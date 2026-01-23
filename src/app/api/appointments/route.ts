@@ -46,25 +46,7 @@ const appointmentSchema = z.object({
   appointmentDateTime: z.string().min(1, "Appointment date and time is required"),
   teamId: z.number().int().positive("Team ID is required"),
   visitPurpose: z.string().optional(),
-  patientId: z.number().int().positive().optional(),
-  patient: z.object({
-    firstName: z.string().min(1, "First name is required"),
-    middleName: z.string().optional(),
-    lastName: z.string().min(1, "Last name is required"),
-    dateOfBirth: z.string().optional(),
-    age: z.number().int().positive(),
-    gender: z.string(),
-    referedBy: z.string().optional(),
-    email: z.string().email(),
-    mobile: z.string().regex(/^[0-9]{10}$/, "Mobile must be 10 digits"),
-  }).optional(),
-}).refine((data) => {
-  // Either patientId OR patient must be provided, but not both
-  const hasPatientId = !!data.patientId;
-  const hasPatientData = !!data.patient;
-  return (hasPatientId && !hasPatientData) || (!hasPatientId && hasPatientData);
-}, {
-  message: "Either patient (for existing patients) OR patient data (for new patients) must be provided, but not both",
+  patientId: z.number().int().positive("Patient ID is required"),
 });
 
 const appointmentUpdateSchema = z.object({
@@ -270,11 +252,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const data = appointmentSchema.parse(body);
-    const { appointmentDateTime, teamId, visitPurpose, patientId, patient } = data;
+    const { appointmentDateTime, teamId, visitPurpose, patientId } = data;
 
     const created = await prisma.$transaction(async (tx) => {
-      let finalPatientId: number;
-
       // Verify team belongs to the same franchise
       const team = await tx.team.findUnique({
         where: { id: teamId, franchiseId },
@@ -285,87 +265,24 @@ export async function POST(req: NextRequest) {
         throw ApiError("Team does not belong to your franchise");
       }
 
-      if (patientId) {
-        // Use existing patient
-        const existingPatient = await tx.patient.findFirst({
-          where: {
-            id: patientId,
-            franchiseId
-          }
-        });
-
-        if (!existingPatient) {
-          throw ApiError("Patient not found or does not belong to your franchise");
+      // Verify patient belongs to the same franchise
+      const patient = await tx.patient.findFirst({
+        where: {
+          id: patientId,
+          franchiseId
         }
+      });
 
-        finalPatientId = existingPatient.id;
-      } else if (patient) {
-        // Create new patient
-        const existingPatient = await tx.patient.findFirst({
-          where: {
-            firstName: patient.firstName,
-            lastName: patient.lastName,
-            mobile: patient.mobile,
-            email: patient.email,
-            franchiseId
-          }
-        });
-
-        if (existingPatient) {
-          finalPatientId = existingPatient.id;
-        } else {
-        // Generate patientNo using the same logic as patients route
-        const now = new Date();
-        const dateKey = now.toISOString().slice(0, 10).replace(/-/g, ""); // YYYYMMDD
-        
-        const seq = await tx.patientSequence.upsert({
-          where: { dateKey },
-          update: { lastNumber: { increment: 1 } },
-          create: { dateKey, lastNumber: 1 },
-          select: { lastNumber: true },
-        });
-
-        const patientNo = `P-${dateKey}-${String(seq.lastNumber).padStart(4, "0")}`;
-
-        const newPatient = await tx.patient.create({
-          data: {
-            patientNo,
-            firstName: patient.firstName,
-            middleName: patient.middleName,
-            lastName: patient.lastName,
-            dateOfBirth: patient.dateOfBirth ? new Date(patient.dateOfBirth) : null,
-            age: patient.age,
-            gender: patient.gender,
-            referedBy: patient.referedBy,
-            email: patient.email,
-            mobile: patient.mobile,
-            teamId,
-            franchiseId,
-          },
-          select: {
-            id: true,
-            firstName: true,
-            middleName: true,
-            lastName: true,
-            mobile: true,
-            email: true,
-            age: true,
-            gender: true,
-          },
-        });
-
-        finalPatientId = newPatient.id;
-        }
-      } else {
-        throw ApiError("Either patientId or patient data must be provided");
+      if (!patient) {
+        throw ApiError("Patient not found or does not belong to your franchise");
       }
 
-      // Create appointment with the determined patient ID
+      // Create appointment
       const appointment = await tx.appointment.create({
         data: {
           appointmentDateTime: new Date(appointmentDateTime),
           teamId,
-          patientId: finalPatientId,
+          patientId,
           visitPurpose,
           franchiseId,
         },
@@ -525,17 +442,6 @@ export async function PATCH(req: NextRequest) {
         visitPurpose: true,
         createdAt: true,
         updatedAt: true,
-        patient: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            mobile: true,
-            email: true,
-            age: true,
-            gender: true,
-          },
-        },
         team: {
           select: {
             id: true,

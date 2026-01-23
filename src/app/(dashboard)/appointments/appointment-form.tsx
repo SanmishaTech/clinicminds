@@ -1,13 +1,12 @@
 'use client';
 
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useForm } from 'react-hook-form';
 import { Form } from '@/components/ui/form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { AppButton } from '@/components/common/app-button';
-import { AppCheckbox } from '@/components/common/app-checkbox';
 import { AppCard } from '@/components/common/app-card';
 import { TextInput } from '@/components/common/text-input';
 import { TextareaInput } from '@/components/common/textarea-input';
@@ -16,8 +15,6 @@ import { apiGet, apiPost, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ComboboxInput } from '@/components/common/combobox-input';
-import { EmailInput } from '@/components/common/email-input';
-import { MASTER_CONFIG } from '@/config/master';
 import { formatDateTimeForInput } from '@/lib/locales';
 
 type TeamsResponse = {
@@ -42,17 +39,6 @@ export interface AppointmentFormInitialData {
   teamId?: string;
   patientId?: string;
   visitPurpose?: string | null;
-  patient?: {
-    firstName?: string;
-    middleName?: string;
-    lastName?: string;
-    dateOfBirth?: string | null;
-    age?: string;
-    gender?: string;
-    referedBy?: string | null;
-    email?: string | null;
-    mobile?: string;
-  };
   team?: {
     id: number;
     name: string;
@@ -66,16 +52,14 @@ export interface AppointmentFormProps {
   redirectOnSuccess?: string; // default '/appointments'
 }
 
-const GENDER_OPTIONS = MASTER_CONFIG.gender.map((g) => ({ value: g.value, label: g.label }));
-
 const appointmentFormSchema = z.object({
+  patientId: z.string().min(1, 'Patient is required'),
   appointmentDateTime: z.string().min(1, 'Appointment date and time is required'),
   teamId: z.string().min(1, 'Team is required'),
   visitPurpose: z.string().optional(),
-  patientId: z.string().min(1, 'Patient is required'),
 });
 
-type AppointmentFormData = z.infer<ReturnType<typeof makeAppointmentFormSchema>>;
+type AppointmentFormData = z.infer<typeof appointmentFormSchema>;
 
 export function AppointmentForm({
   mode,
@@ -87,26 +71,7 @@ export function AppointmentForm({
   const searchParams = useSearchParams();
   const urlPatientId = searchParams.get('patientId');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isNewPatient, setIsNewPatient] = useState(!initial?.patientId);
-
-  function computeAgeFromDateInput(dateStr: string): number | null {
-    const m = /^([0-9]{4})-([0-9]{2})-([0-9]{2})$/.exec(dateStr);
-    if (!m) return null;
-    const year = Number(m[1]);
-    const month = Number(m[2]);
-    const day = Number(m[3]);
-    
-    const today = new Date();
-    const thisYear = today.getFullYear();
-    const thisMonth = today.getMonth() + 1; // 1-12
-    const thisDay = today.getDate();
-
-    let age = thisYear - year;
-    if (thisMonth < month || (thisMonth === month && thisDay < day)) age -= 1;
-    if (age < 0) return null;
-    return age;
-  }
-
+  const isCreate = mode === 'create';
   const { data: teamsResponse } = useSWR<TeamsResponse>(
     '/api/teams?page=1&perPage=100&sort=name&order=asc&role=DOCTOR&status=true',
     apiGet
@@ -131,19 +96,19 @@ export function AppointmentForm({
     [patients]
   );
 
-  const schema = useMemo(() => makeAppointmentFormSchema(mode), [mode]);
+  const schema = useMemo(() => appointmentFormSchema, []);
 
   const form = useForm<AppointmentFormData>({
     resolver: zodResolver(schema),
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
+      patientId: initial?.patientId || urlPatientId || undefined,
       appointmentDateTime: initial?.appointmentDateTime
         ? formatDateTimeForInput(new Date(initial.appointmentDateTime))
         : '',
       teamId: initial?.teamId || undefined,
       visitPurpose: initial?.visitPurpose || '',
-      patientId: initial?.patientId || urlPatientId || undefined,
     },
   });
 
@@ -158,11 +123,11 @@ export function AppointmentForm({
         patientId: data.patientId ? Number(data.patientId) : undefined,
       };
 
-      if (mode === 'create') {
+      if (isCreate) {
         const res = await apiPost('/api/appointments', payload);
         toast.success('Appointment created successfully');
         onSuccess?.(res);
-      } else if (mode === 'edit' && initial?.id) {
+      } else if (!isCreate && initial?.id) {
         const res = await apiPatch('/api/appointments', {
           id: initial.id,
           ...payload,
@@ -199,10 +164,11 @@ export function AppointmentForm({
                   options={patientOptions}
                   required
                   placeholder="Select patient"
-                  stickyActionButton={{
+                  disabled={!isCreate}
+                  stickyActionButton={isCreate ? {
                     label: "Create New Patient",
                     href: "/patients/new?redirectTo=appointments"
-                  }}
+                  } : undefined}
                 />
               </FormRow>
               <FormRow>
