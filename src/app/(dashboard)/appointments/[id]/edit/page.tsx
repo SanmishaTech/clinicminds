@@ -23,6 +23,7 @@ export default function EditAppointmentPage() {
           visitPurpose: string | null;
           patientId: number | null;
           teamId: number | null;
+          type: string;
           team?: {
             id: number;
             name: string;
@@ -35,6 +36,7 @@ export default function EditAppointmentPage() {
           visitPurpose: data.visitPurpose,
           teamId: data.teamId?.toString(),
           patientId: data.patientId ? data.patientId.toString() : undefined,
+          type: data.type as 'CONSULTATION' | 'PROCEDURE',
           team: data.team,
         });
       } catch (e) {
