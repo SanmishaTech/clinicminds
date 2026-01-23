@@ -87,6 +87,7 @@ type AppointmentListItem = {
   id: number;
   appointmentDateTime: string;
   visitPurpose: string | null;
+  type: string;
   createdAt: string;
   updatedAt: string;
   patient: {
@@ -263,6 +264,13 @@ export default function AppointmentsPage() {
       header: 'Team',
       sortable: false,
       accessor: (r) => r.team.name,
+      cellClassName: 'whitespace-nowrap',
+    },
+    {
+      key: 'type',
+      header: 'Type',
+      sortable: true,
+      accessor: (r) => r.type ? r.type.charAt(0).toUpperCase() + r.type.slice(1).toLowerCase() : '—',
       cellClassName: 'whitespace-nowrap',
     },
     {
