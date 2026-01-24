@@ -137,23 +137,32 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         });
 
         if (!transport.stockPostedAt) {
-          const stockTxn = await tx.stockTransaction.upsert({
+          const existingStockTxn = await tx.stockTransaction.findUnique({
             where: { saleId: sale.id },
-            create: {
-              txnType: 'SALE_TO_FRANCHISE',
-              txnNo: '',
-              txnDate: sale.invoiceDate,
-              franchiseId: sale.franchiseId,
-              createdByUserId: auth.user.id,
-              saleId: sale.id,
-              notes: null,
-            },
-            update: {
-              txnDate: sale.invoiceDate,
-              franchiseId: sale.franchiseId,
-            },
             select: { id: true },
           });
+
+          const stockTxn = existingStockTxn
+            ? await tx.stockTransaction.update({
+                where: { id: existingStockTxn.id },
+                data: {
+                  txnDate: sale.invoiceDate,
+                  franchiseId: sale.franchiseId,
+                },
+                select: { id: true },
+              })
+            : await tx.stockTransaction.create({
+                data: {
+                  txnType: 'SALE_TO_FRANCHISE',
+                  txnNo: '',
+                  txnDate: sale.invoiceDate,
+                  franchiseId: sale.franchiseId,
+                  createdByUserId: auth.user.id,
+                  saleId: sale.id,
+                  notes: null,
+                },
+                select: { id: true },
+              });
 
           const existingLedgerLines = await tx.stockLedger.findMany({
             where: { transactionId: stockTxn.id },
@@ -301,7 +310,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       return Success((res as any).transport);
     } catch (e) {
       console.error('Deliver transport error:', e);
-      return ApiError('Failed to mark delivered');
+      return ApiError((e as Error).message || 'Failed to mark delivered');
     }
   }
 

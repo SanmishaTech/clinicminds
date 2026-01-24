@@ -138,6 +138,12 @@ export const NAV_ITEMS: NavItem[] = [
         icon: Package,
         permission: PERMISSIONS.VIEW_STOCKS,
         },
+        {
+        title: "Recalls",
+        href: "/recalls",
+        icon: Package,
+        permission: PERMISSIONS.CREATE_STOCKS,
+        },
     ],
   },
   
