@@ -52,6 +52,10 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/appointments/new", permissions: [PERMISSIONS.CREATE_APPOINTMENTS] },
   { prefix: "/appointments/", permissions: [PERMISSIONS.EDIT_APPOINTMENTS] },
   { prefix: "/appointments", permissions: [PERMISSIONS.READ_APPOINTMENTS] },
+
+  // Consultations (nested under appointments)
+  { prefix: "/consultations/", permissions: [PERMISSIONS.CREATE_CONSULTATIONS, PERMISSIONS.EDIT_CONSULTATIONS] },
+  { prefix: "/consultations", permissions: [PERMISSIONS.READ_CONSULTATIONS] },
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -195,6 +199,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       POST: [PERMISSIONS.CREATE_APPOINTMENTS],
       PATCH: [PERMISSIONS.EDIT_APPOINTMENTS],
       DELETE: [PERMISSIONS.DELETE_APPOINTMENTS],
+    },
+  },
+  {
+    prefix: "/api/consultations",
+    methods: {
+      GET: [PERMISSIONS.READ_CONSULTATIONS],
+      POST: [PERMISSIONS.CREATE_CONSULTATIONS],
+      PATCH: [PERMISSIONS.EDIT_CONSULTATIONS],
+      DELETE: [PERMISSIONS.DELETE_CONSULTATIONS],
     },
   },
 ];
