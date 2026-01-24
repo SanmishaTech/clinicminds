@@ -5,14 +5,15 @@ export const saleDetailSchema = z.object({
   batchNumber: z.string().trim().min(1),
   expiryDate: z.string().datetime(),
   quantity: z.number().int().positive(),
-  rate: z.number().positive(),
-  amount: z.number().positive(),
+  rate: z.number().nonnegative(),
+  amount: z.number().nonnegative(),
 });
 
 export const createSaleSchema = z.object({
   invoiceDate: z.string().datetime(),
   franchiseId: z.number().int().positive(),
-  totalAmount: z.number().positive(),
+  discountPercent: z.number().min(0).max(100).default(0),
+  totalAmount: z.number().nonnegative(),
   saleDetails: z.array(saleDetailSchema).min(1, 'At least one sale detail is required'),
 });
 

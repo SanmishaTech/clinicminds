@@ -6,6 +6,13 @@ export const salesFormSchema = z.object({
   franchiseId: z.string().refine(
     (v) => !v || /^\d+$/.test(v), "Must be a valid number"
   ).refine((v) => v && v.trim().length > 0, "Franchise is required"),
+  discountPercent: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === '' || (!isNaN(parseFloat(v)) && parseFloat(v) >= 0 && parseFloat(v) <= 100),
+      'Discount must be 0 to 100'
+    ),
   totalAmount: z.string().trim()
       .refine((val) => val && val.trim().length > 0, "Total amount is required")
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Total must be a valid positive number"),

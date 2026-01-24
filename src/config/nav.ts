@@ -14,6 +14,7 @@ import {
   Landmark,
   Package,
   Calendar,
+  Truck,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -124,6 +125,12 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/sales",
         icon: Receipt,
         permission: PERMISSIONS.VIEW_SALES,
+        },
+        {
+        title: "Transports",
+        href: "/transports",
+        icon: Truck,
+        permission: PERMISSIONS.VIEW_TRANSPORTS,
         },
         {
         title: "Stocks",

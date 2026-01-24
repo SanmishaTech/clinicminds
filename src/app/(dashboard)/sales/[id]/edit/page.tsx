@@ -12,6 +12,7 @@ type SaleApiResponse = {
   invoiceNo: string;
   invoiceDate: string;
   franchiseId: number;
+  discountPercent?: number;
   totalAmount: number;
   saleDetails: {
     medicineId: number;
@@ -47,6 +48,7 @@ export default function EditSalePage() {
           invoiceNo: sale.invoiceNo,
           invoiceDate: sale.invoiceDate,
           franchiseId: sale.franchiseId?.toString(),
+          discountPercent: String(sale.discountPercent ?? 0),
           totalAmount: sale.totalAmount.toString(),
           saleDetails: sale.saleDetails?.map((detail: any) => ({
             medicineId: detail.medicineId.toString(),

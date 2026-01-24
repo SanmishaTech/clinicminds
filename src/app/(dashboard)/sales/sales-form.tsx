@@ -31,6 +31,7 @@ type Sale = {
   invoiceNo: string;
   invoiceDate: string;
   franchiseId: string;
+  discountPercent?: string;
   totalAmount: string;
   saleDetails: SaleDetail[];
 };
@@ -85,6 +86,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
       invoiceNo: initialData?.invoiceNo || '',
       invoiceDate: initialData?.invoiceDate?.split('T')[0] || new Date().toISOString().split('T')[0],
       franchiseId: initialData?.franchiseId?.toString() || '',
+      discountPercent: (initialData as any)?.discountPercent?.toString?.() ?? (initialData as any)?.discountPercent ?? '0',
       totalAmount: (initialData?.totalAmount ?? 0).toString(),
       saleDetails: initialData?.saleDetails?.map(detail => ({
         medicineId: detail.medicineId.toString(),
@@ -119,6 +121,11 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
     name: 'saleDetails'
   });
 
+  const watchedDiscountPercent = useWatch({
+    control,
+    name: 'discountPercent' as any,
+  });
+
   // Create options for ComboBoxInput
   const medicineOptions = useMemo(() => {
     return medicines.map((medicine) => ({
@@ -134,19 +141,21 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
     }));
   }, [franchises]);
 
-  // Calculate total amount whenever sale details change
-  useEffect(() => {
-    const calculateTotal = () => {
-      const saleDetails = form.getValues('saleDetails') || [];
-      const total = saleDetails.reduce((sum, detail) => {
-        const amount = parseFloat(detail.amount) || 0;
-        return sum + amount;
-      }, 0);
-      setValue('totalAmount', total.toString());
-    };
+  const totals = useMemo(() => {
+    const details = watchedSaleDetails || [];
+    const subtotal = details.reduce((sum, d) => sum + (parseFloat(d.amount) || 0), 0);
+    const discountPercentNum = Math.min(
+      100,
+      Math.max(0, parseFloat((watchedDiscountPercent as any) || '0') || 0)
+    );
+    const discountAmount = subtotal * (discountPercentNum / 100);
+    const total = Math.max(0, subtotal - discountAmount);
+    return { subtotal, discountPercentNum, discountAmount, total };
+  }, [watchedSaleDetails, watchedDiscountPercent]);
 
-    calculateTotal();
-  }, [watchedSaleDetails, setValue, form]);
+  useEffect(() => {
+    setValue('totalAmount', totals.total.toFixed(2));
+  }, [setValue, totals.total]);
 
   // Update amount when quantity or rate changes
   const updateDetailAmount = (index: number, field: 'quantity' | 'rate', value: string) => {
@@ -166,14 +175,6 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
     setValue(`saleDetails.${index}.quantity`, detail.quantity);
     setValue(`saleDetails.${index}.rate`, detail.rate);
     setValue(`saleDetails.${index}.amount`, detail.amount);
-    
-    // Immediately recalculate total
-    const allDetails = form.getValues('saleDetails') || [];
-    const total = allDetails.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-    setValue('totalAmount', total.toString());
   };
 
   useEffect(() => {
@@ -204,6 +205,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
       const apiData = {
         invoiceDate: new Date(data.invoiceDate).toISOString(), // Convert to datetime
         franchiseId: parseInt(data.franchiseId),
+        discountPercent: Math.min(100, Math.max(0, parseFloat((data as any).discountPercent || '0') || 0)),
         totalAmount: parseFloat(data.totalAmount),
         saleDetails: data.saleDetails.map(detail => ({
           medicineId: parseInt(detail.medicineId),
@@ -453,25 +455,70 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
           {/* Total Amount */}
           <FormRow className='grid-cols-12'>
             <div className="col-span-12 flex justify-end">
-              <div className="text-right">
-                <div className="text-sm text-muted-foreground">
-                  Total Amount
+              <div className='w-full max-w-sm space-y-3'>
+                <div>
+                  <div className='text-sm text-muted-foreground'>Discount (%)</div>
+                  <Controller
+                    control={control}
+                    name={'discountPercent' as any}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        type='number'
+                        min='0'
+                        max='100'
+                        step='0.01'
+                        placeholder='Discount %'
+                        className='w-full h-10 border'
+                        value={field.value || ''}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            field.onChange('');
+                            return;
+                          }
+                          const num = parseFloat(raw);
+                          if (Number.isNaN(num)) {
+                            field.onChange('');
+                            return;
+                          }
+                          const clamped = Math.min(100, Math.max(0, num));
+                          field.onChange(String(clamped));
+                        }}
+                        onBlur={(e) => {
+                          const raw = e.target.value;
+                          if (raw === '') {
+                            field.onBlur();
+                            return;
+                          }
+                          const num = parseFloat(raw);
+                          const clamped = Number.isNaN(num) ? 0 : Math.min(100, Math.max(0, num));
+                          field.onChange(String(clamped));
+                          field.onBlur();
+                        }}
+                      />
+                    )}
+                  />
                 </div>
-                <div className="text-lg font-bold text-foreground">
-                  {new Intl.NumberFormat("en-IN", {
-                    style: "currency",
-                    currency: "INR",
-                    minimumFractionDigits: 2,
-                  }).format(
-                    (() => {
-                      const saleDetails = form.getValues('saleDetails') || [];
-                      return saleDetails.reduce((sum, item) => {
-                        const amount = parseFloat(item.amount) || 0;
-                        return sum + amount;
-                      }, 0) || 0;
-                    })()
-                  )
-                }
+                <div className='text-right'>
+                  <div className='text-sm text-muted-foreground'>Discount ({totals.discountPercentNum}%)</div>
+                  <div className='text-base font-semibold text-foreground'>
+                    {new Intl.NumberFormat('en-IN', {
+                      style: 'currency',
+                      currency: 'INR',
+                      minimumFractionDigits: 2,
+                    }).format(totals.discountAmount)}
+                  </div>
+                </div>
+                <div className='text-right'>
+                  <div className='text-sm text-muted-foreground'>Total Amount</div>
+                  <div className='text-lg font-bold text-foreground'>
+                    {new Intl.NumberFormat('en-IN', {
+                      style: 'currency',
+                      currency: 'INR',
+                      minimumFractionDigits: 2,
+                    }).format(totals.total)}
+                  </div>
                 </div>
               </div>
             </div>

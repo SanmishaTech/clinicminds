@@ -67,6 +67,7 @@ model Franchise {
   userId     Int    @unique
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   sales      Sale[]
+  transports  Transport[]
   patients   Patient[]
   team       Team[]
   room       Room[]
@@ -200,7 +201,9 @@ model Sale{
   franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   saleDetails SaleDetail[]
   stockTransaction StockTransaction?
+  transport   Transport?
   totalAmount Decimal  @db.Decimal(10, 2)
+  discountPercent Decimal @default(0) @db.Decimal(5, 2)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -210,6 +213,31 @@ model Sale{
   @@index([franchiseId, invoiceDate]) // Composite for franchise sales reports
   @@index([createdAt])                // For recent sales
   @@map("sales")
+}
+
+model Transport {
+  id             Int      @id @default(autoincrement())
+  saleId         Int      @unique
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  franchiseId    Int
+  franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  status         String   @default("PENDING")
+  transporterName String?
+  companyName    String?
+  transportFee   Decimal? @db.Decimal(10, 2)
+  receiptNumber  String?
+  vehicleNumber  String?
+  trackingNumber String?
+  notes          String?  @db.Text
+  dispatchedAt   DateTime?
+  deliveredAt    DateTime?
+  stockPostedAt  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([franchiseId])
+  @@index([status])
+  @@map("transports")
 }
 
 model SaleDetail{

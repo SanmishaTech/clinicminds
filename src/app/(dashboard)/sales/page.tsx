@@ -15,7 +15,9 @@ import { PERMISSIONS } from '@/config/roles';
 import { formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { EditButton } from '@/components/common/icon-button';
+import { IconButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
+import { StatusBadge } from '@/components/common/status-badge';
 import Link from 'next/link';
 
 
@@ -25,6 +27,10 @@ type SaleListItem = {
   invoiceNo: string;
   invoiceDate: string;
   totalAmount: number;
+  transport?: {
+    id: number;
+    status: string;
+  } | null;
   franchise: {
     name: string;
   };
@@ -129,6 +135,20 @@ export default function SalesPage() {
     { key: 'invoiceNo', header: 'Invoice No', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
     { key: 'invoiceDate', header: 'Date', sortable: true, className: 'whitespace-nowrap', cellClassName: 'whitespace-nowrap', accessor: (r) => new Date(r.invoiceDate).toLocaleDateString() },
     { key: 'franchise', header: 'Franchise', sortable: false, accessor: (r) => r.franchise.name },
+    {
+      key: 'transportStatus',
+      header: 'Transport',
+      sortable: false,
+      accessor: (r) => (
+        <StatusBadge
+          status={(r.transport?.status || 'PENDING').toLowerCase()}
+          stylesMap={{
+            dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+            delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+          }}
+        />
+      ),
+    },
     { key: 'totalAmount', header: 'Total Amount', sortable: true, className: 'whitespace-nowrap', accessor: (r) => formatIndianCurrency(r.totalAmount) },
     { key: '_count', header: 'Items', sortable: false, accessor: (r) => r._count.saleDetails },
   ];
@@ -216,9 +236,20 @@ export default function SalesPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(row) => {
-            if (!can(PERMISSIONS.EDIT_SALES) && !can(PERMISSIONS.DELETE_SALES)) return null;
+            const canTransport = can(PERMISSIONS.CREATE_TRANSPORTS);
+            if (!can(PERMISSIONS.EDIT_SALES) && !can(PERMISSIONS.DELETE_SALES) && !canTransport) return null;
+            const transportStatus = (row.transport?.status || '').toUpperCase();
             return (
               <div className='flex items-center gap-1'>
+                {canTransport && transportStatus !== 'DELIVERED' && (
+                  <Link href={`/transports/new?saleId=${row.id}`}>
+                    <IconButton
+                      iconName='Truck'
+                      tooltip='Transport'
+                      aria-label='Transport'
+                    />
+                  </Link>
+                )}
                 {can(PERMISSIONS.EDIT_SALES) && (
                   <Link href={`/sales/${row.id}/edit`}>
                   <EditButton 
