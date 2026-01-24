@@ -1,13 +1,13 @@
 import { z } from 'zod';
 
 export const transportFormSchema = z.object({
-  transporterName: z.string().optional(),
-  companyName: z.string().optional(),
+  transporterName: z.string().trim().min(1, 'Transporter name is required'),
+  companyName: z.string().trim().min(1, 'Company name is required'),
   transportFee: z
     .string()
     .trim()
     .refine(
-      (v) => v === '' || (!isNaN(parseFloat(v)) && parseFloat(v) >= 0),
+      (v) => v !== '' && !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
       'Transport fee must be a valid number'
     ),
   receiptNumber: z.string().optional(),

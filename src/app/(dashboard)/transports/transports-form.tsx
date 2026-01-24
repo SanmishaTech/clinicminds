@@ -72,9 +72,9 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
     try {
       const payload = {
         saleId: sale.saleId,
-        transporterName: values.transporterName?.trim() || undefined,
-        companyName: values.companyName?.trim() || undefined,
-        transportFee: values.transportFee.trim() ? Number(values.transportFee) : undefined,
+        transporterName: values.transporterName.trim(),
+        companyName: values.companyName.trim(),
+        transportFee: Number(values.transportFee),
         receiptNumber: values.receiptNumber?.trim() || undefined,
         vehicleNumber: values.vehicleNumber?.trim() || undefined,
         trackingNumber: values.trackingNumber?.trim() || undefined,
@@ -102,23 +102,11 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
         </AppCard.Header>
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
-            <FormSection legend='Status'>
-              <FormRow>
-                <StatusBadge
-                  status={statusLower}
-                  stylesMap={{
-                    dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-                    delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-                  }}
-                />
-              </FormRow>
-            </FormSection>
-
             <FormSection legend='Transport Details'>
               <FormRow cols={3}>
-                <TextInput control={control} name='transporterName' label='Transporter Name' placeholder='Enter transporter name' />
-                <TextInput control={control} name='companyName' label='Company Name' placeholder='Enter company name' />
-                <TextInput control={control} name='transportFee' label='Transport Fee' placeholder='0' type='number' step='0.01' />
+                <TextInput control={control} name='transporterName' label='Transporter Name' placeholder='Enter transporter name' required />
+                <TextInput control={control} name='companyName' label='Company Name' placeholder='Enter company name' required />
+                <TextInput control={control} name='transportFee' label='Transport Fee' placeholder='0' type='number' step='0.01' required />
               </FormRow>
 
               <FormRow cols={3}>
@@ -134,12 +122,33 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
           </AppCard.Content>
 
           <AppCard.Footer className='justify-end'>
-            <AppButton type='button' variant='secondary' onClick={() => router.back()}>
-              Cancel
-            </AppButton>
-            <AppButton type='submit' disabled={submitting} isLoading={submitting}>
-              Dispatch
-            </AppButton>
+            <div className='flex items-end gap-2'>
+              <AppButton type='button' variant='secondary' onClick={() => router.back()}>
+                Cancel
+              </AppButton>
+
+              <div className='flex flex-col items-stretch gap-2'>
+                <div className='flex w-full items-center justify-center gap-2 text-sm'>
+                  <span className='text-muted-foreground'>Status:</span>
+                  <StatusBadge
+                    status={statusLower}
+                    stylesMap={{
+                      dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+                      delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+                    }}
+                  />
+                </div>
+
+                <AppButton
+                  type='submit'
+                  disabled={submitting}
+                  isLoading={submitting}
+                  className='w-full'
+                >
+                  Dispatch
+                </AppButton>
+              </div>
+            </div>
           </AppCard.Footer>
         </form>
       </AppCard>

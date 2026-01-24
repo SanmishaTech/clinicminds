@@ -4,9 +4,9 @@ export const transportStatusSchema = z.enum(['PENDING', 'DISPATCHED', 'DELIVERED
 
 export const createTransportSchema = z.object({
   saleId: z.number().int().positive(),
-  transporterName: z.string().trim().optional(),
-  companyName: z.string().trim().optional(),
-  transportFee: z.number().min(0).optional(),
+  transporterName: z.string().trim().min(1),
+  companyName: z.string().trim().min(1),
+  transportFee: z.number().min(0),
   receiptNumber: z.string().trim().optional(),
   vehicleNumber: z.string().trim().optional(),
   trackingNumber: z.string().trim().optional(),

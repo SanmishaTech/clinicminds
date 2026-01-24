@@ -397,10 +397,8 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                             placeholder="0.00"
                             className="w-full h-10 border pl-5.5"
                             value={field.value || ''}
-                            onChange={(e) => {
-                              const value = e.target.value;
-                              updateDetailAmount(index, 'rate', value);
-                            }}
+                            disabled
+                            readOnly
                           />
                         </div>
                       )}
