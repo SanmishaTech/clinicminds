@@ -72,8 +72,8 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
     try {
       const payload = {
         saleId: sale.saleId,
-        transporterName: values.transporterName.trim(),
         companyName: values.companyName.trim(),
+        transporterName: values.transporterName?.trim() || undefined,
         transportFee: Number(values.transportFee),
         receiptNumber: values.receiptNumber?.trim() || undefined,
         vehicleNumber: values.vehicleNumber?.trim() || undefined,
@@ -104,8 +104,8 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
           <AppCard.Content>
             <FormSection legend='Transport Details'>
               <FormRow cols={3}>
-                <TextInput control={control} name='transporterName' label='Transporter Name' placeholder='Enter transporter name' required />
                 <TextInput control={control} name='companyName' label='Company Name' placeholder='Enter company name' required />
+                <TextInput control={control} name='transporterName' label='Transporter Name' placeholder='Enter transporter name' />
                 <TextInput control={control} name='transportFee' label='Transport Fee' placeholder='0' type='number' step='0.01' required />
               </FormRow>
 

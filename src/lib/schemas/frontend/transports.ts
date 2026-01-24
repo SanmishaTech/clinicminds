@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const transportFormSchema = z.object({
-  transporterName: z.string().trim().min(1, 'Transporter name is required'),
   companyName: z.string().trim().min(1, 'Company name is required'),
+  transporterName: z.string().trim().optional(),
   transportFee: z
     .string()
     .trim()
