@@ -15,6 +15,8 @@ import {
   Package,
   Calendar,
   Truck,
+  FileText,
+  Archive,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -140,7 +142,19 @@ export const NAV_ITEMS: NavItem[] = [
         },
     ],
   },
-  
+  {
+    type: "group",
+    title: "Reports",
+    icon: FileText,
+    children:[
+      {
+        title:"Closing Stock",
+        icon: Archive,
+        href:"/reports/closing-stock",
+        permission: PERMISSIONS.VIEW_CLOSING_STOCK,
+      }
+    ]
+  },
   {
     type: "group",
     title: "Settings",
