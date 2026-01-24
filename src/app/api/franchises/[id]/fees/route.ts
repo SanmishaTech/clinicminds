@@ -11,6 +11,7 @@ const createPaymentSchema = z.object({
   payerName: z.string().trim().optional().nullable(),
   contactNumber: z.string().trim().optional().nullable(),
   utrNumber: z.string().trim().optional().nullable(),
+  chequeDate: z.string().datetime().optional().nullable(),
   chequeNumber: z.string().trim().optional().nullable(),
   notes: z.string().trim().optional().nullable(),
 }).superRefine((val, ctx) => {
@@ -37,6 +38,10 @@ const createPaymentSchema = z.object({
   }
 
   if (val.paymentMode === 'CHEQUE') {
+    const chequeDate = val.chequeDate?.trim() || '';
+    if (!chequeDate) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['chequeDate'], message: 'Cheque date is required' });
+    }
     const chq = val.chequeNumber?.trim() || '';
     if (!chq) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['chequeNumber'], message: 'Cheque number is required' });
@@ -72,6 +77,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         payerName: true,
         contactNumber: true,
         utrNumber: true,
+        chequeDate: true,
         chequeNumber: true,
         notes: true,
         createdAt: true,
@@ -133,6 +139,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         payerName: data.payerName?.trim() || null,
         contactNumber: data.paymentMode === 'CASH' ? (data.contactNumber?.trim() || null) : null,
         utrNumber: data.paymentMode === 'UPI' ? (data.utrNumber?.trim() || null) : null,
+        chequeDate: data.paymentMode === 'CHEQUE' ? new Date(data.chequeDate || '') : null,
         chequeNumber: data.paymentMode === 'CHEQUE' ? (data.chequeNumber?.trim() || null) : null,
         notes: data.notes ?? null,
         createdByUserId: auth.user.id,
@@ -146,6 +153,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         payerName: true,
         contactNumber: true,
         utrNumber: true,
+        chequeDate: true,
         chequeNumber: true,
         notes: true,
         createdAt: true,

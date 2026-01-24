@@ -99,6 +99,16 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
           <AppCard.Description>
             Dispatch sale {sale.invoiceNo ? `"${sale.invoiceNo}"` : ''} {sale.franchiseName ? `to ${sale.franchiseName}` : ''}
           </AppCard.Description>
+          <div className='flex items-center gap-2 text-sm'>
+            <span className='text-muted-foreground'>Status:</span>
+            <StatusBadge
+              status={statusLower}
+              stylesMap={{
+                dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+                delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+              }}
+            />
+          </div>
         </AppCard.Header>
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
@@ -127,27 +137,9 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
                 Cancel
               </AppButton>
 
-              <div className='flex flex-col items-stretch gap-2'>
-                <div className='flex w-full items-center justify-center gap-2 text-sm'>
-                  <span className='text-muted-foreground'>Status:</span>
-                  <StatusBadge
-                    status={statusLower}
-                    stylesMap={{
-                      dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-                      delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-                    }}
-                  />
-                </div>
-
-                <AppButton
-                  type='submit'
-                  disabled={submitting}
-                  isLoading={submitting}
-                  className='w-full'
-                >
-                  Dispatch
-                </AppButton>
-              </div>
+              <AppButton type='submit' disabled={submitting} isLoading={submitting}>
+                Dispatch
+              </AppButton>
             </div>
           </AppCard.Footer>
         </form>

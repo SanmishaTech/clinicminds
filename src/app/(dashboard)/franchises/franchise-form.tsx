@@ -156,14 +156,23 @@ export function FranchiseForm({
     if (!statesResp?.data?.length) return;
     if (mode === 'create') return;
     if (!initial?.state || !initial?.city) return;
-    if (form.getValues('stateId')) return;
+ 
+    let currentStateId = form.getValues('stateId');
+    const currentCityId = form.getValues('cityId');
 
-    const stateMatch = statesResp.data.find((s) => s.state === initial.state);
-    if (!stateMatch) return;
-    form.setValue('stateId', String(stateMatch.id), { shouldDirty: false, shouldValidate: true });
+    // 1) Ensure stateId is set from initial data
+    if (!currentStateId) {
+      const stateMatch = statesResp.data.find((s) => s.state === initial.state);
+      if (!stateMatch) return;
+      currentStateId = String(stateMatch.id);
+      form.setValue('stateId', currentStateId, { shouldDirty: false, shouldValidate: true });
+    }
 
-    const cityMatch = (citiesResp?.data || []).find(
-      (c) => c.city === initial.city && String(c.stateId) === String(stateMatch.id)
+    // 2) Once cities are loaded, set cityId (do not require a second visit/navigation)
+    if (currentCityId) return;
+    if (!citiesResp?.data?.length) return;
+    const cityMatch = citiesResp.data.find(
+      (c) => c.city === initial.city && String(c.stateId) === String(currentStateId)
     );
     if (!cityMatch) return;
     form.setValue('cityId', String(cityMatch.id), { shouldDirty: false, shouldValidate: true });

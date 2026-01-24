@@ -476,9 +476,8 @@ export function PackageForm({
                               placeholder='0.00'
                               className='w-full h-10 border pl-5.5'
                               value={field.value || ''}
-                              onChange={(e) =>
-                                updateDetailAmount(index, 'rate', e.target.value)
-                              }
+                              disabled
+                              readOnly
                             />
                           </div>
                         )}

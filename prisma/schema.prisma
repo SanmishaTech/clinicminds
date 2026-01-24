@@ -96,6 +96,7 @@ model FranchiseFeePayment {
   payerName      String?
   contactNumber  String?
   utrNumber      String?
+  chequeDate     DateTime?
   chequeNumber   String?
   notes          String?  @db.Text
   createdByUserId Int

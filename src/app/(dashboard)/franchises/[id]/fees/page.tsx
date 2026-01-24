@@ -26,6 +26,7 @@ type FeePaymentRow = {
   payerName: string | null;
   contactNumber: string | null;
   utrNumber: string | null;
+  chequeDate: string | null;
   chequeNumber: string | null;
   notes: string | null;
   createdAt: string;
@@ -47,6 +48,7 @@ const formSchema = z.object({
   payerName: z.string().trim().min(1, 'Name is required'),
   contactNumber: z.string().trim().optional(),
   utrNumber: z.string().trim().optional(),
+  chequeDate: z.string().trim().optional(),
   chequeNumber: z.string().trim().optional(),
   notes: z.string().optional(),
 }).superRefine((val, ctx) => {
@@ -65,6 +67,9 @@ const formSchema = z.object({
   }
 
   if (val.paymentMode === 'CHEQUE') {
+    if (!val.chequeDate) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['chequeDate'], message: 'Cheque date is required' });
+    }
     if (!val.chequeNumber) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['chequeNumber'], message: 'Cheque number is required' });
     }
@@ -96,6 +101,7 @@ export default function FranchiseFeesPage() {
       payerName: '',
       contactNumber: '',
       utrNumber: '',
+      chequeDate: '',
       chequeNumber: '',
       notes: '',
     },
@@ -168,6 +174,7 @@ export default function FranchiseFeesPage() {
         payerName: values.payerName,
         contactNumber: values.paymentMode === 'CASH' ? values.contactNumber : null,
         utrNumber: values.paymentMode === 'UPI' ? values.utrNumber : null,
+        chequeDate: values.paymentMode === 'CHEQUE' ? new Date(values.chequeDate || '').toISOString() : null,
         chequeNumber: values.paymentMode === 'CHEQUE' ? values.chequeNumber : null,
         notes: values.notes?.trim() ? values.notes.trim() : null,
       });
@@ -180,6 +187,7 @@ export default function FranchiseFeesPage() {
         payerName: '',
         contactNumber: '',
         utrNumber: '',
+        chequeDate: '',
         chequeNumber: '',
         notes: '',
       });
@@ -258,30 +266,43 @@ export default function FranchiseFeesPage() {
                       />
                     </div>
                   </FormRow>
-                  <FormRow cols={2}>
-                    <TextInput control={control} name='payerName' label='Name' required placeholder='Name' />
-                    {paymentMode === 'CASH' && (
-                      <TextInput
-                        control={control}
-                        name='contactNumber'
-                        label='Contact Number'
-                        required
-                        placeholder='10 digit mobile'
-                      />
-                    )}
-                    {paymentMode === 'UPI' && (
-                      <TextInput control={control} name='utrNumber' label='UTR Number' required placeholder='UTR number' />
-                    )}
-                    {paymentMode === 'CHEQUE' && (
-                      <TextInput
-                        control={control}
-                        name='chequeNumber'
-                        label='Cheque Number'
-                        required
-                        placeholder='Cheque number'
-                      />
-                    )}
-                  </FormRow>
+                  {paymentMode === 'CHEQUE' ? (
+                    <>
+                      <FormRow cols={3}>
+                        <TextInput control={control} name='payerName' label='Name' required placeholder='Name' />
+                        <TextInput control={control} name='chequeDate' label='Cheque Date' type='date' required />
+                        <TextInput
+                          control={control}
+                          name='chequeNumber'
+                          label='Cheque Number'
+                          required
+                          placeholder='Cheque number'
+                        />
+                      </FormRow>
+                    </>
+                  ) : (
+                    <FormRow cols={2}>
+                      <TextInput control={control} name='payerName' label='Name' required placeholder='Name' />
+                      {paymentMode === 'CASH' && (
+                        <TextInput
+                          control={control}
+                          name='contactNumber'
+                          label='Contact Number'
+                          required
+                          placeholder='10 digit mobile'
+                        />
+                      )}
+                      {paymentMode === 'UPI' && (
+                        <TextInput
+                          control={control}
+                          name='utrNumber'
+                          label='UTR Number'
+                          required
+                          placeholder='UTR number'
+                        />
+                      )}
+                    </FormRow>
+                  )}
                   <FormRow>
                     <TextareaInput
                       control={control as any}
