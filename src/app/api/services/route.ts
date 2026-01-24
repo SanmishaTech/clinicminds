@@ -7,6 +7,21 @@ import { z } from 'zod';
 import { paginate } from '@/lib/paginate';
 import { serviceSchema } from '@/lib/schemas/backend/services';
 
+function toDecimal2(n: number) {
+  return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+}
+
+function computeInclusiveRate(baseRate: number, gstPercent: number) {
+  const gst = Number.isFinite(gstPercent) ? gstPercent : 0;
+  const base = Number.isFinite(baseRate) ? baseRate : 0;
+  const rate = base + (base * gst) / 100;
+  return {
+    baseRate: toDecimal2(base),
+    gstPercent: toDecimal2(gst),
+    rate: toDecimal2(rate),
+  };
+}
+
 // GET /api/services
 export async function GET(req: NextRequest) {
   const auth = await guardApiAccess(req);
@@ -38,6 +53,8 @@ export async function GET(req: NextRequest) {
         id: true,
         name: true,
         rate: true,
+        baseRate: true,
+        gstPercent: true,
         description: true,
         createdAt: true,
         updatedAt: true,
@@ -57,9 +74,16 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const data = serviceSchema.parse(body);
-   
+
+    const computed = computeInclusiveRate(data.rate, data.gstPercent ?? 0);
     const service = await prisma.service.create({
-      data: data as any
+      data: {
+        name: data.name,
+        description: data.description,
+        rate: computed.rate as any,
+        baseRate: computed.baseRate as any,
+        gstPercent: computed.gstPercent as any,
+      } as any
     });
     return Success(service, 201);
   } catch (error) {

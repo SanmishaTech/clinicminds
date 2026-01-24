@@ -139,6 +139,8 @@ model Service{
   id          Int      @id @default(autoincrement())
   name        String   @unique
   rate        Decimal  @db.Decimal(10, 2)
+  baseRate    Decimal  @db.Decimal(10, 2) @default(0)
+  gstPercent  Decimal  @db.Decimal(5, 2) @default(0)
   description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -148,6 +150,7 @@ model Service{
 
   @@index([name])                    // For searching by name
   @@index([rate])                    // For sorting by rate
+  @@index([gstPercent])
   @@index([createdAt])                // For sorting by creation date
   @@map("services")
 }
