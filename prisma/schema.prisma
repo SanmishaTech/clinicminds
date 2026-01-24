@@ -30,6 +30,7 @@ model User {
   franchise                  Franchise?
   team                       Team?
   stockTransactionsCreated    StockTransaction[]
+  stockRecallsCreated         StockRecall[]      @relation("StockRecallCreatedBy")
   franchiseFeePaymentsCreated FranchiseFeePayment[] @relation("FranchiseFeePaymentCreatedBy")
 
   @@index([role])
@@ -76,6 +77,7 @@ model Franchise {
   stockLedgerEntries StockLedger[]
   stockBalances StockBalance[]
   stockBatchBalances StockBatchBalance[]
+  stockRecalls StockRecall[] @relation("StockRecallFranchise")
   franchiseFeePayments FranchiseFeePayment[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -185,6 +187,7 @@ model Medicine{
   stockLedgerEntries StockLedger[]
   stockBalances StockBalance[]
   stockBatchBalances StockBatchBalance[]
+  stockRecalls StockRecall[] @relation("StockRecallMedicine")
 
   @@index([name])                    // For searching by name
   @@index([brandId])                   // For filtering by brand
@@ -542,6 +545,7 @@ model StockTransaction {
   updatedAt       DateTime @updatedAt
 
   ledgerEntries   StockLedger[]
+  stockRecalls    StockRecall[] @relation("StockRecallTransaction")
 
   @@index([franchiseId])
   @@index([txnType])
@@ -606,4 +610,28 @@ model StockBalance {
   @@index([franchiseId])
   @@index([medicineId])
   @@map("stock_balances")
+}
+
+model StockRecall {
+  id                Int      @id @default(autoincrement())
+  stockTransactionId Int
+  stockTransaction  StockTransaction @relation("StockRecallTransaction", fields: [stockTransactionId], references: [id], onDelete: Cascade)
+  franchiseId       Int
+  franchise         Franchise @relation("StockRecallFranchise", fields: [franchiseId], references: [id], onDelete: Cascade)
+  medicineId        Int
+  medicine          Medicine @relation("StockRecallMedicine", fields: [medicineId], references: [id], onDelete: Cascade)
+  batchNumber       String
+  expiryDate        DateTime
+  quantity          Int
+  createdByUserId   Int
+  createdByUser     User     @relation("StockRecallCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  recalledAt        DateTime @default(now())
+
+  @@index([franchiseId])
+  @@index([medicineId])
+  @@index([expiryDate])
+  @@index([recalledAt])
+  @@index([createdByUserId])
+  @@index([franchiseId, medicineId])
+  @@map("stock_recalls")
 }
