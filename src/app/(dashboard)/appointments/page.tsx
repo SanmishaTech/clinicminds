@@ -249,7 +249,7 @@ export default function AppointmentsPage() {
       key: 'gender',
       header: 'Gender',
       sortable: false,
-      accessor: (r) => r.patient.gender ? (GENDER_LABEL[r.patient.gender] ?? r.patient.gender) : '—',
+      accessor: (r) => r.patient.gender ? (GENDER_LABEL[r.patient.gender] ?? r.patient.gender) : '-',
       cellClassName: 'whitespace-nowrap',
     },
     {
@@ -270,14 +270,14 @@ export default function AppointmentsPage() {
       key: 'type',
       header: 'Type',
       sortable: true,
-      accessor: (r) => r.type ? r.type.charAt(0).toUpperCase() + r.type.slice(1).toLowerCase() : '—',
+      accessor: (r) => r.type ? r.type.charAt(0).toUpperCase() + r.type.slice(1).toLowerCase() : '-',
       cellClassName: 'whitespace-nowrap',
     },
     {
       key: 'visitPurpose',
       header: 'Visit Purpose',
       sortable: false,
-      accessor: (r) => r.visitPurpose || '—',
+      accessor: (r) => r.visitPurpose || '-',
       cellClassName: 'whitespace-nowrap',
     },
     {

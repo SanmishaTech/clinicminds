@@ -120,7 +120,7 @@ export function AppointmentForm({
     },
   });
 
-  const { control, handleSubmit } = form;
+  const { control, handleSubmit, formState } = form;
 
   const onSubmit = async (data: any) => {
     setIsSubmitting(true);
@@ -219,18 +219,21 @@ export function AppointmentForm({
             </FormSection>
           </AppCard.Content>
 
-          <AppCard.Footer className='justify-end'>
+          <AppCard.Footer className='justify-end gap-2'>
             <AppButton
               type='button'
               variant='secondary'
-              onClick={() => router.back()}
+              onClick={() => router.push(redirectOnSuccess)}
+              disabled={isSubmitting}
+              iconName='X'
             >
               Cancel
             </AppButton>
             <AppButton
               type='submit'
-              disabled={isSubmitting}
+              disabled={isSubmitting || !formState.isValid}
               isLoading={isSubmitting}
+              iconName={isCreate ? 'Plus' : 'Save'}
             >
               {mode === 'create' ? 'Create Appointment' : 'Update Appointment'}
             </AppButton>
