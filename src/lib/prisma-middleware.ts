@@ -128,6 +128,33 @@ export const generateEntityCode = (prisma: PrismaClient) => {
       }
     }
 
+    // Handle single create for MedicineBill
+    if (params.action === 'create' && params.model === 'MedicineBill') {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0'); // DD
+      const month = String(now.getMonth() + 1).padStart(2, '0'); // MM
+      const year = now.getFullYear(); // YYYY
+      const dayMonthYear = `${day}${month}${year}`; // DDMMYYYY
+      
+      // Find latest bill number for today
+      const latestBill = await prisma.medicineBill.findFirst({
+        where: {
+          billNumber: {
+            startsWith: `M-${dayMonthYear}`
+          }
+        },
+        orderBy: {
+          billNumber: 'desc'
+        },
+        select: {
+          billNumber: true
+        }
+      });
+
+      const sequence = latestBill ? parseInt(latestBill.billNumber.split('-')[2]) + 1 : 1;
+      params.args.data.billNumber = `M-${dayMonthYear}-${String(sequence).padStart(4, '0')}`;
+    }
+
     return next(params);
   });
 };

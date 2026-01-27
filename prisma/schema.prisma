@@ -79,6 +79,7 @@ model Franchise {
   stockBatchBalances StockBatchBalance[]
   stockRecalls StockRecall[] @relation("StockRecallFranchise")
   franchiseFeePayments FranchiseFeePayment[]
+  medicineBills MedicineBill[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -188,6 +189,7 @@ model Medicine{
   stockBalances StockBalance[]
   stockBatchBalances StockBatchBalance[]
   stockRecalls StockRecall[] @relation("StockRecallMedicine")
+  medicineBillDetails MedicineBillDetail[]
 
   @@index([name])                    // For searching by name
   @@index([brandId])                   // For filtering by brand
@@ -360,6 +362,7 @@ model Patient {
   franchise                     Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
   team                          Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
   appointments                  Appointment[]
+  medicineBills                 MedicineBill[]
   state State? @relation(fields: [stateId], references: [id])
   city  City? @relation(fields: [cityId], references: [id])
 
@@ -540,6 +543,8 @@ model StockTransaction {
   createdByUser   User     @relation(fields: [createdByUserId], references: [id], onDelete: Cascade)
   saleId          Int?     @unique
   sale            Sale?    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  medicineBillId  Int?     @unique
+  medicineBill    MedicineBill? @relation(fields: [medicineBillId], references: [id], onDelete: Cascade)
   notes           String?  @db.Text
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -634,4 +639,42 @@ model StockRecall {
   @@index([createdByUserId])
   @@index([franchiseId, medicineId])
   @@map("stock_recalls")
+}
+
+model MedicineBill{
+  id              Int @id @default(autoincrement())
+  franchiseId     Int?
+  franchise       Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
+  billNumber      String @unique
+  billDate        DateTime @default(now())
+  patientId       Int?
+  patient         Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  discountPercent Int?
+  totalAmount     Decimal @db.Decimal(10, 2)
+  stockTransaction StockTransaction?
+  medicineDetails MedicineBillDetail[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([billNumber])
+  @@index([franchiseId])
+  @@index([patientId])
+  @@index([billDate])
+  @@map("medicine_bills")
+}
+
+model MedicineBillDetail{
+  id              Int  @id @default(autoincrement())
+  medicineBillId  Int
+  medicineBill    MedicineBill @relation(fields: [medicineBillId], references: [id], onDelete: Cascade)
+  medicineId      Int
+  medicine        Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  qty             Int
+  mrp             Decimal @db.Decimal(10, 2)
+  amount          Decimal @db.Decimal(10, 2)
+
+  @@index([medicineBillId])
+  @@index([medicineId])
+  @@index([medicineBillId, medicineId])
+  @@map("medicine_bill_details")
 }
