@@ -17,12 +17,50 @@ export async function GET(req: NextRequest) {
   const franchiseId = searchParams.get('franchiseId') ? parseInt(searchParams.get('franchiseId')!) : undefined;
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
+
   try {
     const where: any = {};
     
-    if (franchiseId) {
-      where.franchiseId = franchiseId;
+    // Check if user is admin first to avoid unnecessary database queries
+    if (auth.user.role === 'Admin') {
+      // Admin can optionally filter by specific franchise
+      if (franchiseId) {
+        where.franchiseId = franchiseId;
+      }
+    } else {
+      // For non-admin users, get their franchise info and filter accordingly
+      const currentUser = await prisma.user.findUnique({
+        where: { id: auth.user.id },
+        select: { 
+          id: true,
+          franchise: {
+            select: { id: true }
+          },
+          team: {
+            select: { 
+              id: true,
+              franchise: {
+                select: { id: true }
+              }
+            }
+          }
+        }
+      });
+
+      if (!currentUser) {
+        return Error('Current user not found', 404);
+      }
+
+      // Get franchise ID from either direct assignment or through team
+      const userFranchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+      
+      // Non-admin users can only see their franchise's sales
+      if (!userFranchiseId) {
+        return Error('Current user is not associated with any franchise', 400);
+      }
+      where.franchiseId = userFranchiseId;
     }
+    
     if (search) {
       where.OR = [
         { invoiceNo: { contains: search } },

@@ -241,6 +241,7 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       DELETE: [PERMISSIONS.DELETE_CONSULTATIONS],
     },
   },
+  {
     prefix: "/api/reports/closing-stock",
     methods: {
       GET: [PERMISSIONS.READ_CLOSING_STOCK],

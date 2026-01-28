@@ -12,34 +12,39 @@ export async function GET(
   if (auth.ok === false) return auth.response;
 
   // Get current user's franchise ID, role, and team
-  const currentUser = await prisma.user.findUnique({
-    where: { id: auth.user.id },
-    select: { 
-      id: true,
-      role: true,
-      franchise: {
-        select: { id: true }
-      },
-      team: {
-        select: { 
-          id: true,
-          franchise: {
-            select: { id: true }
+  let franchiseId: number | null = null;
+  
+  // Only check franchise for non-admin users
+  if (auth.user.role !== 'Admin') {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.user.id },
+      select: { 
+        id: true,
+        role: true,
+        franchise: {
+          select: { id: true }
+        },
+        team: {
+          select: { 
+            id: true,
+            franchise: {
+              select: { id: true }
+            }
           }
         }
       }
+    });
+
+    if (!currentUser) {
+      return ApiError("Current user not found", 404);
     }
-  });
 
-  if (!currentUser) {
-    return ApiError("Current user not found", 404);
-  }
-
-  // Get franchise ID from either direct assignment or through team
-  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
-  
-  if (!franchiseId) {
-    return ApiError("Current user is not associated with any franchise", 400);
+    // Get franchise ID from either direct assignment or through team
+    franchiseId = currentUser.franchise?.id ?? currentUser.team?.franchise?.id ?? null;
+    
+    if (!franchiseId) {
+      return ApiError("Current user is not associated with any franchise", 400);
+    }
   }
 
   const { id } = await context.params;
@@ -93,13 +98,29 @@ export async function GET(
         secondaryInsuranceHolderName: true,
         secondaryInsuranceId: true,
         balanceAmount: true,
+        isReferredToHo: true,
         labId: true,
+        reports: {
+          select: {
+            id: true,
+            name: true,
+            url: true,
+            createdAt: true,
+          },
+        },
         franchise: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
         state: { select: { id: true, state: true } },
         city: { select: { id: true, city: true } },
+        lab: { select: { id: true, name: true } },
       },
     });
+    
+    // For non-admin users, verify the patient belongs to their franchise
+    if (auth.user.role !== 'Admin' && franchiseId && patient.franchiseId !== franchiseId) {
+      return ApiError("Patient not found", 404);
+    }
+    
     if (!patient) return ApiError("Patient not found", 404);
     return Success(patient);
   } catch (e: unknown) {
@@ -141,7 +162,7 @@ export async function DELETE(
   }
 
   // Get franchise ID from either direct assignment or through team
-  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+  const franchiseId = currentUser.franchise?.id ?? currentUser.team?.franchise?.id ?? null;
   
   if (!franchiseId) {
     return ApiError("Current user is not associated with any franchise", 400);

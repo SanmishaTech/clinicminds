@@ -48,6 +48,14 @@ export async function GET(req: NextRequest) {
   const sort = (searchParams.get("sort") || "createdAt") as string;
   const order = (searchParams.get("order") === "asc" ? "asc" : "desc") as "asc" | "desc";
 
+
+    const where: any = {};
+  
+  // Filter by user role
+  if (auth.user.role === 'Admin') {
+    // Admin can only see patients referred to head office
+    where.isReferredToHo = true;
+  } else {
   // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
     where: { id: auth.user.id },
@@ -72,14 +80,15 @@ export async function GET(req: NextRequest) {
     return ApiError("Current user not found", 404);
   }
 
-  // Get franchise ID from either direct assignment or through team
-  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
-  
-  if (!franchiseId) {
-    return ApiError("Current user is not associated with any franchise", 400);
-  }
 
-  const where: any = {};
+    // Non-admin users see their franchise's patients
+    const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+    
+    if (!franchiseId) {
+      return ApiError("Current user is not associated with any franchise", 400);
+    }
+    where.franchiseId = franchiseId;
+  }
   if (search) {
     where.OR = [
       { patientNo: { contains: search } },
@@ -97,11 +106,10 @@ export async function GET(req: NextRequest) {
     where.gender = g;
   }
 
-  // Add franchise ID to where clause
-  where.franchiseId = franchiseId;
-  
-  // Add Team filter to where clause
-  if (team) where.team = { is: { name: { contains: team } } };
+  // Add Team filter to where clause (only for non-admin users)
+  if (team) {
+    where.team = { is: { name: { contains: team } } };
+  }
 
   const sortableFields = new Set(["patientNo", "firstName", "gender", "mobile", "createdAt"]);
   const orderBy: Record<string, "asc" | "desc"> = sortableFields.has(sort) ? { [sort]: order } : { createdAt: "desc" };
@@ -128,6 +136,8 @@ export async function GET(req: NextRequest) {
         createdAt: true,
         state: { select: { id: true, state: true } },
         city: { select: { id: true, city: true } },
+        isReferredToHo: true,
+        franchise: { select: { id: true, name: true } },
       },
     });
     return Success(result);
@@ -142,6 +152,11 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
+
+  // Admin users should not create patients
+  if (auth.user.role === 'Admin') {
+    return ApiError("Admin users cannot create patients", 403);
+  }
 
   // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
@@ -216,6 +231,7 @@ export async function POST(req: NextRequest) {
     secondaryInsuranceId,
     balanceAmount,
     labId,
+    patientReports
   } =
     (body as Partial<{
       teamId?: number | string | null;
@@ -252,6 +268,7 @@ export async function POST(req: NextRequest) {
       secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
       labId?: number | string | null;
+      patientReports?: Array<{ name?: string; url?: string }> | null;
     }>) || {};
 
   if (!firstName) return ApiError("First name is required", 400);
@@ -268,6 +285,17 @@ export async function POST(req: NextRequest) {
   if (!/^[0-9]{10}$/.test(String(mobile).trim())) return ApiError("Mobile must be 10 digits", 400);
   if (!/^[0-9]{12}$/.test(String(aadharNo).trim())) return ApiError("Aadhar No must be 12 digits", 400);
   if (contactPersonMobile && !/^[0-9]{10}$/.test(String(contactPersonMobile).trim())) return ApiError("Contact Person Mobile must be 10 digits", 400);
+  
+  if (patientReports && !Array.isArray(patientReports)) return ApiError("Patient reports must be an array", 400);
+  
+  // Validate each report in the array
+  if (patientReports) {
+    for (const report of patientReports) {
+      if (report.url && typeof report.url !== 'string') {
+        return ApiError("Report URL must be a string", 400);
+      }
+    }
+  }
 
   const normalizedGender = normalizeGender(gender);
   if (!normalizedGender) return ApiError("Invalid gender", 400);
@@ -325,8 +353,8 @@ export async function POST(req: NextRequest) {
       return (tx as any).patient.create({
         data: {
           patientNo,
-          franchiseId,
-          teamId: parsedTeamId,
+          franchise: { connect: { id: franchiseId } },
+          team: parsedTeamId ? { connect: { id: parsedTeamId } } : undefined,
           firstName: firstName.trim(),
           middleName: middleName.trim(),
           lastName: lastName.trim(),
@@ -338,8 +366,8 @@ export async function POST(req: NextRequest) {
           weight: typeof weight === "string" ? weight : null,
           bmi: typeof bmi === "string" ? bmi : null,
           address: address.trim(),
-          stateId: Number(stateId),
-          cityId: Number(cityId),
+          state: { connect: { id: Number(stateId) } },
+          city: { connect: { id: Number(cityId) } },
           pincode: pincode || null,
           mobile: mobile.trim(),
           email: email || null,
@@ -358,7 +386,13 @@ export async function POST(req: NextRequest) {
           secondaryInsuranceName: secondaryInsuranceName || null,
           secondaryInsuranceHolderName: secondaryInsuranceHolderName || null,
           secondaryInsuranceId: secondaryInsuranceId || null,
-          labId: labId ? Number(labId) : null,
+          lab: labId ? { connect: { id: Number(labId) } } : undefined,
+          reports: patientReports && patientReports.length > 0 ? {
+            create: patientReports.map((report) => ({
+              name: report.name || null,
+              url: report.url || null,
+            }))
+          } : undefined,
           balanceAmount: parsedBalance,
         },
         select: {
@@ -414,11 +448,11 @@ export async function PATCH(req: NextRequest) {
         }
       }
     });
-  
+    
     if (!currentUser) {
       return ApiError("Current user not found", 404);
     }
-  
+    
     // Get franchise ID from either direct assignment or through team
     const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
     
@@ -469,6 +503,7 @@ export async function PATCH(req: NextRequest) {
     secondaryInsuranceId,
     balanceAmount,
     labId,
+    patientReports
   } =
     (body as Partial<{
       id: number | string;
@@ -506,7 +541,45 @@ export async function PATCH(req: NextRequest) {
       secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
       labId?: number | string | null;
-    }>) || {};
+      patientReports?: Array<{ name?: string; url?: string }> | null;
+    }>) || {} as {
+      id?: number | string;
+      teamId?: number | string | null;
+      firstName?: string;
+      middleName?: string;
+      lastName?: string;
+      dateOfBirth?: string | null;
+      age?: number | string | null;
+      gender?: string;
+      bloodGroup?: string;
+      height?: string | null;
+      weight?: string | null;
+      bmi?: string | null;
+      address?: string;
+      stateId?: number | string;
+      cityId?: number | string;
+      pincode?: string | null;
+      email?: string | null;
+      mobile?: string;
+      aadharNo?: string;
+      occupation?: string | null;
+      maritalStatus?: string | null;
+      contactPersonName?: string | null;
+      contactPersonRelation?: string | null;
+      contactPersonAddress?: string | null;
+      contactPersonMobile?: string | null;
+      contactPersonEmail?: string | null;
+      medicalInsurance?: boolean | string | null;
+      primaryInsuranceName?: string | null;
+      primaryInsuranceHolderName?: string | null;
+      primaryInsuranceId?: string | null;
+      secondaryInsuranceName?: string | null;
+      secondaryInsuranceHolderName?: string | null;
+      secondaryInsuranceId?: string | null;
+      balanceAmount?: number | string | null;
+      labId?: number | string | null;
+      patientReports?: Array<{ name?: string; url?: string }> | null;
+    };
 
   if (!id) return ApiError("Patient id required", 400);
 
@@ -632,6 +705,12 @@ export async function PATCH(req: NextRequest) {
       data.labId = n;
     }
   }
+  if (patientReports !== undefined) {
+    if (!Array.isArray(patientReports) && patientReports !== null) {
+      return ApiError("Patient reports must be an array", 400);
+    }
+    // Note: patientReports updates will be handled separately after patient update
+  }
 
   const nextStateId = stateId !== undefined ? Number(stateId) : undefined;
   const nextCityId = cityId !== undefined ? Number(cityId) : undefined;
@@ -684,6 +763,26 @@ export async function PATCH(req: NextRequest) {
         },
       });
     });
+
+    // Handle patient reports updates if provided
+    if (patientReports !== undefined && Array.isArray(patientReports)) {
+      // Delete existing reports for this patient
+      await prisma.patientReport.deleteMany({
+        where: { patientId: Number(id) }
+      });
+
+      // Create new reports if provided
+      if (patientReports.length > 0) {
+        const reportsToCreate = patientReports as Array<{ name?: string; url?: string }>;
+        await prisma.patientReport.createMany({
+          data: reportsToCreate.map((report) => ({
+            patientId: Number(id),
+            name: report.name || null,
+            url: report.url || null,
+          })),
+        });
+      }
+    }
 
     return Success(updated);
   } catch (e: unknown) {

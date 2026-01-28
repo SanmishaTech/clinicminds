@@ -16,8 +16,6 @@ export const MASTER_CONFIG = {
   maritalStatus: [
     { value: 'SINGLE', label: 'Single' },
     { value: 'MARRIED', label: 'Married' },
-    { value: 'SEPARATED', label: 'Separated' },
-    { value: 'LIVE_IN', label: 'Live In' },
   ],
   medicalHistory: [
     { value: 'DEPRESSION', label: 'Depression' },
