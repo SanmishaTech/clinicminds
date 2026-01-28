@@ -129,6 +129,12 @@ export const NAV_ITEMS: NavItem[] = [
         permission: PERMISSIONS.VIEW_SALES,
         },
         {
+          title: "Medicine Bills",
+          href: "/medicine-bills",
+          icon: Receipt,
+          permission: PERMISSIONS.VIEW_MEDICINE_BILLS,
+        },
+        {
         title: "Transports",
         href: "/transports",
         icon: Truck,
