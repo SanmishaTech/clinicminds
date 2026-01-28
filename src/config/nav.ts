@@ -14,6 +14,9 @@ import {
   Landmark,
   Package,
   Calendar,
+  Truck,
+  FileText,
+  Archive,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -126,14 +129,38 @@ export const NAV_ITEMS: NavItem[] = [
         permission: PERMISSIONS.VIEW_SALES,
         },
         {
+        title: "Transports",
+        href: "/transports",
+        icon: Truck,
+        permission: PERMISSIONS.VIEW_TRANSPORTS,
+        },
+        {
         title: "Stocks",
         href: "/stocks",
         icon: Package,
         permission: PERMISSIONS.VIEW_STOCKS,
         },
+        {
+        title: "Recalls",
+        href: "/recalls",
+        icon: Package,
+        permission: PERMISSIONS.CREATE_STOCKS,
+        },
     ],
   },
-  
+  {
+    type: "group",
+    title: "Reports",
+    icon: FileText,
+    children:[
+      {
+        title:"Closing Stock",
+        icon: Archive,
+        href:"/reports/closing-stock",
+        permission: PERMISSIONS.VIEW_CLOSING_STOCK,
+      }
+    ]
+  },
   {
     type: "group",
     title: "Settings",

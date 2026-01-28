@@ -32,6 +32,12 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/sales/", permissions: [PERMISSIONS.EDIT_SALES] },
   { prefix: "/sales", permissions: [PERMISSIONS.READ_SALES] },
 
+  { prefix: "/transports/new", permissions: [PERMISSIONS.CREATE_TRANSPORTS] },
+  { prefix: "/transports/", permissions: [PERMISSIONS.EDIT_TRANSPORTS] },
+  { prefix: "/transports", permissions: [PERMISSIONS.READ_TRANSPORTS] },
+
+  { prefix: "/recalls", permissions: [PERMISSIONS.CREATE_STOCKS] },
+
   { prefix: "/stocks", permissions: [PERMISSIONS.READ_STOCKS] },
 
   { prefix: "/medicines/new", permissions: [PERMISSIONS.CREATE_MEDICINES] },
@@ -56,6 +62,7 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   // Consultations (nested under appointments)
   { prefix: "/consultations/", permissions: [PERMISSIONS.CREATE_CONSULTATIONS, PERMISSIONS.EDIT_CONSULTATIONS] },
   { prefix: "/consultations", permissions: [PERMISSIONS.READ_CONSULTATIONS] },
+  { prefix: "/reports/closing-stock", permissions: [PERMISSIONS.READ_CLOSING_STOCK] },
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -133,9 +140,25 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
     },
   },
   {
+    prefix: "/api/transports",
+    methods: {
+      GET: [PERMISSIONS.READ_TRANSPORTS],
+      POST: [PERMISSIONS.CREATE_TRANSPORTS],
+      PATCH: [PERMISSIONS.EDIT_TRANSPORTS],
+      DELETE: [PERMISSIONS.DELETE_TRANSPORTS],
+    },
+  },
+  {
     prefix: "/api/stocks",
     methods: {
       GET: [PERMISSIONS.READ_STOCKS],
+      POST: [PERMISSIONS.CREATE_STOCKS],
+    },
+  },
+  {
+    prefix: "/api/recalls",
+    methods: {
+      GET: [PERMISSIONS.CREATE_STOCKS],
     },
   },
   {
@@ -210,6 +233,11 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       DELETE: [PERMISSIONS.DELETE_CONSULTATIONS],
     },
   },
+    prefix: "/api/reports/closing-stock",
+    methods: {
+      GET: [PERMISSIONS.READ_CLOSING_STOCK],
+    },
+  }
 ];
 
 export type AccessRuleMatch = {

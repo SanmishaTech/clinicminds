@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { useMemo } from 'react';
-import { apiGet } from '@/lib/api-client';
+import { apiGet, apiPost } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { Pagination } from '@/components/common/pagination';
 import { NonFormTextInput } from '@/components/common/non-form-text-input';
@@ -10,6 +10,10 @@ import { FilterBar } from '@/components/common';
 import { AppCard } from '@/components/common/app-card';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
+import { ConfirmDialog } from '@/components/common/confirm-dialog';
+import { IconButton } from '@/components/common/icon-button';
+import { usePermissions } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/config/roles';
 
 type StockRow = {
   franchiseId: number;
@@ -65,7 +69,8 @@ export default function StocksPage() {
     return `/api/stocks/rows?${sp.toString()}`;
   }, [page, perPage, search, sort, order]);
 
-  const { data, error, isLoading } = useSWR<StocksRowsResponse>(query, apiGet);
+  const { data, error, isLoading, mutate } = useSWR<StocksRowsResponse>(query, apiGet);
+  const { can } = usePermissions();
 
   if (error) {
     toast.error((error as Error).message || 'Failed to load Stocks');
@@ -92,6 +97,22 @@ export default function StocksPage() {
   ];
 
   const sortState: SortState = { field: sort, order };
+
+  async function handleRecall(row: StockRow) {
+    try {
+      await apiPost('/api/stocks/recall', {
+        franchiseId: row.franchiseId,
+        medicineId: row.medicineId,
+        batchNumber: row.batchNumber,
+        expiryDate: row.expiryDate,
+        quantity: row.stock,
+      });
+      toast.success('Stock recalled successfully');
+      await mutate();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
 
   return (
     <AppCard>
@@ -120,14 +141,36 @@ export default function StocksPage() {
             const expiry = new Date(row.expiryDate);
             if (Number.isNaN(expiry.getTime())) return '';
             const now = new Date();
-            const in30Days = new Date(now);
-            in30Days.setDate(in30Days.getDate() + 30);
-            if (expiry <= in30Days) {
+            const in45Days = new Date(now);
+            in45Days.setDate(in45Days.getDate() + 45);
+            if (expiry <= in45Days) {
               return 'bg-red-50 text-red-900';
             }
             return '';
           }}
           stickyColumns={1}
+          renderRowActions={(row) => {
+            if (!can(PERMISSIONS.CREATE_STOCKS)) return null;
+            if (!row.stock || row.stock <= 0) return null;
+
+            if (!row.expiryDate) return null;
+            const expiry = new Date(row.expiryDate);
+            if (Number.isNaN(expiry.getTime())) return null;
+            const now = new Date();
+            const in45Days = new Date(now);
+            in45Days.setDate(in45Days.getDate() + 45);
+            if (expiry > in45Days) return null;
+
+            return (
+              <ConfirmDialog
+                trigger={<IconButton iconName='Undo2' tooltip='Recall Stock' />}
+                title='Recall stock?'
+                description={`This will deduct ${row.stock} from ${row.franchiseName} for ${row.medicineName} (Batch ${row.batchNumber}).`}
+                confirmText='Recall'
+                onConfirm={() => handleRecall(row)}
+              />
+            );
+          }}
         />
       </AppCard.Content>
       <AppCard.Footer className='justify-end'>

@@ -5,6 +5,20 @@ import { guardApiAccess } from '@/lib/access-guard';
 import { serviceSchema } from '@/lib/schemas/backend/services';
 import { z } from 'zod';
 
+function toDecimal2(n: number) {
+  return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+}
+
+function computeInclusiveRate(baseRate: number, gstPercent: number) {
+  const gst = Number.isFinite(gstPercent) ? gstPercent : 0;
+  const base = Number.isFinite(baseRate) ? baseRate : 0;
+  const rate = base + (base * gst) / 100;
+  return {
+    baseRate: toDecimal2(base),
+    gstPercent: toDecimal2(gst),
+    rate: toDecimal2(rate),
+  };
+}
 
 // GET /api/services/:id
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -22,6 +36,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         id: true,
         name: true,
         rate: true,
+        baseRate: true,
+        gstPercent: true,
         description: true,
         createdAt: true,
         updatedAt: true,
@@ -64,17 +80,33 @@ export async function PATCH(
 
     const existingService = await prisma.service.findUnique({
       where: { id: serviceId },
-      select: { id: true }
+      select: { id: true, rate: true, baseRate: true, gstPercent: true }
     });
 
     if (!existingService) {
       return NotFound('Service not found');
     }
 
+    const updateData: Record<string, unknown> = { ...data };
+    const hasRate = Object.prototype.hasOwnProperty.call(data, 'rate');
+    const hasGst = Object.prototype.hasOwnProperty.call(data, 'gstPercent');
+    if (hasRate || hasGst) {
+      const existingRate = Number(existingService.rate as any);
+      const existingBase = Number(existingService.baseRate as any);
+      const existingGst = Number(existingService.gstPercent as any);
+      const baseForCalc = hasRate ? Number((data as any).rate) : (existingBase === 0 && existingRate !== 0 && existingGst === 0 ? existingRate : existingBase);
+      const gstForCalc = hasGst ? Number((data as any).gstPercent) : existingGst;
+      const computed = computeInclusiveRate(baseForCalc, gstForCalc);
+      updateData.rate = computed.rate;
+      updateData.baseRate = computed.baseRate;
+      updateData.gstPercent = computed.gstPercent;
+    }
+
     const updatedService = await prisma.service.update({
       where: { id: serviceId },
-      data: data as any,
+      data: updateData as any,
     });
+    
 
     return Success(updatedService);
   } catch (error) {

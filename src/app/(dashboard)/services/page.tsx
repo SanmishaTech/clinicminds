@@ -21,6 +21,8 @@ import Link from 'next/link';
 type ServiceListItem = {
   id: number;
   name: string;
+  baseRate: string;
+  gstPercent: string;
   rate: string;
   description?: string | null;
   createdAt: string;
@@ -94,6 +96,8 @@ export default function ServicesPage() {
 
   const columns: Column<ServiceListItem>[] = [
     { key: 'name', header: 'Service', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
+    { key: 'baseRate', header: 'Base Rate', className: 'whitespace-nowrap' },
+    { key: 'gstPercent', header: 'GST %', className: 'whitespace-nowrap', accessor: (r) => `${r.gstPercent}%` },
     { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
     { key: 'createdAt', header: 'Created', sortable: true, className: 'whitespace-nowrap', cellClassName: 'text-muted-foreground whitespace-nowrap', accessor: (r) => formatRelativeTime(r.createdAt) },
   ];

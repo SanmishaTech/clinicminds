@@ -30,6 +30,7 @@ model User {
   franchise                  Franchise?
   team                       Team?
   stockTransactionsCreated    StockTransaction[]
+  stockRecallsCreated         StockRecall[]      @relation("StockRecallCreatedBy")
   franchiseFeePaymentsCreated FranchiseFeePayment[] @relation("FranchiseFeePaymentCreatedBy")
 
   @@index([role])
@@ -67,6 +68,7 @@ model Franchise {
   userId     Int    @unique
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   sales      Sale[]
+  transports  Transport[]
   patients   Patient[]
   team       Team[]
   room       Room[]
@@ -75,6 +77,7 @@ model Franchise {
   stockLedgerEntries StockLedger[]
   stockBalances StockBalance[]
   stockBatchBalances StockBatchBalance[]
+  stockRecalls StockRecall[] @relation("StockRecallFranchise")
   franchiseFeePayments FranchiseFeePayment[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -95,6 +98,7 @@ model FranchiseFeePayment {
   payerName      String?
   contactNumber  String?
   utrNumber      String?
+  chequeDate     DateTime?
   chequeNumber   String?
   notes          String?  @db.Text
   createdByUserId Int
@@ -139,6 +143,8 @@ model Service{
   id          Int      @id @default(autoincrement())
   name        String   @unique
   rate        Decimal  @db.Decimal(10, 2)
+  baseRate    Decimal  @db.Decimal(10, 2) @default(0)
+  gstPercent  Decimal  @db.Decimal(5, 2) @default(0)
   description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -148,6 +154,7 @@ model Service{
 
   @@index([name])                    // For searching by name
   @@index([rate])                    // For sorting by rate
+  @@index([gstPercent])
   @@index([createdAt])                // For sorting by creation date
   @@map("services")
 }
@@ -180,6 +187,7 @@ model Medicine{
   stockLedgerEntries StockLedger[]
   stockBalances StockBalance[]
   stockBatchBalances StockBatchBalance[]
+  stockRecalls StockRecall[] @relation("StockRecallMedicine")
 
   @@index([name])                    // For searching by name
   @@index([brandId])                   // For filtering by brand
@@ -197,7 +205,9 @@ model Sale{
   franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   saleDetails SaleDetail[]
   stockTransaction StockTransaction?
+  transport   Transport?
   totalAmount Decimal  @db.Decimal(10, 2)
+  discountPercent Decimal @default(0) @db.Decimal(5, 2)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -207,6 +217,31 @@ model Sale{
   @@index([franchiseId, invoiceDate]) // Composite for franchise sales reports
   @@index([createdAt])                // For recent sales
   @@map("sales")
+}
+
+model Transport {
+  id             Int      @id @default(autoincrement())
+  saleId         Int      @unique
+  sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  franchiseId    Int
+  franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  status         String   @default("PENDING")
+  transporterName String?
+  companyName    String?
+  transportFee   Decimal? @db.Decimal(10, 2)
+  receiptNumber  String?
+  vehicleNumber  String?
+  trackingNumber String?
+  notes          String?  @db.Text
+  dispatchedAt   DateTime?
+  deliveredAt    DateTime?
+  stockPostedAt  DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([franchiseId])
+  @@index([status])
+  @@map("transports")
 }
 
 model SaleDetail{
@@ -510,6 +545,7 @@ model StockTransaction {
   updatedAt       DateTime @updatedAt
 
   ledgerEntries   StockLedger[]
+  stockRecalls    StockRecall[] @relation("StockRecallTransaction")
 
   @@index([franchiseId])
   @@index([txnType])
@@ -574,4 +610,28 @@ model StockBalance {
   @@index([franchiseId])
   @@index([medicineId])
   @@map("stock_balances")
+}
+
+model StockRecall {
+  id                Int      @id @default(autoincrement())
+  stockTransactionId Int
+  stockTransaction  StockTransaction @relation("StockRecallTransaction", fields: [stockTransactionId], references: [id], onDelete: Cascade)
+  franchiseId       Int
+  franchise         Franchise @relation("StockRecallFranchise", fields: [franchiseId], references: [id], onDelete: Cascade)
+  medicineId        Int
+  medicine          Medicine @relation("StockRecallMedicine", fields: [medicineId], references: [id], onDelete: Cascade)
+  batchNumber       String
+  expiryDate        DateTime
+  quantity          Int
+  createdByUserId   Int
+  createdByUser     User     @relation("StockRecallCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  recalledAt        DateTime @default(now())
+
+  @@index([franchiseId])
+  @@index([medicineId])
+  @@index([expiryDate])
+  @@index([recalledAt])
+  @@index([createdByUserId])
+  @@index([franchiseId, medicineId])
+  @@map("stock_recalls")
 }

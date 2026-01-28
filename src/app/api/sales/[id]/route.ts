@@ -23,6 +23,7 @@ export async function GET(
         franchise: {
           select: { id: true, name: true }
         },
+        transport: true,
         saleDetails: {
           include: {
             medicine: {
@@ -71,307 +72,100 @@ export async function PATCH(
     // Start a transaction
     const result = await prisma.$transaction(async (tx: any) => {
 
+      const transport = await tx.transport.findUnique({
+        where: { saleId: idNum },
+        select: { id: true, status: true },
+      });
+      if (transport && String(transport.status || '').toUpperCase() === 'DELIVERED') {
+        throw new globalThis.Error('SALE_DELIVERED');
+      }
+
+      const existingSaleForTotals = await tx.sale.findUnique({
+        where: { id: idNum },
+        select: { discountPercent: true },
+      });
+
+      const discountPercent = Math.min(
+        100,
+        Math.max(0, Number(data.discountPercent ?? existingSaleForTotals?.discountPercent ?? 0) || 0)
+      );
+
+      const shouldRecalcTotal = data.saleDetails !== undefined || data.discountPercent !== undefined;
+
+      const subtotal = await (async () => {
+        if (data.saleDetails !== undefined) {
+          return (data.saleDetails || []).reduce((sum, d) => {
+            const qty = Number(d.quantity ?? 0) || 0;
+            const rate = Number(d.rate ?? 0) || 0;
+            return sum + qty * rate;
+          }, 0);
+        }
+
+        const existingDetails = await tx.saleDetail.findMany({
+          where: { saleId: idNum },
+          select: { quantity: true, rate: true },
+        });
+        return existingDetails.reduce(
+          (sum: number, d: any) => sum + (Number(d.quantity) || 0) * (Number(d.rate) || 0),
+          0
+        );
+      })();
+
+      const totalAmount = shouldRecalcTotal
+        ? Math.max(0, subtotal - subtotal * (discountPercent / 100))
+        : undefined;
+
       const updateData: any = {};
       if (data.invoiceDate !== undefined) updateData.invoiceDate = new Date(data.invoiceDate);
       if (data.franchiseId !== undefined) updateData.franchiseId = data.franchiseId;
-      if (data.totalAmount !== undefined) updateData.totalAmount = data.totalAmount;
-      // Update sale
+      if (data.discountPercent !== undefined) updateData.discountPercent = discountPercent;
+      if (totalAmount !== undefined) updateData.totalAmount = totalAmount;
+
       const sale = await tx.sale.update({
         where: { id: idNum },
-        data: updateData
+        data: updateData,
       });
 
-      // Ensure stock transaction exists for this sale and keep header in sync
-      const stockTxn = await tx.stockTransaction.upsert({
-        where: { saleId: idNum },
-        create: {
-          txnType: 'SALE_TO_FRANCHISE',
-          txnNo: '',
-          txnDate: sale.invoiceDate,
-          franchiseId: sale.franchiseId,
-          createdByUserId: auth.user.id,
-          saleId: idNum,
-          notes: null,
-        },
-        update: {
-          txnDate: sale.invoiceDate,
-          franchiseId: sale.franchiseId,
-        },
-        select: { id: true },
-      });
-
-      const existingLedgerLines = await tx.stockLedger.findMany({
-        where: { transactionId: stockTxn.id },
-        select: { franchiseId: true, medicineId: true, batchNumber: true, expiryDate: true, qtyChange: true },
-      });
-
-      // Update sale details if provided
       if (data.saleDetails && data.saleDetails.length > 0) {
-
-        const oldQtyByMedicineId = new Map<number, number>();
-        const oldQtyByBatchKey = new Map<
-          string,
-          { franchiseId: number; medicineId: number; batchNumber: string; expiryDate: Date; qty: number }
-        >();
-        for (const line of existingLedgerLines) {
-          oldQtyByMedicineId.set(
-            line.medicineId,
-            (oldQtyByMedicineId.get(line.medicineId) ?? 0) + (line.qtyChange ?? 0)
-          );
-
-          if (line.batchNumber && line.expiryDate) {
-            const key = `${line.franchiseId}:${line.medicineId}:${line.batchNumber}:${line.expiryDate.toISOString()}`;
-            const existing = oldQtyByBatchKey.get(key);
-            if (existing) {
-              existing.qty += line.qtyChange ?? 0;
-            } else {
-              oldQtyByBatchKey.set(key, {
-                franchiseId: line.franchiseId,
-                medicineId: line.medicineId,
-                batchNumber: line.batchNumber,
-                expiryDate: new Date(line.expiryDate),
-                qty: line.qtyChange ?? 0,
-              });
-            }
-          }
-        }
-
-        for (const [medicineId, qty] of oldQtyByMedicineId.entries()) {
-          if (!qty) continue;
-          await tx.stockBalance.upsert({
-            where: {
-              franchiseId_medicineId: {
-                franchiseId: sale.franchiseId,
-                medicineId,
-              },
-            },
-            create: {
-              franchiseId: sale.franchiseId,
-              medicineId,
-              quantity: -qty,
-            },
-            update: {
-              quantity: { decrement: qty },
-            },
-          });
-        }
-
-        for (const entry of oldQtyByBatchKey.values()) {
-          if (!entry.qty) continue;
-          await tx.stockBatchBalance.upsert({
-            where: {
-              franchiseId_medicineId_batchNumber_expiryDate: {
-                franchiseId: entry.franchiseId,
-                medicineId: entry.medicineId,
-                batchNumber: entry.batchNumber,
-                expiryDate: entry.expiryDate,
-              },
-            },
-            create: {
-              franchiseId: entry.franchiseId,
-              medicineId: entry.medicineId,
-              batchNumber: entry.batchNumber,
-              expiryDate: entry.expiryDate,
-              quantity: -entry.qty,
-            },
-            update: {
-              quantity: { decrement: entry.qty },
-            },
-          });
-        }
-
-        // Delete existing sale details and create new ones
-        await tx.saleDetail.deleteMany({
-          where: { saleId: idNum }
-        });
+        await tx.saleDetail.deleteMany({ where: { saleId: idNum } });
         await tx.saleDetail.createMany({
-          data: data.saleDetails.map(detail => ({
-            saleId: idNum,
-            medicineId: detail.medicineId!,
-            batchNumber: detail.batchNumber,
-            expiryDate: new Date(detail.expiryDate),
-            quantity: detail.quantity!,
-            rate: detail.rate!,
-            amount: detail.amount!
-          }))
+          data: data.saleDetails.map((detail) => {
+            const quantity = Number(detail.quantity ?? 0) || 0;
+            const rate = Number(detail.rate ?? 0) || 0;
+            return {
+              saleId: idNum,
+              medicineId: detail.medicineId!,
+              batchNumber: detail.batchNumber,
+              expiryDate: new Date(detail.expiryDate),
+              quantity,
+              rate,
+              amount: quantity * rate,
+            };
+          }),
         });
-
-        // Replace ledger lines to match the updated sale details
-        await tx.stockLedger.deleteMany({
-          where: { transactionId: stockTxn.id },
-        });
-        await tx.stockLedger.createMany({
-          data: data.saleDetails.map((detail) => ({
-            transactionId: stockTxn.id,
-            franchiseId: sale.franchiseId,
-            medicineId: detail.medicineId!,
-            batchNumber: detail.batchNumber,
-            expiryDate: new Date(detail.expiryDate),
-            qtyChange: detail.quantity!,
-            rate: detail.rate!,
-            amount: detail.amount!,
-          })),
-        });
-
-        const qtyByMedicineId = new Map<number, number>();
-        const qtyByBatchKey = new Map<
-          string,
-          { franchiseId: number; medicineId: number; batchNumber: string; expiryDate: Date; qty: number }
-        >();
-        for (const d of data.saleDetails) {
-          if (d.medicineId == null || d.quantity == null) continue;
-          qtyByMedicineId.set(d.medicineId, (qtyByMedicineId.get(d.medicineId) ?? 0) + d.quantity);
-
-          const key = `${sale.franchiseId}:${d.medicineId}:${d.batchNumber}:${d.expiryDate}`;
-          const existing = qtyByBatchKey.get(key);
-          if (existing) {
-            existing.qty += d.quantity;
-          } else {
-            qtyByBatchKey.set(key, {
-              franchiseId: sale.franchiseId,
-              medicineId: d.medicineId,
-              batchNumber: d.batchNumber,
-              expiryDate: new Date(d.expiryDate),
-              qty: d.quantity,
-            });
-          }
-        }
-
-        for (const [medicineId, qty] of qtyByMedicineId.entries()) {
-          await tx.stockBalance.upsert({
-            where: {
-              franchiseId_medicineId: {
-                franchiseId: sale.franchiseId,
-                medicineId,
-              },
-            },
-            create: {
-              franchiseId: sale.franchiseId,
-              medicineId,
-              quantity: qty,
-            },
-            update: {
-              quantity: { increment: qty },
-            },
-          });
-        }
-
-        for (const entry of qtyByBatchKey.values()) {
-          await tx.stockBatchBalance.upsert({
-            where: {
-              franchiseId_medicineId_batchNumber_expiryDate: {
-                franchiseId: entry.franchiseId,
-                medicineId: entry.medicineId,
-                batchNumber: entry.batchNumber,
-                expiryDate: entry.expiryDate,
-              },
-            },
-            create: {
-              franchiseId: entry.franchiseId,
-              medicineId: entry.medicineId,
-              batchNumber: entry.batchNumber,
-              expiryDate: entry.expiryDate,
-              quantity: entry.qty,
-            },
-            update: {
-              quantity: { increment: entry.qty },
-            },
-          });
-        }
-      } else if (data.franchiseId !== undefined) {
-        // Franchise changed but details not re-sent: keep existing ledger lines but move them to the new franchise
-        await tx.stockLedger.updateMany({
-          where: { transactionId: stockTxn.id },
-          data: { franchiseId: sale.franchiseId },
-        });
-
-        for (const line of existingLedgerLines) {
-          await tx.stockBalance.upsert({
-            where: {
-              franchiseId_medicineId: {
-                franchiseId: line.franchiseId,
-                medicineId: line.medicineId,
-              },
-            },
-            create: {
-              franchiseId: line.franchiseId,
-              medicineId: line.medicineId,
-              quantity: -line.qtyChange,
-            },
-            update: {
-              quantity: { decrement: line.qtyChange },
-            },
-          });
-
-          if (line.batchNumber && line.expiryDate) {
-            await tx.stockBatchBalance.upsert({
-              where: {
-                franchiseId_medicineId_batchNumber_expiryDate: {
-                  franchiseId: line.franchiseId,
-                  medicineId: line.medicineId,
-                  batchNumber: line.batchNumber,
-                  expiryDate: line.expiryDate,
-                },
-              },
-              create: {
-                franchiseId: line.franchiseId,
-                medicineId: line.medicineId,
-                batchNumber: line.batchNumber,
-                expiryDate: line.expiryDate,
-                quantity: -line.qtyChange,
-              },
-              update: {
-                quantity: { decrement: line.qtyChange },
-              },
-            });
-          }
-
-          await tx.stockBalance.upsert({
-            where: {
-              franchiseId_medicineId: {
-                franchiseId: sale.franchiseId,
-                medicineId: line.medicineId,
-              },
-            },
-            create: {
-              franchiseId: sale.franchiseId,
-              medicineId: line.medicineId,
-              quantity: line.qtyChange,
-            },
-            update: {
-              quantity: { increment: line.qtyChange },
-            },
-          });
-
-          if (line.batchNumber && line.expiryDate) {
-            await tx.stockBatchBalance.upsert({
-              where: {
-                franchiseId_medicineId_batchNumber_expiryDate: {
-                  franchiseId: sale.franchiseId,
-                  medicineId: line.medicineId,
-                  batchNumber: line.batchNumber,
-                  expiryDate: line.expiryDate,
-                },
-              },
-              create: {
-                franchiseId: sale.franchiseId,
-                medicineId: line.medicineId,
-                batchNumber: line.batchNumber,
-                expiryDate: line.expiryDate,
-                quantity: line.qtyChange,
-              },
-              update: {
-                quantity: { increment: line.qtyChange },
-              },
-            });
-          }
-        }
       }
 
-      // Return the updated sale with details
+      if (!transport) {
+        await tx.transport.create({
+          data: {
+            saleId: idNum,
+            franchiseId: sale.franchiseId,
+            status: 'PENDING',
+          },
+          select: { id: true },
+        });
+      } else if (data.franchiseId !== undefined) {
+        await tx.transport.update({
+          where: { saleId: idNum },
+          data: { franchiseId: sale.franchiseId },
+          select: { id: true },
+        });
+      }
+
       return tx.sale.findUnique({
         where: { id: idNum },
         include: {
+          transport: true,
           saleDetails: {
             include: {
               medicine: {
@@ -390,6 +184,10 @@ export async function PATCH(
   } catch (error) {
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);
+    }
+    const err = error as { message?: string };
+    if (err?.message === 'SALE_DELIVERED') {
+      return Error('Sale cannot be updated after it is delivered', 409);
     }
     console.error('Error updating sale:', error);
     return Error('Failed to update sale');
