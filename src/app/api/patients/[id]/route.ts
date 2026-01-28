@@ -93,6 +93,7 @@ export async function GET(
         secondaryInsuranceHolderName: true,
         secondaryInsuranceId: true,
         balanceAmount: true,
+        labId: true,
         franchise: { select: { id: true, name: true } },
         team: { select: { id: true, name: true } },
         state: { select: { id: true, state: true } },

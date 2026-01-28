@@ -67,6 +67,10 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/medicine-bills", permissions: [PERMISSIONS.READ_MEDICINE_BILLS] },
   { prefix: "/medicine-bills/new", permissions: [PERMISSIONS.CREATE_MEDICINE_BILLS] },
 
+  { prefix: "/labs/new", permissions: [PERMISSIONS.CREATE_LABS] },
+  { prefix: "/labs/", permissions: [PERMISSIONS.EDIT_LABS] },
+  { prefix: "/labs", permissions: [PERMISSIONS.READ_LABS] },
+  
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -247,6 +251,15 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
     methods:{
       GET: [PERMISSIONS.READ_MEDICINE_BILLS],
       POST: [PERMISSIONS.CREATE_MEDICINE_BILLS],
+    }
+  },
+  {
+    prefix: "/api/labs",
+    methods:{
+      GET: [PERMISSIONS.READ_LABS],
+      POST: [PERMISSIONS.CREATE_LABS],
+      PATCH: [PERMISSIONS.EDIT_LABS],
+      DELETE: [PERMISSIONS.DELETE_LABS],
     }
   }
 ];
