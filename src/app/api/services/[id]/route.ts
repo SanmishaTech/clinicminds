@@ -38,6 +38,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         rate: true,
         baseRate: true,
         gstPercent: true,
+        isProcedure: true,
         description: true,
         createdAt: true,
         updatedAt: true,
@@ -88,6 +89,10 @@ export async function PATCH(
     }
 
     const updateData: Record<string, unknown> = { ...data };
+    if (Object.prototype.hasOwnProperty.call(data, 'isProcedure')) {
+      updateData.isProcedure = Boolean((data as any).isProcedure);
+    }
+
     const hasRate = Object.prototype.hasOwnProperty.call(data, 'rate');
     const hasGst = Object.prototype.hasOwnProperty.call(data, 'gstPercent');
     if (hasRate || hasGst) {

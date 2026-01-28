@@ -107,12 +107,14 @@ export async function POST(req: NextRequest) {
       const pkg = await tx.package.create({
         data: {
           name: data.name,
+          duration: data.duration,
           discountPercent,
           totalAmount,
         },
         select: {
           id: true,
           name: true,
+          duration: true,
           discountPercent: true,
           totalAmount: true,
           createdAt: true,
@@ -182,6 +184,7 @@ export async function PATCH(req: NextRequest) {
     const updated = await (prisma as any).$transaction(async (tx: any) => {
       const data: any = {};
       if (parsed.name !== undefined) data.name = parsed.name;
+      if (parsed.duration !== undefined) data.duration = parsed.duration;
 
       const shouldRecalcTotal =
         parsed.discountPercent !== undefined ||
@@ -254,6 +257,7 @@ export async function PATCH(req: NextRequest) {
         select: {
           id: true,
           name: true,
+          duration: true,
           discountPercent: true,
           totalAmount: true,
           createdAt: true,

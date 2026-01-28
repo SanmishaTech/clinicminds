@@ -146,6 +146,7 @@ model Service{
   rate        Decimal  @db.Decimal(10, 2)
   baseRate    Decimal  @db.Decimal(10, 2) @default(0)
   gstPercent  Decimal  @db.Decimal(5, 2) @default(0)
+  isProcedure Boolean  @default(false)
   description String?  @db.Text
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -271,6 +272,7 @@ model SaleDetail{
 model Package {
   id             Int              @id @default(autoincrement())
   name           String           @unique
+  duration       Int              @default(1)
   totalAmount    Decimal          @db.Decimal(10, 2)
   discountPercent Decimal         @default(0) @db.Decimal(5, 2)
   packageDetails PackageDetail[]

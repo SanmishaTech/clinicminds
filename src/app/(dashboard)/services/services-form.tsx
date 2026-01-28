@@ -14,6 +14,7 @@ import { FormSection, FormRow } from '@/components/common/app-form';
 import { apiPost, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
+import { AppCheckbox } from '@/components/common/app-checkbox';
 
 export interface ServiceFormInitialData {
   id?: number;
@@ -21,6 +22,7 @@ export interface ServiceFormInitialData {
   rate?: string;
   baseRate?: string;
   gstPercent?: string;
+  isProcedure?: boolean;
   description?: string | null;
 }
 
@@ -38,6 +40,7 @@ export const serviceSchema = z.object({
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Base rate must be a valid positive number"),
     gstPercent: z.string().trim()
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "GST must be a valid positive number"),
+    isProcedure: z.boolean().default(false),
     description: z.preprocess((v) => (v === "" || v === null ? "" : v),
     z.string()
       .trim()
@@ -63,6 +66,7 @@ export function ServiceForm({
       name: initial?.name || '',
       rate: initial?.baseRate || initial?.rate || '',
       gstPercent: initial?.gstPercent || '0',
+      isProcedure: initial?.isProcedure ?? false,
       description: initial?.description || '',
     },
   });
@@ -88,6 +92,7 @@ export function ServiceForm({
       ...values,
       rate: parseFloat(String(values.rate)),
       gstPercent: parseFloat(String(values.gstPercent)),
+      isProcedure: Boolean((values as any).isProcedure),
     };
     try {
       if (mode === 'create') {
@@ -124,7 +129,17 @@ export function ServiceForm({
         </AppCard.Header>
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
-            <FormSection legend='Service Details'>
+            <FormSection
+              legend='Service Details'
+              legendRight={
+                <AppCheckbox
+                  className='mt-0'
+                  label='Is Procedure'
+                  checked={form.watch('isProcedure')}
+                  onCheckedChange={(v) => form.setValue('isProcedure', v)}
+                />
+              }
+            >
               <FormRow cols={4} from='md'>
                 <TextInput control={control} name='name' label='Service Name' required placeholder='Service name' span={1} spanFrom='md' />
                 <TextInput control={control} name='rate' label='Base Rate' required placeholder='Base rate' type='number' step='0.01' span={1} spanFrom='md' />

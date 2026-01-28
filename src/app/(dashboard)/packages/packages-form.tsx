@@ -19,6 +19,7 @@ import { Plus, Trash2 } from 'lucide-react';
 export interface PackageFormInitialData {
   id?: number;
   name?: string;
+  duration?: number;
   discountPercent?: number;
   totalAmount?: number;
   packageDetails?: {
@@ -62,6 +63,11 @@ type Medicine = {
 
 const packagesFormSchema = z.object({
   name: z.string().trim().min(1, 'Package is required'),
+  duration: z
+    .string()
+    .trim()
+    .refine((v) => v && v.trim().length > 0, 'Duration is required')
+    .refine((v) => /^\d+$/.test(v) && Number(v) > 0, 'Duration must be a valid positive number'),
   discountPercent: z
     .string()
     .trim()
@@ -161,6 +167,7 @@ export function PackageForm({
     reValidateMode: 'onChange',
     defaultValues: {
       name: initial?.name || '',
+      duration: String(initial?.duration ?? 1),
       discountPercent: String(initial?.discountPercent ?? 0),
       totalAmount: (initial?.totalAmount ?? 0).toString(),
       packageDetails:
@@ -302,6 +309,7 @@ export function PackageForm({
     try {
       const apiData = {
         name: values.name.trim(),
+        duration: parseInt(values.duration),
         discountPercent: Math.min(100, Math.max(0, parseFloat(values.discountPercent || '0') || 0)),
         totalAmount: parseFloat(values.totalAmount),
         packageDetails: values.packageDetails.map((d) => ({
@@ -365,7 +373,19 @@ export function PackageForm({
                   label='Package name'
                   placeholder='Package name'
                   required
-                  itemClassName='col-span-12'
+                  itemClassName='col-span-12 md:col-span-8'
+                />
+
+                <TextInput
+                  control={control}
+                  name='duration'
+                  label='Duration (days)'
+                  placeholder='Days'
+                  type='number'
+                  min={1}
+                  step={1}
+                  required
+                  itemClassName='col-span-12 md:col-span-4'
                 />
               </FormRow>
             </FormSection>

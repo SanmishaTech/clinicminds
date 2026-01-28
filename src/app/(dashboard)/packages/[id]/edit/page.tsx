@@ -9,6 +9,7 @@ import PackageForm, { PackageFormInitialData } from '../../packages-form';
 type PackageApiResponse = {
   id: number;
   name: string;
+  duration?: number;
   discountPercent?: number | string;
   totalAmount: number | string;
   packageDetails: {
@@ -52,6 +53,7 @@ export default function EditPackagePage() {
         setInitial({
           id: data.id,
           name: data.name,
+          duration: Number((data as any).duration) || 1,
           discountPercent: Number(data.discountPercent) || 0,
           totalAmount: Number(data.totalAmount) || 0,
           packageDetails: (data.packageDetails || []).map((d) => ({

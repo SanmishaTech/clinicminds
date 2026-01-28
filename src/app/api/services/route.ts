@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
         rate: true,
         baseRate: true,
         gstPercent: true,
+        isProcedure: true,
         description: true,
         createdAt: true,
         updatedAt: true,
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
       data: {
         name: data.name,
         description: data.description,
+        isProcedure: Boolean((data as any).isProcedure),
         rate: computed.rate as any,
         baseRate: computed.baseRate as any,
         gstPercent: computed.gstPercent as any,

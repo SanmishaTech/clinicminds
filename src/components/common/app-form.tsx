@@ -7,13 +7,14 @@ import { ElementType } from 'react';
  */
 export interface FormSectionProps extends React.HTMLAttributes<HTMLElement> {
   legend?: React.ReactNode;
+  legendRight?: React.ReactNode;
   as?: ElementType; // default fieldset
   description?: React.ReactNode;
   inlineLegend?: boolean;
 }
 
 export const FormSection = React.forwardRef<HTMLElement, FormSectionProps>(function FormSection(
-  { legend, description, className, children, as, inlineLegend = false, ...rest }, ref
+  { legend, legendRight, description, className, children, as, inlineLegend = false, ...rest }, ref
 ) {
   const Comp = (as || 'fieldset') as ElementType;
   return (
@@ -24,6 +25,7 @@ export const FormSection = React.forwardRef<HTMLElement, FormSectionProps>(funct
             <div className='flex items-center gap-3'>
               <div className='text-base font-semibold shrink-0 px-0'>{legend}</div>
               <div className='h-px bg-border flex-1' />
+              {legendRight && <div className='shrink-0'>{legendRight}</div>}
             </div>
           )}
           {description && <div className='text-xs text-muted-foreground'>{description}</div>}
