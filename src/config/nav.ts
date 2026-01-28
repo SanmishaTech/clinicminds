@@ -18,6 +18,7 @@ import {
   FileText,
   Archive,
   FlaskConical,
+  Book,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -159,6 +160,12 @@ export const NAV_ITEMS: NavItem[] = [
         icon: Package,
         permission: PERMISSIONS.CREATE_STOCKS,
         },
+        {
+          title: "Day Book",
+          href: "/day-book",
+          icon: Book,
+          permission: PERMISSIONS.VIEW_DAY_BOOK,
+        }
     ],
   },
   {

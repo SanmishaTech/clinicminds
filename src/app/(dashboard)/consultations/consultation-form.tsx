@@ -9,6 +9,7 @@ import { toast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
+import { AppCheckbox } from '@/components/common/app-checkbox';
 import { FormSection, FormRow } from '@/components/common/app-form';
 import { Form } from '@/components/ui/form';
 import { TextInput } from '@/components/common/text-input';
@@ -213,6 +214,18 @@ const consultationFormSchema = z.object({
       (v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0,
       'Total must be a valid positive number'
     ),
+  addReceipt: z.boolean().optional(),
+  receipt: z.object({
+    date: z.string().optional(),
+    paymentMode: z.string().optional(),
+    payerName: z.string().optional(),
+    contactNumber: z.string().optional(),
+    utrNumber: z.string().optional(),
+    amount: z.string().optional(),
+    chequeNumber: z.string().optional(),
+    chequeDate: z.string().optional(),
+    notes: z.string().optional(),
+  }).optional(),
 });
 
 export type ConsultationFormValues = z.infer<typeof consultationFormSchema>;
@@ -261,10 +274,28 @@ export function ConsultationForm({
         doses: m.doses || '',
       })) || [{ medicineId: '', qty: '', mrp: '', amount: '', doses: '' }],
       totalAmount: (initial?.totalAmount ?? 0).toString(),
+      addReceipt: mode === 'create' ? false : undefined,
+      receipt: mode === 'create' ? {
+        paymentMode: '',
+        payerName: '',
+        contactNumber: '',
+        utrNumber: '',
+        amount: '',
+        chequeNumber: '',
+        chequeDate: '',
+        date: new Date().toISOString().split('T')[0], // Today's date for receipt
+        notes: '',
+      } : undefined,
     },
   });
 
-  const { control, handleSubmit, setValue, setError, clearErrors, formState, trigger } = form;
+  const paymentModeOptions = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'UPI', label: 'UPI' },
+  { value: 'CHEQUE', label: 'Cheque' }
+];
+
+const { control, handleSubmit, setValue, setError, clearErrors, formState, trigger, watch } = form;
   const { errors } = formState;
 
   const serviceOptions = useMemo(() => {
@@ -482,12 +513,58 @@ export function ConsultationForm({
           })) || [],
       };
 
+      const consultationData = {
+        appointmentId: initial?.appointmentId,
+        complaint: values.complaint || null,
+        diagnosis: values.diagnosis || null,
+        remarks: values.remarks || null,
+        casePaperUrl: values.casePaperUrl || null,
+        nextFollowUpDate: values.nextFollowUpDate ? new Date(values.nextFollowUpDate).toISOString() : null,
+        totalAmount: parseFloat(values.totalAmount),
+        consultationDetails: values.consultationDetails
+          ?.filter((d) => d.serviceId && d.serviceId.trim().length > 0)
+          ?.map((d) => ({
+            serviceId: parseInt(d.serviceId),
+            description: d.description || null,
+            qty: parseInt(d.qty),
+            rate: parseFloat(d.rate),
+            amount: parseFloat(d.amount),
+          })) || [],
+        consultationMedicines: values.consultationMedicines
+          ?.filter((m) => m.medicineId && m.medicineId.trim().length > 0)
+          ?.map((m) => ({
+            medicineId: parseInt(m.medicineId),
+            qty: parseInt(m.qty),
+            mrp: parseFloat(m.mrp),
+            amount: parseFloat(m.amount),
+            doses: m.doses || null,
+          })) || [],
+      };
+
       if (mode === 'create') {
-        const res = await apiPost('/api/consultations', apiData);
+        const createData = {
+          ...consultationData,
+          // Include receipt data if addReceipt is checked
+          ...(values.addReceipt && values.receipt ? {
+            receipt: {
+              date: values.receipt.date ? new Date(values.receipt.date).toISOString() : new Date().toISOString(),
+              paymentMode: values.receipt.paymentMode || '',
+              payerName: values.receipt.payerName || '',
+              contactNumber: values.receipt.contactNumber || '',
+              utrNumber: values.receipt.utrNumber || '',
+              amount: parseFloat(values.receipt.amount || '0'),
+              chequeNumber: values.receipt.chequeNumber || '',
+              chequeDate: values.receipt.chequeDate ? new Date(values.receipt.chequeDate).toISOString() : null,
+              notes: values.receipt.notes || '',
+            }
+          } : {}),
+        };
+
+        const res = await apiPost('/api/consultations', createData);
         toast.success('Consultation created');
         onSuccess?.(res);
       } else if (mode === 'edit' && initial?.id) {
-        const res = await apiPatch('/api/consultations', { id: initial.id, ...apiData });
+        const res = await apiPatch('/api/consultations', { id: initial.id, ...consultationData });
         toast.success('Consultation updated');
         onSuccess?.(res);
       }
@@ -952,6 +1029,136 @@ export function ConsultationForm({
                           </div>
                         </div>
                       </FormRow>
+
+                  {/* Receipt Section - Only show in create mode */}
+                  {mode === 'create' && (
+                  <FormSection legend='Payment Receipt'>
+                    <FormRow cols={1}>
+                      <div className="col-span-12">
+                        <div className="mb-4">
+                          <AppCheckbox
+                            id="addReceipt"
+                            label="Add payment receipt for this consultation"
+                            checked={watch('addReceipt')}
+                            onCheckedChange={(checked) => setValue('addReceipt', checked)}
+                          />
+                        </div>
+                        
+                        {watch('addReceipt') && (
+                          <div className="space-y-4">
+                            <FormRow cols={3}>
+                              <TextInput
+                                control={control}
+                                name="receipt.date"
+                                label="Receipt Date"
+                                type="date"
+                              />
+                              <ComboboxInput
+                                control={control as any}
+                                name="receipt.paymentMode"
+                                label="Payment Mode"
+                                options={paymentModeOptions}
+                                placeholder="Select payment mode"
+                              />
+                               <TextInput
+                                control={control}
+                                name="receipt.payerName"
+                                label="Payer Name"
+                                placeholder="Enter payer name"
+                              />
+                            </FormRow>
+                            
+                            {/* Payer Name - Always visible */}
+                            <FormRow cols={1}>
+                             
+                            </FormRow>
+                            
+                            {/* Conditional fields based on payment mode */}
+                            {watch('receipt.paymentMode') === 'CASH' && (
+                              <FormRow cols={1}>
+                                <TextInput
+                                  control={control}
+                                  name="receipt.contactNumber"
+                                  label="Contact Number"
+                                  maxLength={10}
+                                  pattern='[+0-9]*'
+                                  onInput={(e) => {
+                                  e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                                  }}
+                                  placeholder="Enter contact number"
+                                />
+                              </FormRow>
+                            )}
+                            
+                            {watch('receipt.paymentMode') === 'UPI' && (
+                              <FormRow cols={2}>
+                                <TextInput
+                                  control={control}
+                                  name="receipt.contactNumber"
+                                  label="Contact Number"
+                                  maxLength={10}
+                                  pattern='[+0-9]*'
+                                  onInput={(e) => {
+                                  e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                                  }}
+                                  placeholder="Enter contact number"
+                                />
+                                <TextInput
+                                  control={control}
+                                  name="receipt.utrNumber"
+                                  label="UTR Number"
+                                  placeholder="Enter UTR number"
+                                />
+                              </FormRow>
+                            )}
+                            
+                            {watch('receipt.paymentMode') === 'CHEQUE' && (
+                              <FormRow cols={2}>
+                                <TextInput
+                                  control={control}
+                                  name="receipt.chequeNumber"
+                                  label="Cheque Number"
+                                  placeholder="Enter cheque number"
+                                />
+                                <TextInput
+                                  control={control}
+                                  name="receipt.chequeDate"
+                                  label="Cheque Date"
+                                  type="date"
+                                />
+                              </FormRow>
+                            )}
+                            
+                            {/* Amount and Notes - Always visible */}
+                            <FormRow cols={1}>
+                              
+                            </FormRow>
+                            
+                            <FormRow cols={1}>
+                              <TextInput
+                                control={control}
+                                name="receipt.amount"
+                                label="Receipt Amount"
+                                type="number"
+                                step="0.01"
+                                placeholder="Enter amount received"
+                              />
+                            </FormRow>
+                            
+                            <FormRow cols={1}>
+                              <TextareaInput
+                                control={control}
+                                name="receipt.notes"
+                                label="Notes"
+                                placeholder="Any additional notes about the payment"
+                              />
+                            </FormRow>
+                          </div>
+                        )}
+                      </div>
+                    </FormRow>
+                  </FormSection>
+                  )}
                   </FormSection>
                 </AppCard.Content>
                 <AppCard.Footer className='justify-end gap-2'>
