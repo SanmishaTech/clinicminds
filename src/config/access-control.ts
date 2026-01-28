@@ -59,6 +59,9 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/appointments/", permissions: [PERMISSIONS.EDIT_APPOINTMENTS] },
   { prefix: "/appointments", permissions: [PERMISSIONS.READ_APPOINTMENTS] },
 
+  // Consultations (nested under appointments)
+  { prefix: "/consultations/", permissions: [PERMISSIONS.CREATE_CONSULTATIONS, PERMISSIONS.EDIT_CONSULTATIONS] },
+  { prefix: "/consultations", permissions: [PERMISSIONS.READ_CONSULTATIONS] },
   { prefix: "/reports/closing-stock", permissions: [PERMISSIONS.READ_CLOSING_STOCK] },
 
   { prefix: "/medicine-bills", permissions: [PERMISSIONS.READ_MEDICINE_BILLS] },
@@ -226,6 +229,14 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
     },
   },
   {
+    prefix: "/api/consultations",
+    methods: {
+      GET: [PERMISSIONS.READ_CONSULTATIONS],
+      POST: [PERMISSIONS.CREATE_CONSULTATIONS],
+      PATCH: [PERMISSIONS.EDIT_CONSULTATIONS],
+      DELETE: [PERMISSIONS.DELETE_CONSULTATIONS],
+    },
+  },
     prefix: "/api/reports/closing-stock",
     methods: {
       GET: [PERMISSIONS.READ_CLOSING_STOCK],
