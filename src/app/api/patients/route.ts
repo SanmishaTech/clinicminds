@@ -215,6 +215,7 @@ export async function POST(req: NextRequest) {
     secondaryInsuranceHolderName,
     secondaryInsuranceId,
     balanceAmount,
+    labId,
   } =
     (body as Partial<{
       teamId?: number | string | null;
@@ -250,6 +251,7 @@ export async function POST(req: NextRequest) {
       secondaryInsuranceHolderName?: string | null;
       secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
+      labId?: number | string | null;
     }>) || {};
 
   if (!firstName) return ApiError("First name is required", 400);
@@ -356,6 +358,7 @@ export async function POST(req: NextRequest) {
           secondaryInsuranceName: secondaryInsuranceName || null,
           secondaryInsuranceHolderName: secondaryInsuranceHolderName || null,
           secondaryInsuranceId: secondaryInsuranceId || null,
+          labId: labId ? Number(labId) : null,
           balanceAmount: parsedBalance,
         },
         select: {
@@ -370,6 +373,7 @@ export async function POST(req: NextRequest) {
           createdAt: true,
           state: { select: { id: true, state: true } },
           city: { select: { id: true, city: true } },
+          lab: { select: { id: true, name: true } },
         },
       });
     });
@@ -464,6 +468,7 @@ export async function PATCH(req: NextRequest) {
     secondaryInsuranceHolderName,
     secondaryInsuranceId,
     balanceAmount,
+    labId,
   } =
     (body as Partial<{
       id: number | string;
@@ -500,6 +505,7 @@ export async function PATCH(req: NextRequest) {
       secondaryInsuranceHolderName?: string | null;
       secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
+      labId?: number | string | null;
     }>) || {};
 
   if (!id) return ApiError("Patient id required", 400);
@@ -618,6 +624,14 @@ export async function PATCH(req: NextRequest) {
       data.balanceAmount = n;
     }
   }
+  if (labId !== undefined) {
+    if (labId === null || labId === "") data.labId = null;
+    else {
+      const n = Number(labId);
+      if (Number.isNaN(n)) return ApiError("Invalid lab ID", 400);
+      data.labId = n;
+    }
+  }
 
   const nextStateId = stateId !== undefined ? Number(stateId) : undefined;
   const nextCityId = cityId !== undefined ? Number(cityId) : undefined;
@@ -666,6 +680,7 @@ export async function PATCH(req: NextRequest) {
           createdAt: true,
           state: { select: { id: true, state: true } },
           city: { select: { id: true, city: true } },
+          lab: { select: { id: true, name: true } },
         },
       });
     });

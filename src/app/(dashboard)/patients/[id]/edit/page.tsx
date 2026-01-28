@@ -54,6 +54,7 @@ export default function EditPatientPage() {
           secondaryInsuranceHolderName: string | null;
           secondaryInsuranceId: string | null;
           balanceAmount: number;
+          labId: number | null;
         }>(`/api/patients/${id}`);
 
         setInitial({
@@ -93,6 +94,7 @@ export default function EditPatientPage() {
           secondaryInsuranceHolderName: data.secondaryInsuranceHolderName,
           secondaryInsuranceId: data.secondaryInsuranceId,
           balanceAmount: data.balanceAmount,
+          labId: data.labId,
         });
       } catch (e) {
         toast.error((e as Error).message || 'Failed to load patient');

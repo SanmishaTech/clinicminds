@@ -353,6 +353,8 @@ model Patient {
   secondaryInsuranceHolderName  String?
   secondaryInsuranceId          String?
 
+  labId                         Int?
+  lab                           Lab? @relation(fields: [labId], references: [id], onDelete: SetNull)
   medicalHistory                PatientMedicalHistory?
   referedBy                     String?
   balanceAmount                 Float    @default(0)
@@ -682,6 +684,8 @@ model MedicineBillDetail{
 model Lab{
   id        Int      @id @default(autoincrement())
   name      String
+
+  patients Patient[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

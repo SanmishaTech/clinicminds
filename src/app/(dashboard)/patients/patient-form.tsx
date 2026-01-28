@@ -47,6 +47,14 @@ type TeamsResponse = {
   totalPages: number;
 };
 
+type LabsResponse = {
+  data: { id: number; name: string }[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+};
+
 export interface PatientFormInitialData {
   id?: number;
   patientNo?: string;
@@ -84,6 +92,7 @@ export interface PatientFormInitialData {
   secondaryInsuranceHolderName?: string | null;
   secondaryInsuranceId?: string | null;
   balanceAmount?: number | null;
+  labId?: number | null;
 }
 
 export interface PatientFormProps {
@@ -220,6 +229,7 @@ export function PatientForm({
     secondaryInsuranceId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
 
     balanceAmount: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    labId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
   });
 
   type RawFormValues = z.infer<typeof schema>;
@@ -263,6 +273,7 @@ export function PatientForm({
       secondaryInsuranceHolderName: initial?.secondaryInsuranceHolderName || '',
       secondaryInsuranceId: initial?.secondaryInsuranceId || '',
       balanceAmount: initial?.balanceAmount != null ? String(initial.balanceAmount) : '',
+      labId: initial?.labId != null ? String(initial.labId) : '',
     },
   });
 
@@ -305,6 +316,11 @@ export function PatientForm({
     apiGet
   );
 
+  const { data: labsResp } = useSWR<LabsResponse>(
+    '/api/labs?page=1&perPage=100&sort=name&order=asc',
+    apiGet
+  );
+
   const stateOptions = useMemo(() => {
     return (statesResp?.data || []).map((s) => ({ value: String(s.id), label: s.state }));
   }, [statesResp]);
@@ -318,6 +334,10 @@ export function PatientForm({
   const teamOptions = useMemo(() => {
     return (teamsResp?.data || []).map((t) => ({ value: String(t.id), label: t.name }));
   }, [teamsResp]);
+
+  const labOptions = useMemo(() => {
+    return (labsResp?.data || []).map((l) => ({ value: String(l.id), label: l.name }));
+  }, [labsResp]);
 
   useEffect(() => {
     if (!stateIdValue) {
@@ -377,6 +397,7 @@ export function PatientForm({
         secondaryInsuranceHolderName: hasInsurance ? values.secondaryInsuranceHolderName || null : null,
         secondaryInsuranceId: hasInsurance ? values.secondaryInsuranceId || null : null,
         balanceAmount: values.balanceAmount || null,
+        labId: values.labId ? Number(values.labId) : null,
       };
 
       if (mode === 'create') {
@@ -411,7 +432,7 @@ export function PatientForm({
         <form noValidate onSubmit={handleSubmit(onSubmit)}>
           <AppCard.Content>
             <FormSection legend='Patient Details'>
-              <FormRow cols={2}>
+              <FormRow cols={3}>
                 <TextInput
                   control={control}
                   name='patientNo'
@@ -427,6 +448,15 @@ export function PatientForm({
                   placeholder='Select team'
                   searchPlaceholder='Search teams...'
                   emptyText='No team found.'
+                />
+                <ComboboxInput
+                  control={control as any}
+                  name={'labId' as any}
+                  label='Lab'
+                  options={labOptions}
+                  placeholder='Select lab'
+                  searchPlaceholder='Search labs...'
+                  emptyText='No lab found.'
                 />
               </FormRow>
               <FormRow cols={3}>
