@@ -2,7 +2,7 @@
 
 import { useMemo, useEffect, useState } from 'react';
 import useSWR from 'swr';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray, useWatch, Controller } from 'react-hook-form';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,11 +17,12 @@ import { useRouter } from 'next/navigation';
 import { ComboboxInput } from '@/components/common/combobox-input';
 import { SelectInput } from '@/components/common/select-input';
 import { EmailInput } from '@/components/common/email-input';
+import { ImprovedUploadInput } from '@/components/common';
 import { MASTER_CONFIG } from '@/config/master';
 import { formatDateForInput } from '@/lib/locales';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
-import { Info } from 'lucide-react';
+import { Info, Plus, Trash2 } from 'lucide-react';
 
 type StatesResponse = {
   data: { id: number; state: string }[];
@@ -93,6 +94,11 @@ export interface PatientFormInitialData {
   secondaryInsuranceId?: string | null;
   balanceAmount?: number | null;
   labId?: number | null;
+  patientReports?: {
+    id?: number;
+    name?: string | null;
+    url?: string | null;
+  }[];
 }
 
 export interface PatientFormProps {
@@ -230,6 +236,14 @@ export function PatientForm({
 
     balanceAmount: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     labId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    patientReports: z
+      .array(
+        z.object({
+          name: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+          url: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+        })
+      )
+      .optional(),
   });
 
   type RawFormValues = z.infer<typeof schema>;
@@ -274,6 +288,10 @@ export function PatientForm({
       secondaryInsuranceId: initial?.secondaryInsuranceId || '',
       balanceAmount: initial?.balanceAmount != null ? String(initial.balanceAmount) : '',
       labId: initial?.labId != null ? String(initial.labId) : '',
+      patientReports: initial?.patientReports?.map((report) => ({
+        name: report.name || '',
+        url: report.url || '',
+      })) || [{ name: '', url: '' }],
     },
   });
 
@@ -285,6 +303,15 @@ export function PatientForm({
   const cityIdValue = form.watch('cityId');
   const medicalInsuranceValue = form.watch('medicalInsurance');
   const isCreate = mode === 'create';
+
+  const {
+    fields: reportFields,
+    append: appendReport,
+    remove: removeReport,
+  } = useFieldArray({
+    control,
+    name: 'patientReports',
+  });
 
   useEffect(() => {
     if (!dateOfBirthValue) return;
@@ -326,10 +353,8 @@ export function PatientForm({
   }, [statesResp]);
 
   const cityOptions = useMemo(() => {
-    const all = citiesResp?.data || [];
-    const filtered = stateIdValue ? all.filter((c) => String(c.stateId) === String(stateIdValue)) : [];
-    return filtered.map((c) => ({ value: String(c.id), label: c.city }));
-  }, [citiesResp, stateIdValue]);
+    return (citiesResp?.data || []).map((c) => ({ value: String(c.id), label: c.city }));
+  }, [citiesResp]);
 
   const teamOptions = useMemo(() => {
     return (teamsResp?.data || []).map((t) => ({ value: String(t.id), label: t.name }));
@@ -398,6 +423,7 @@ export function PatientForm({
         secondaryInsuranceId: hasInsurance ? values.secondaryInsuranceId || null : null,
         balanceAmount: values.balanceAmount || null,
         labId: values.labId ? Number(values.labId) : null,
+        patientReports: values.patientReports || [],
       };
 
       if (mode === 'create') {
@@ -458,7 +484,7 @@ export function PatientForm({
                   searchPlaceholder='Search labs...'
                   emptyText='No lab found.'
                 />
-              </FormRow>
+              </FormRow> 
               <FormRow cols={3}>
                 <TextInput control={control} name='firstName' label='First Name' required placeholder='First name' />
                 <TextInput control={control} name='middleName' label='Middle Name' required placeholder='Middle name' />
@@ -707,6 +733,70 @@ export function PatientForm({
                   placeholder='0'
                 />
               </FormRow>
+            </FormSection>
+
+            <FormSection legend='Patient Reports'>
+              <div className='border rounded-lg overflow-hidden'>
+                <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
+                  <div className='col-span-6 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    Report Name
+                  </div>
+                  <div className='col-span-6 px-4 py-3 font-medium text-sm text-muted-foreground'>
+                    Report URL
+                  </div>
+                </div>
+
+                {reportFields.map((field, index) => (
+                  <div key={field.id} className='grid grid-cols-12 gap-0 border-b last:border-b-0 hover:bg-accent/50'>
+                    <div className='col-span-6 p-3 border-r'>
+                      <TextInput
+                        control={control}
+                        name={`patientReports.${index}.name`}
+                        placeholder='Enter report name'
+                      />
+                    </div>
+                    <div className='col-span-6 p-3 flex items-center gap-2'>
+                      <div className='flex-1'>
+                        <ImprovedUploadInput
+                          control={control}
+                          name={`patientReports.${index}.url`}
+                          label=''
+                          description=''
+                          type='document'
+                          prefix='patient-reports'
+                          showPreview={false}
+                          existingUrl={field.url}
+                        />
+                      </div>
+                      {reportFields.length > 1 && (
+                        <AppButton
+                          type='button'
+                          variant='destructive'
+                          size='sm'
+                          onClick={() => removeReport(index)}
+                          className='h-8 w-8 p-0'
+                        >
+                          <Trash2 className='h-4 w-4' />
+                        </AppButton>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className='mt-4 flex items-start justify-between gap-4'>
+                <AppButton
+                  type='button'
+                  variant='outline'
+                  onClick={() =>
+                    appendReport({ name: '', url: '' })
+                  }
+                  className='gap-2'
+                >
+                  <Plus className='h-4 w-4' />
+                  Add Report
+                </AppButton>
+              </div>
             </FormSection>
           </AppCard.Content>
 

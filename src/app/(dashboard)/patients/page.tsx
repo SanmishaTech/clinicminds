@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { useMemo, useState, useEffect } from 'react';
-import { apiGet, apiDelete } from '@/lib/api-client';
+import { apiGet, apiDelete, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { Pagination } from '@/components/common/pagination';
 import { NonFormTextInput } from '@/components/common/non-form-text-input';
@@ -13,6 +13,7 @@ import { AppSelect } from '@/components/common/app-select';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { DeleteButton } from '@/components/common/delete-button';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { PERMISSIONS } from '@/config/roles';
 import { MASTER_CONFIG } from '@/config/master';
 import { formatDate } from '@/lib/locales';
@@ -32,6 +33,8 @@ type PatientListItem = {
   createdAt: string;
   state: { id: number; state: string };
   city: { id: number; city: string };
+  isReferredToHo: boolean;
+  franchise: { id: number; name: string } | null;
 };
 
 type PatientsResponse = {
@@ -111,7 +114,7 @@ export default function PatientsPage() {
   const { data, error, isLoading, mutate } = useSWR<PatientsResponse>(query, apiGet);
 
   const { can } = usePermissions();
-
+  const { user } = useCurrentUser();
   if (error) {
     toast.error((error as Error).message || 'Failed to load patients');
   }
@@ -124,60 +127,75 @@ export default function PatientsPage() {
     }
   }
 
-  const columns: Column<PatientListItem>[] = [
-    {
-      key: 'patientNo',
-      header: 'Patient No',
-      sortable: true,
-      cellClassName: 'font-medium whitespace-nowrap',
-    },
-    {
-      key: 'team',
-      header: 'Team',
-      sortable: false,
-      cellClassName: 'whitespace-nowrap',
-      accessor: (r) => r.team?.name || '—',
-    },
-    {
-      key: 'firstName',
-      header: 'Name',
-      sortable: true,
-      accessor: (r) => [r.firstName, r.middleName, r.lastName].filter(Boolean).join(' '),
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'gender',
-      header: 'Gender',
-      sortable: true,
-      accessor: (r) => GENDER_LABEL[r.gender] ?? r.gender,
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'mobile',
-      header: 'Mobile',
-      sortable: true,
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'state',
-      header: 'State',
-      accessor: (r) => r.state?.state || '—',
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'city',
-      header: 'City',
-      accessor: (r) => r.city?.city || '—',
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'createdAt',
-      header: 'Created',
-      sortable: true,
-      accessor: (r) => formatDate(r.createdAt),
-      cellClassName: 'text-muted-foreground whitespace-nowrap',
-    },
-  ];
+  const columns: Column<PatientListItem>[] = useMemo(() => {
+    const baseColumns = [
+      {
+        key: 'patientNo',
+        header: 'Patient No',
+        sortable: true,
+        cellClassName: 'font-medium whitespace-nowrap',
+      },
+      {
+        key: 'team',
+        header: 'Team',
+        sortable: false,
+        cellClassName: 'whitespace-nowrap',
+        accessor: (r) => r.team?.name || '—',
+      },
+      {
+        key: 'firstName',
+        header: 'Name',
+        sortable: true,
+        accessor: (r) => [r.firstName, r.middleName, r.lastName].filter(Boolean).join(' '),
+        cellClassName: 'whitespace-nowrap',
+      },
+      {
+        key: 'gender',
+        header: 'Gender',
+        sortable: true,
+        accessor: (r) => GENDER_LABEL[r.gender] ?? r.gender,
+        cellClassName: 'whitespace-nowrap',
+      },
+      {
+        key: 'mobile',
+        header: 'Mobile',
+        sortable: true,
+        cellClassName: 'whitespace-nowrap',
+      },
+      {
+        key: 'state',
+        header: 'State',
+        accessor: (r) => r.state?.state || '—',
+        cellClassName: 'whitespace-nowrap',
+      },
+      {
+        key: 'city',
+        header: 'City',
+        accessor: (r) => r.city?.city || '—',
+        cellClassName: 'whitespace-nowrap',
+      },
+      {
+        key: 'createdAt',
+        header: 'Created',
+        sortable: true,
+        accessor: (r) => formatDate(r.createdAt),
+        cellClassName: 'text-muted-foreground whitespace-nowrap',
+      },
+    ];
+
+    // Add franchise column for Admin users
+    if (user?.role === 'ADMIN') {
+      baseColumns.splice(1, 0, {
+        key: 'franchise',
+        header: 'Franchise',
+        sortable: false,
+        accessor: (r) => r.franchise?.name || '—',
+        cellClassName: 'whitespace-nowrap',
+      });
+    }
+
+    return baseColumns;
+  }, [user?.role]);
 
   const sortState: SortState = { field: sort, order };
 
@@ -188,6 +206,19 @@ export default function PatientsPage() {
       await mutate();
     } catch (e) {
       toast.error((e as Error).message);
+    }
+  }
+
+  async function handleReferral(id: number, patientNo: string) {
+    try {
+      await apiPatch('/api/patients', {
+        id,
+        isReferredToHo: true
+      });
+      toast.success(`Patient ${patientNo} referred to Head Office`);
+      await mutate();
+    } catch (e) {
+      toast.error((e as Error).message || 'Failed to refer patient');
     }
   }
 
@@ -270,6 +301,16 @@ export default function PatientsPage() {
                   <Link href={`/patients/${p.id}/medical-history`}>
                     <IconButton iconName='FileText' tooltip='Medical History' aria-label='Medical History' />
                   </Link>
+                )}
+                {can(PERMISSIONS.EDIT_PATIENTS) && user?.role !== 'ADMIN' && (
+                  <IconButton 
+                    iconName='ArrowUp' 
+                    tooltip={p.isReferredToHo ? 'Already referred to Head Office' : 'Refer to Head Office'} 
+                    aria-label='Refer to Head Office'
+                    onClick={() => !p.isReferredToHo && handleReferral(p.id, p.patientNo)}
+                    disabled={p.isReferredToHo}
+                    className={p.isReferredToHo ? 'opacity-50 cursor-not-allowed' : ''}
+                  />
                 )}
                 {can(PERMISSIONS.EDIT_PATIENTS) && (
                   <Link href={`/patients/${p.id}/edit`}>
