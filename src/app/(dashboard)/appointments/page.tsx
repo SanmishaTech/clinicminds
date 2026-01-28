@@ -387,10 +387,12 @@ export default function AppointmentsPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(appointment) => {
-            if (!can(PERMISSIONS.EDIT_APPOINTMENTS) && !can(PERMISSIONS.DELETE_APPOINTMENTS)) return null;
+            if (!can(PERMISSIONS.EDIT_APPOINTMENTS) && !can(PERMISSIONS.DELETE_APPOINTMENTS) && !can(PERMISSIONS.CREATE_CONSULTATIONS) && !can(PERMISSIONS.EDIT_CONSULTATIONS)) return null;
             return (
               <div className='flex'>
-                <ConsultationButton appointmentId={appointment.id} />
+                {(can(PERMISSIONS.CREATE_CONSULTATIONS) || can(PERMISSIONS.EDIT_CONSULTATIONS)) && (
+                  <ConsultationButton appointmentId={appointment.id} />
+                )}
                 {can(PERMISSIONS.EDIT_APPOINTMENTS) && (
                   <Link href={`/appointments/${appointment.id}/edit`}>
                     <EditButton tooltip='Edit Appointment' aria-label='Edit Appointment' />
