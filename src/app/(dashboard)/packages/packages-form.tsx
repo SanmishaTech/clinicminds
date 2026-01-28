@@ -67,7 +67,13 @@ const packagesFormSchema = z.object({
     .string()
     .trim()
     .refine((v) => v && v.trim().length > 0, 'Duration is required')
-    .refine((v) => /^\d+$/.test(v) && Number(v) > 0, 'Duration must be a valid positive number'),
+    .refine((v) => !isNaN(parseFloat(v)) && parseFloat(v) >= 0, 'Duration must be a valid number (0 or more)')
+    .refine((v) => {
+      const n = parseFloat(v);
+      if (!Number.isFinite(n) || n < 0) return false;
+      const scaled = n * 4;
+      return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+    }, 'Duration must be in steps of 0.25 days'),
   discountPercent: z
     .string()
     .trim()
@@ -167,7 +173,7 @@ export function PackageForm({
     reValidateMode: 'onChange',
     defaultValues: {
       name: initial?.name || '',
-      duration: String(initial?.duration ?? 1),
+      duration: String(initial?.duration ?? 0),
       discountPercent: String(initial?.discountPercent ?? 0),
       totalAmount: (initial?.totalAmount ?? 0).toString(),
       packageDetails:
@@ -309,7 +315,7 @@ export function PackageForm({
     try {
       const apiData = {
         name: values.name.trim(),
-        duration: parseInt(values.duration),
+        duration: parseFloat(values.duration),
         discountPercent: Math.min(100, Math.max(0, parseFloat(values.discountPercent || '0') || 0)),
         totalAmount: parseFloat(values.totalAmount),
         packageDetails: values.packageDetails.map((d) => ({
@@ -382,8 +388,8 @@ export function PackageForm({
                   label='Duration (days)'
                   placeholder='Days'
                   type='number'
-                  min={1}
-                  step={1}
+                  min={0}
+                  step={0.25}
                   required
                   itemClassName='col-span-12 md:col-span-4'
                 />

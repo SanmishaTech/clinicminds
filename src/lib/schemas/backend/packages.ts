@@ -17,7 +17,14 @@ export const packageMedicineSchema = z.object({
 
 export const createPackageSchema = z.object({
   name: z.string().trim().min(1, 'Package name is required').max(255, 'Package name must be less than 255 characters'),
-  duration: z.number().int().positive(),
+  duration: z
+    .number()
+    .min(0)
+    .refine((v) => Number.isFinite(v), 'Duration is required')
+    .refine((v) => {
+      const scaled = v * 4;
+      return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+    }, 'Duration must be in steps of 0.25 days'),
   discountPercent: z.number().min(0).max(100).default(0),
   totalAmount: z.number().nonnegative(),
   packageDetails: z

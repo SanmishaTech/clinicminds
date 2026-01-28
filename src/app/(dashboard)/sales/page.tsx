@@ -14,7 +14,6 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
 import { formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
-import { EditButton } from '@/components/common/icon-button';
 import { IconButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
 import { StatusBadge } from '@/components/common/status-badge';
@@ -281,14 +280,6 @@ export default function SalesPage() {
                       tooltip='Transport'
                       aria-label='Transport'
                     />
-                  </Link>
-                )}
-                {can(PERMISSIONS.EDIT_SALES) && (
-                  <Link href={`/sales/${row.id}/edit`}>
-                  <EditButton 
-                    tooltip='Edit Sale' 
-                    aria-label='Edit Sale' 
-                  />
                   </Link>
                 )}
                 <DeleteButton

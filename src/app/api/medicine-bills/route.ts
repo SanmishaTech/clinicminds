@@ -1,8 +1,14 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Success, Error, BadRequest, NotFound } from '@/lib/api-response';
+import { Success, Error as ApiError, BadRequest, NotFound } from '@/lib/api-response';
 import { guardApiAccess } from '@/lib/access-guard';
 import { z } from 'zod';
+
+function throwHttp(message: string, status: number): never {
+  const err = new globalThis.Error(message) as globalThis.Error & { status?: number };
+  err.status = status;
+  throw err;
+}
 
 const medicineBillDetailSchema = z.object({
   medicineId: z.number().int().positive(),
@@ -56,20 +62,20 @@ export async function GET(req: NextRequest) {
   });
 
   if (!currentUser) {
-    return Error("Current user not found", 404);
+    return ApiError("Current user not found", 404);
   }
 
   // Get franchise ID from either direct assignment or through team
   const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
   
   if (!franchiseId) {
-    return Error("Current user is not associated with any franchise", 400);
+    return ApiError("Current user is not associated with any franchise", 400);
   }
 
     const where: any = {};
     
     // Non-admin users can only see their franchise bills
-    if (auth.user.role !== 'ADMIN') {
+    if (auth.user.role !== 'Admin') {
       where.franchiseId = franchiseId;
     }
 
@@ -154,7 +160,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (e) {
     console.error('Fetch medicine bills error:', e);
-    return Error('Failed to fetch medicine bills');
+    return ApiError('Failed to fetch medicine bills');
   }
 }
 
@@ -168,7 +174,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
-    return Error('Invalid JSON body', 400);
+    return ApiError('Invalid JSON body', 400);
   }
 
   const parsed = createMedicineBillSchema.safeParse(body);
@@ -199,14 +205,14 @@ export async function POST(req: NextRequest) {
   });
 
   if (!currentUser) {
-    return Error("Current user not found", 404);
+    throwHttp('Current user not found', 404);
   }
 
   // Get franchise ID from either direct assignment or through team
   const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
   
   if (!franchiseId) {
-    return Error("Current user is not associated with any franchise", 400);
+    throwHttp('Current user is not associated with any franchise', 400);
   }
       const now = new Date();
       const in45Days = new Date(now.getTime());
@@ -234,7 +240,7 @@ export async function POST(req: NextRequest) {
         });
 
         if (!medicine) {
-          throw Error(`Medicine with ID ${item.medicineId} not found`);
+          throwHttp(`Medicine with ID ${item.medicineId} not found`, 404);
         }
 
         // Find available stock batches (excluding expiring stock)
@@ -257,8 +263,9 @@ export async function POST(req: NextRequest) {
         const totalAvailable = availableBatches.reduce((sum, batch) => sum + batch.quantity, 0);
         console.log(totalAvailable, item.qty);
         if (totalAvailable < item.qty) {
-          throw Error(
-            `Insufficient stock for ${medicine.name}. Available: ${totalAvailable}, Requested: ${item.qty}`
+          throwHttp(
+            `Insufficient stock for ${medicine.name}. Available: ${totalAvailable}, Requested: ${item.qty}`,
+            409
           );
         }
 
@@ -418,10 +425,14 @@ export async function POST(req: NextRequest) {
     return Success(result);
   } catch (e: unknown) {
     console.error('Create medicine bill error:', e);
-    if (e instanceof Error) {
-      return Error((e as Error).message);
+    const anyErr = e as { message?: string; status?: number };
+    if (typeof anyErr?.status === 'number') {
+      return ApiError(anyErr.message || 'Failed to create medicine bill', anyErr.status);
     }
-    return Error('Failed to create medicine bill');
+    if (e instanceof globalThis.Error) {
+      return ApiError(e.message);
+    }
+    return ApiError('Failed to create medicine bill');
   }
 }
 

@@ -18,6 +18,24 @@ const instance = axios.create({
   timeout: 15000,
 });
 
+function formatZodIssues(errors: unknown): string | null {
+  if (!Array.isArray(errors) || !errors.length) return null;
+  const parts: string[] = [];
+  for (const e of errors) {
+    if (!e || typeof e !== 'object') continue;
+    const msg = (e as any).message;
+    const path = (e as any).path;
+    const msgStr = typeof msg === 'string' ? msg : '';
+    const pathStr = Array.isArray(path)
+      ? path.map((p) => String(p)).filter(Boolean).join('.')
+      : '';
+    if (msgStr && pathStr) parts.push(`${pathStr}: ${msgStr}`);
+    else if (msgStr) parts.push(msgStr);
+  }
+  if (!parts.length) return null;
+  return parts.join(', ');
+}
+
 // Simple request wrapper
 async function request<T = unknown>(method: string, url: string, data?: unknown, opts: ApiClientOptions = {}): Promise<T> {
   try {
@@ -41,7 +59,13 @@ async function request<T = unknown>(method: string, url: string, data?: unknown,
       const m = (respData as Record<string, unknown>).message;
       if (typeof m === 'string') msg = m;
     }
-    const message = msg || ax.message || "Request failed";
+
+    const zodMessage =
+      respData && typeof respData === 'object' && 'errors' in respData
+        ? formatZodIssues((respData as Record<string, unknown>).errors)
+        : null;
+
+    const message = zodMessage || msg || ax.message || "Request failed";
     if (opts.showErrorToast) toast.error(message);
     const err = new Error(message) as Error & { data?: unknown; status?: number; raw?: unknown };
     err.data = respData;

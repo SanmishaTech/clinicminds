@@ -5,13 +5,20 @@ import { useParams, useRouter } from 'next/navigation';
 import { apiGet } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import PatientForm, { PatientFormInitialData } from '@/app/(dashboard)/patients/patient-form';
+import { usePermissions } from '@/hooks/use-permissions';
+import { ROLES } from '@/config/roles';
 
 export default function EditPatientPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
   const router = useRouter();
+  const { role } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [initial, setInitial] = useState<PatientFormInitialData | null>(null);
+
+  useEffect(() => {
+    if (role === ROLES.ADMIN) router.replace('/patients');
+  }, [role, router]);
 
   useEffect(() => {
     let mounted = true;
@@ -114,6 +121,8 @@ export default function EditPatientPage() {
       mounted = false;
     };
   }, [id, router]);
+
+  if (role === ROLES.ADMIN) return null;
 
   if (loading) {
     return <div className='p-6'>Loading...</div>;

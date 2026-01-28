@@ -272,7 +272,7 @@ model SaleDetail{
 model Package {
   id             Int              @id @default(autoincrement())
   name           String           @unique
-  duration       Int              @default(1)
+  duration       Decimal          @default(0) @db.Decimal(10, 2)
   totalAmount    Decimal          @db.Decimal(10, 2)
   discountPercent Decimal         @default(0) @db.Decimal(5, 2)
   packageDetails PackageDetail[]

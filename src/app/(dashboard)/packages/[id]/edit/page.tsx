@@ -53,7 +53,10 @@ export default function EditPackagePage() {
         setInitial({
           id: data.id,
           name: data.name,
-          duration: Number((data as any).duration) || 1,
+          duration: (() => {
+            const v = Number((data as any).duration);
+            return Number.isFinite(v) ? v : 0;
+          })(),
           discountPercent: Number(data.discountPercent) || 0,
           totalAmount: Number(data.totalAmount) || 0,
           packageDetails: (data.packageDetails || []).map((d) => ({

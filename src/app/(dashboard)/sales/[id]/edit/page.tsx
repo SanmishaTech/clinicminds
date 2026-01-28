@@ -2,6 +2,7 @@
 
 import { useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { SalesForm } from '../../sales-form';
 import { SalesFormValues } from '@/lib/schemas/frontend/sales';
 import { apiGet } from '@/lib/api-client';
@@ -32,8 +33,13 @@ type SaleApiResponse = {
 export default function EditSalePage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
+  const router = useRouter();
   const [initialData, setInitialData] = useState<SalesFormValues | undefined>(undefined);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    router.replace('/sales');
+  }, [router]);
 
   useEffect(() => {
     if (!id) {
@@ -70,14 +76,6 @@ export default function EditSalePage() {
     fetchSale();
   }, [id]);
 
-  if (loading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!id) {
-    return <div className='p-6'>Invalid sale</div>;
-  }
-
-  return <SalesForm mode='edit' saleId={parseInt(id)} initialData={initialData} />;
+  return null;
 }
 

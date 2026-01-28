@@ -14,7 +14,7 @@ import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { DeleteButton } from '@/components/common/delete-button';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useCurrentUser } from '@/hooks/use-current-user';
-import { PERMISSIONS } from '@/config/roles';
+import { PERMISSIONS, ROLES } from '@/config/roles';
 import { MASTER_CONFIG } from '@/config/master';
 import { formatDate } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
@@ -113,8 +113,9 @@ export default function PatientsPage() {
 
   const { data, error, isLoading, mutate } = useSWR<PatientsResponse>(query, apiGet);
 
-  const { can } = usePermissions();
+  const { can, role } = usePermissions();
   const { user } = useCurrentUser();
+  const isAdmin = role === ROLES.ADMIN;
   if (error) {
     toast.error((error as Error).message || 'Failed to load patients');
   }
@@ -184,7 +185,7 @@ export default function PatientsPage() {
     ];
 
     // Add franchise column for Admin users
-    if (user?.role === 'ADMIN') {
+    if (isAdmin) {
       baseColumns.splice(1, 0, {
         key: 'franchise',
         header: 'Franchise',
@@ -195,7 +196,7 @@ export default function PatientsPage() {
     }
 
     return baseColumns;
-  }, [user?.role]);
+  }, [isAdmin]);
 
   const sortState: SortState = { field: sort, order };
 
@@ -227,7 +228,7 @@ export default function PatientsPage() {
       <AppCard.Header>
         <AppCard.Title>Patients</AppCard.Title>
         <AppCard.Description>Manage patients.</AppCard.Description>
-        {can(PERMISSIONS.EDIT_PATIENTS) && (
+        {can(PERMISSIONS.EDIT_PATIENTS) && !isAdmin && (
           <AppCard.Action>
             <Link href='/patients/new'>
               <AppButton size='sm' iconName='Plus' type='button'>
@@ -302,7 +303,7 @@ export default function PatientsPage() {
                     <IconButton iconName='FileText' tooltip='Medical History' aria-label='Medical History' />
                   </Link>
                 )}
-                {can(PERMISSIONS.EDIT_PATIENTS) && user?.role !== 'ADMIN' && (
+                {can(PERMISSIONS.EDIT_PATIENTS) && !isAdmin && (
                   <IconButton 
                     iconName='ArrowUp' 
                     tooltip={p.isReferredToHo ? 'Already referred to Head Office' : 'Refer to Head Office'} 
@@ -312,7 +313,7 @@ export default function PatientsPage() {
                     className={p.isReferredToHo ? 'opacity-50 cursor-not-allowed' : ''}
                   />
                 )}
-                {can(PERMISSIONS.EDIT_PATIENTS) && (
+                {can(PERMISSIONS.EDIT_PATIENTS) && !isAdmin && (
                   <Link href={`/patients/${p.id}/edit`}>
                     <EditButton tooltip='Edit Patient' aria-label='Edit Patient' />
                   </Link>
