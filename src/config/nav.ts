@@ -17,6 +17,7 @@ import {
   Truck,
   FileText,
   Archive,
+  FlaskConical,
 } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -114,6 +115,12 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/packages",
         icon: Package,
         permission: PERMISSIONS.VIEW_PACKAGES,
+      },
+      {
+        title: "Labs",
+        href: "/labs",
+        icon: FlaskConical,
+        permission: PERMISSIONS.VIEW_LABS,
       },
     ],
   },

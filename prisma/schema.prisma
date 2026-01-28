@@ -678,3 +678,10 @@ model MedicineBillDetail{
   @@index([medicineBillId, medicineId])
   @@map("medicine_bill_details")
 }
+
+model Lab{
+  id        Int      @id @default(autoincrement())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
