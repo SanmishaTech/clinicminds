@@ -58,6 +58,8 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/appointments/new", permissions: [PERMISSIONS.CREATE_APPOINTMENTS] },
   { prefix: "/appointments/", permissions: [PERMISSIONS.EDIT_APPOINTMENTS] },
   { prefix: "/appointments", permissions: [PERMISSIONS.READ_APPOINTMENTS] },
+
+  { prefix: "/reports/closing-stock", permissions: [PERMISSIONS.READ_CLOSING_STOCK] },
 ];
 
 // API route path prefix -> required permissions (ALL must pass)
@@ -219,6 +221,12 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       DELETE: [PERMISSIONS.DELETE_APPOINTMENTS],
     },
   },
+  {
+    prefix: "/api/reports/closing-stock",
+    methods: {
+      GET: [PERMISSIONS.READ_CLOSING_STOCK],
+    },
+  }
 ];
 
 export type AccessRuleMatch = {
