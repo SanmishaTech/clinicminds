@@ -358,6 +358,8 @@ model Patient {
 
   labId                         Int?
   lab                           Lab? @relation(fields: [labId], references: [id], onDelete: SetNull)
+  reports                       PatientReport[]
+  isReferredToHo                Boolean @default(false) 
   medicalHistory                PatientMedicalHistory?
   referedBy                     String?
   balanceAmount                 Float    @default(0)
@@ -381,6 +383,19 @@ model Patient {
   @@index([cityId])
   @@index([mobile])
   @@map("patients")
+}
+
+model PatientReport{
+  id                    Int      @id @default(autoincrement())
+  patientId              Int
+  patient               Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name                  String?
+  url                   String?  @db.Text
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([patientId])
+  @@map("patient_reports")
 }
 
 model PatientMedicalHistory {

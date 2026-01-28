@@ -18,6 +18,7 @@ import { EditButton } from '@/components/common/icon-button';
 import { IconButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
 import { StatusBadge } from '@/components/common/status-badge';
+import { AppSelect } from '@/components/common/app-select';
 import Link from 'next/link';
 
 
@@ -57,8 +58,9 @@ export default function SalesPage() {
     order: 'desc',
     startDate: '',
     endDate: '',
+    franchiseId: '',
   });
-  const { page, perPage, search, sort, order, startDate, endDate } =
+  const { page, perPage, search, sort, order, startDate, endDate, franchiseId } =
     (qp as unknown) as {
       page: number;
       perPage: number;
@@ -67,20 +69,23 @@ export default function SalesPage() {
       order: 'asc' | 'desc';
       startDate: string;
       endDate: string;
+      franchiseId: string;
     };
 
   const [searchDraft, setSearchDraft] = useState(search);
   const [startDateDraft, setStartDateDraft] = useState(startDate);
   const [endDateDraft, setEndDateDraft] = useState(endDate);
+  const [franchiseIdDraft, setFranchiseIdDraft] = useState(franchiseId);
 
   useEffect(() => { 
     setSearchDraft(search);
     setStartDateDraft(startDate);
     setEndDateDraft(endDate);
-  }, [search, startDate, endDate]);
+    setFranchiseIdDraft(franchiseId);
+  }, [search, startDate, endDate, franchiseId]);
 
   const filtersDirty = searchDraft !== search || 
-    startDateDraft !== startDate || endDateDraft !== endDate;
+    startDateDraft !== startDate || endDateDraft !== endDate || franchiseIdDraft !== franchiseId;
 
   function applyFilters() {
     setQp({ 
@@ -88,6 +93,7 @@ export default function SalesPage() {
       search: searchDraft.trim(),
       startDate: startDateDraft,
       endDate: endDateDraft,
+      franchiseId: franchiseIdDraft,
     });
   }
 
@@ -95,11 +101,13 @@ export default function SalesPage() {
     setSearchDraft('');
     setStartDateDraft('');
     setEndDateDraft('');
+    setFranchiseIdDraft('');
     setQp({ 
       page: 1, 
       search: '',
       startDate: '',
       endDate: '',
+      franchiseId: '',
     });
   }
 
@@ -112,12 +120,23 @@ export default function SalesPage() {
     if (order) sp.set('order', order);
     if (startDate) sp.set('startDate', startDate);
     if (endDate) sp.set('endDate', endDate);
+    if (franchiseId) sp.set('franchiseId', franchiseId);
     return `/api/sales?${sp.toString()}`;
-  }, [page, perPage, search, sort, order, startDate, endDate]);
+  }, [page, perPage, search, sort, order, startDate, endDate, franchiseId]);
 
   const { data, error, isLoading, mutate } = useSWR<SalesResponse>(query, apiGet);
 
   const { can } = usePermissions();
+
+  // Fetch franchises for admin filter
+  const { data: franchisesResp } = useSWR(
+    can(PERMISSIONS.READ_FRANCHISES) ? '/api/franchises?page=1&perPage=100&sort=name&order=asc' : null,
+    apiGet
+  );
+
+  const franchiseOptions = useMemo(() => {
+    return (franchisesResp as any)?.data?.map((f: any) => ({ value: String(f.id), label: f.name })) || [];
+  }, [franchisesResp]);
 
   if (error) {
     toast.error((error as Error).message || 'Failed to load Sales');
@@ -193,6 +212,20 @@ export default function SalesPage() {
             onChange={(e) => setSearchDraft(e.target.value)}
             containerClassName='w-full'
           />
+          {can(PERMISSIONS.READ_FRANCHISES) && (
+            <AppSelect
+              value={franchiseIdDraft || '__all'}
+              onValueChange={(value) => setFranchiseIdDraft(value === '__all' ? '' : value)}
+              placeholder='All Franchises'
+            >
+              <AppSelect.Item value='__all'>All Franchises</AppSelect.Item>
+              {franchiseOptions.map((option) => (
+                <AppSelect.Item key={option.value} value={option.value}>
+                  {option.label}
+                </AppSelect.Item>
+              ))}
+            </AppSelect>
+          )}
           <NonFormTextInput
             type='date'
             aria-label='Start date'
@@ -217,7 +250,7 @@ export default function SalesPage() {
           >
             Filter
           </AppButton>
-          {(search || startDate || endDate) && (
+          {(search || startDate || endDate || franchiseId) && (
             <AppButton
               variant='secondary'
               size='sm'
