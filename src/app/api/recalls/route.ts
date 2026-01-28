@@ -37,10 +37,10 @@ export async function GET(req: NextRequest) {
   const where: any = {};
   if (search) {
     where.OR = [
-      { franchise: { name: { contains: search, mode: 'insensitive' } } },
-      { medicine: { name: { contains: search, mode: 'insensitive' } } },
-      { batchNumber: { contains: search, mode: 'insensitive' } },
-      { stockTransaction: { txnNo: { contains: search, mode: 'insensitive' } } },
+      { franchise: { name: { contains: search } } },
+      { medicine: { name: { contains: search } } },
+      { batchNumber: { contains: search } },
+      { stockTransaction: { txnNo: { contains: search } } },
     ];
   }
 

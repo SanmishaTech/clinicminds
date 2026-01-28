@@ -80,7 +80,6 @@ export async function POST(req: NextRequest) {
     
     const data = createSaleSchema.parse(body) as CreateSaleInput;
     
-    // Start a transaction
     const result = await prisma.$transaction(async (tx: any) => {
       const detailsData = data.saleDetails.map((detail) => {
         const quantity = Number(detail.quantity) || 0;
@@ -94,6 +93,29 @@ export async function POST(req: NextRequest) {
           amount: quantity * rate,
         };
       });
+
+      const requiredByMedicineId = new Map<number, number>();
+      for (const d of detailsData) {
+        requiredByMedicineId.set(d.medicineId, (requiredByMedicineId.get(d.medicineId) ?? 0) + (Number(d.quantity) || 0));
+      }
+
+      const medicineIds = Array.from(requiredByMedicineId.keys());
+      const adminBalances = await (tx as any).adminStockBalance.findMany({
+        where: { medicineId: { in: medicineIds } },
+        select: { medicineId: true, quantity: true },
+      });
+
+      const adminQtyByMedicineId = new Map<number, number>();
+      for (const b of adminBalances) {
+        adminQtyByMedicineId.set(Number(b.medicineId), Number(b.quantity) || 0);
+      }
+
+      for (const [medicineId, required] of requiredByMedicineId.entries()) {
+        const available = adminQtyByMedicineId.get(medicineId) ?? 0;
+        if (available < required) {
+          return { error: 'INSUFFICIENT_ADMIN_STOCK', medicineId, available, required } as const;
+        }
+      }
 
       const subtotal = detailsData.reduce((sum, d) => sum + (Number(d.amount) || 0), 0);
       const discountPercent = Math.min(100, Math.max(0, Number(data.discountPercent) || 0));
@@ -135,7 +157,15 @@ export async function POST(req: NextRequest) {
       return { sale, saleDetails };
     });
 
-    return Success(result.sale, 201);
+    if ((result as any)?.error === 'INSUFFICIENT_ADMIN_STOCK') {
+      const r = result as any;
+      return Error(
+        `Insufficient admin stock for medicine ${r.medicineId} (available ${r.available}, required ${r.required})`,
+        409
+      );
+    }
+
+    return Success((result as any).sale, 201);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);

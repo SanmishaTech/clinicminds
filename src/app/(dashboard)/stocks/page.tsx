@@ -1,19 +1,22 @@
 'use client';
 
 import useSWR from 'swr';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { apiGet, apiPost } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { Pagination } from '@/components/common/pagination';
 import { NonFormTextInput } from '@/components/common/non-form-text-input';
 import { FilterBar } from '@/components/common';
 import { AppCard } from '@/components/common/app-card';
+import { AppButton } from '@/components/common/app-button';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { ConfirmDialog } from '@/components/common/confirm-dialog';
 import { IconButton } from '@/components/common/icon-button';
 import { usePermissions } from '@/hooks/use-permissions';
-import { PERMISSIONS } from '@/config/roles';
+import { PERMISSIONS, ROLES } from '@/config/roles';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AdminStockRefillDialog } from '@/app/(dashboard)/stocks/components/admin-stock-refill-dialog';
 
 type StockRow = {
   franchiseId: number;
@@ -34,7 +37,28 @@ type StocksRowsResponse = {
   totalPages: number;
 };
 
+type AdminStockRow = {
+  medicineId: number;
+  medicineName: string;
+  brandName: string | null;
+  rate: string;
+  stock: number;
+};
+
+type AdminStocksRowsResponse = {
+  data: AdminStockRow[];
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+};
+
 export default function StocksPage() {
+  const { can, role } = usePermissions();
+  const [refillOpen, setRefillOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'admin' | 'franchise'>(
+    role === ROLES.ADMIN ? 'admin' : 'franchise'
+  );
   const [qp, setQp] = useQueryParamsState({
     page: 1,
     perPage: 10,
@@ -70,10 +94,28 @@ export default function StocksPage() {
   }, [page, perPage, search, sort, order]);
 
   const { data, error, isLoading, mutate } = useSWR<StocksRowsResponse>(query, apiGet);
-  const { can } = usePermissions();
+
+  const adminQuery = useMemo(() => {
+    const sp = new URLSearchParams();
+    sp.set('page', String(page));
+    sp.set('perPage', String(perPage));
+    if (search) sp.set('search', search);
+    if (sort) sp.set('sort', sort);
+    if (order) sp.set('order', order);
+    return `/api/admin-stocks/rows?${sp.toString()}`;
+  }, [page, perPage, search, sort, order]);
+
+  const { data: adminData, error: adminError, isLoading: adminLoading, mutate: mutateAdmin } = useSWR<AdminStocksRowsResponse>(
+    adminQuery,
+    apiGet
+  );
 
   if (error) {
     toast.error((error as Error).message || 'Failed to load Stocks');
+  }
+
+  if (adminError) {
+    toast.error((adminError as Error).message || 'Failed to load Admin Stocks');
   }
 
   const columns: Column<StockRow>[] = [
@@ -92,6 +134,13 @@ export default function StocksPage() {
         return d.toISOString().split('T')[0];
       },
     },
+    { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
+    { key: 'stock', header: 'Stock', sortable: true, className: 'whitespace-nowrap' },
+  ];
+
+  const adminColumns: Column<AdminStockRow>[] = [
+    { key: 'medicineName', header: 'Medicine', sortable: true, cellClassName: 'font-medium whitespace-nowrap' },
+    { key: 'brandName', header: 'Brand', sortable: true, cellClassName: 'whitespace-nowrap' },
     { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
     { key: 'stock', header: 'Stock', sortable: true, className: 'whitespace-nowrap' },
   ];
@@ -118,72 +167,122 @@ export default function StocksPage() {
     <AppCard>
       <AppCard.Header>
         <AppCard.Title>Stocks</AppCard.Title>
-        <AppCard.Description>Franchise medicine stock</AppCard.Description>
+        <AppCard.Description>Admin stock and franchise medicine stock</AppCard.Description>
       </AppCard.Header>
       <AppCard.Content>
         <FilterBar title='Search & Filter'>
           <NonFormTextInput
             aria-label='Search stocks'
-            placeholder='Search franchise or medicine…'
+            placeholder={activeTab === 'admin' ? 'Search medicine or brand…' : 'Search franchise, medicine, or batch…'}
             value={search}
             onChange={(e) => setQp({ page: 1, search: e.target.value })}
             containerClassName='w-full'
           />
         </FilterBar>
-        <DataTable
-          columns={columns}
-          data={data?.data || []}
-          loading={isLoading}
-          sort={sortState}
-          onSortChange={(s) => toggleSort(s.field)}
-          getRowClassName={(row) => {
-            if (!row.expiryDate) return '';
-            const expiry = new Date(row.expiryDate);
-            if (Number.isNaN(expiry.getTime())) return '';
-            const now = new Date();
-            const in45Days = new Date(now);
-            in45Days.setDate(in45Days.getDate() + 45);
-            if (expiry <= in45Days) {
-              return 'bg-red-50 text-red-900';
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => {
+            const next = (v === 'admin' ? 'admin' : 'franchise') as 'admin' | 'franchise';
+            setActiveTab(next);
+            if (next === 'admin') {
+              setQp({ page: 1, search: '', sort: 'medicineName', order: 'asc' });
+            } else {
+              setQp({ page: 1, search: '', sort: 'franchiseName', order: 'asc' });
             }
-            return '';
           }}
-          stickyColumns={1}
-          renderRowActions={(row) => {
-            if (!can(PERMISSIONS.CREATE_STOCKS)) return null;
-            if (!row.stock || row.stock <= 0) return null;
+        >
+          <div className='flex items-center justify-between gap-2'>
+            <TabsList>
+              {role === ROLES.ADMIN && <TabsTrigger value='admin'>Admin</TabsTrigger>}
+              <TabsTrigger value='franchise'>Franchise</TabsTrigger>
+            </TabsList>
 
-            if (!row.expiryDate) return null;
-            const expiry = new Date(row.expiryDate);
-            if (Number.isNaN(expiry.getTime())) return null;
-            const now = new Date();
-            const in45Days = new Date(now);
-            in45Days.setDate(in45Days.getDate() + 45);
-            if (expiry > in45Days) return null;
+            {role === ROLES.ADMIN && activeTab === 'admin' && can(PERMISSIONS.CREATE_STOCKS) && (
+              <AppButton type='button' iconName='Plus' onClick={() => setRefillOpen(true)}>
+                Add / Refill
+              </AppButton>
+            )}
+          </div>
 
-            return (
-              <ConfirmDialog
-                trigger={<IconButton iconName='Undo2' tooltip='Recall Stock' />}
-                title='Recall stock?'
-                description={`This will deduct ${row.stock} from ${row.franchiseName} for ${row.medicineName} (Batch ${row.batchNumber}).`}
-                confirmText='Recall'
-                onConfirm={() => handleRecall(row)}
+          {role === ROLES.ADMIN && (
+            <TabsContent value='admin'>
+              <DataTable
+                columns={adminColumns}
+                data={adminData?.data || []}
+                loading={adminLoading}
+                sort={sortState}
+                onSortChange={(s) => toggleSort(s.field)}
+                stickyColumns={1}
               />
-            );
-          }}
-        />
+
+              <AdminStockRefillDialog
+                open={refillOpen}
+                onOpenChange={setRefillOpen}
+                onSuccess={async () => {
+                  await mutateAdmin();
+                }}
+              />
+            </TabsContent>
+          )}
+
+          <TabsContent value='franchise'>
+            <DataTable
+              columns={columns}
+              data={data?.data || []}
+              loading={isLoading}
+              sort={sortState}
+              onSortChange={(s) => toggleSort(s.field)}
+              getRowClassName={(row) => {
+                if (!row.expiryDate) return '';
+                const expiry = new Date(row.expiryDate);
+                if (Number.isNaN(expiry.getTime())) return '';
+                const now = new Date();
+                const in45Days = new Date(now);
+                in45Days.setDate(in45Days.getDate() + 45);
+                if (expiry <= in45Days) {
+                  return 'bg-red-50 text-red-900';
+                }
+                return '';
+              }}
+              stickyColumns={1}
+              renderRowActions={(row) => {
+                if (!can(PERMISSIONS.CREATE_STOCKS)) return null;
+                if (!row.stock || row.stock <= 0) return null;
+
+                if (!row.expiryDate) return null;
+                const expiry = new Date(row.expiryDate);
+                if (Number.isNaN(expiry.getTime())) return null;
+                const now = new Date();
+                const in45Days = new Date(now);
+                in45Days.setDate(in45Days.getDate() + 45);
+                if (expiry > in45Days) return null;
+
+                return (
+                  <ConfirmDialog
+                    trigger={<IconButton iconName='Undo2' tooltip='Recall Stock' />}
+                    title='Recall stock?'
+                    description={`This will deduct ${row.stock} from ${row.franchiseName} for ${row.medicineName} (Batch ${row.batchNumber}).`}
+                    confirmText='Recall'
+                    onConfirm={() => handleRecall(row)}
+                  />
+                );
+              }}
+            />
+          </TabsContent>
+        </Tabs>
       </AppCard.Content>
       <AppCard.Footer className='justify-end'>
         <Pagination
-          page={data?.page || page}
-          totalPages={data?.totalPages || 1}
-          total={data?.total}
+          page={activeTab === 'admin' ? adminData?.page || page : data?.page || page}
+          totalPages={activeTab === 'admin' ? adminData?.totalPages || 1 : data?.totalPages || 1}
+          total={activeTab === 'admin' ? adminData?.total : data?.total}
           perPage={perPage}
           onPerPageChange={(val) => setQp({ page: 1, perPage: val })}
           onPageChange={(p) => setQp({ page: p })}
           showPageNumbers
           maxButtons={5}
-          disabled={isLoading}
+          disabled={isLoading || adminLoading}
         />
       </AppCard.Footer>
     </AppCard>

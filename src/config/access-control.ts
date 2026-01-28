@@ -157,6 +157,18 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
     },
   },
   {
+    prefix: "/api/admin-stocks/rows",
+    methods: {
+      GET: [PERMISSIONS.READ_STOCKS],
+    },
+  },
+  {
+    prefix: "/api/admin-stocks/refill",
+    methods: {
+      POST: [PERMISSIONS.CREATE_STOCKS],
+    },
+  },
+  {
     prefix: "/api/stocks",
     methods: {
       GET: [PERMISSIONS.READ_STOCKS],

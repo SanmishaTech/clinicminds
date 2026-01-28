@@ -188,6 +188,7 @@ model Medicine{
   stockLedgerEntries StockLedger[]
   stockBalances StockBalance[]
   stockBatchBalances StockBatchBalance[]
+  adminStockBalance AdminStockBalance?
   stockRecalls StockRecall[] @relation("StockRecallMedicine")
   medicineBillDetails MedicineBillDetail[]
 
@@ -617,6 +618,18 @@ model StockBalance {
   @@index([franchiseId])
   @@index([medicineId])
   @@map("stock_balances")
+}
+
+model AdminStockBalance {
+  id        Int      @id @default(autoincrement())
+  medicineId Int     @unique
+  medicine  Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  quantity  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([medicineId])
+  @@map("admin_stock_balances")
 }
 
 model StockRecall {

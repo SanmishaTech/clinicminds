@@ -80,6 +80,34 @@ export async function PATCH(
         throw new globalThis.Error('SALE_DELIVERED');
       }
 
+      if (data.saleDetails && data.saleDetails.length > 0) {
+        const requiredByMedicineId = new Map<number, number>();
+        for (const d of data.saleDetails) {
+          requiredByMedicineId.set(
+            d.medicineId!,
+            (requiredByMedicineId.get(d.medicineId!) ?? 0) + (Number(d.quantity ?? 0) || 0)
+          );
+        }
+
+        const medicineIds = Array.from(requiredByMedicineId.keys());
+        const adminBalances = await (tx as any).adminStockBalance.findMany({
+          where: { medicineId: { in: medicineIds } },
+          select: { medicineId: true, quantity: true },
+        });
+
+        const adminQtyByMedicineId = new Map<number, number>();
+        for (const b of adminBalances) {
+          adminQtyByMedicineId.set(Number(b.medicineId), Number(b.quantity) || 0);
+        }
+
+        for (const [medicineId, required] of requiredByMedicineId.entries()) {
+          const available = adminQtyByMedicineId.get(medicineId) ?? 0;
+          if (available < required) {
+            return { error: 'INSUFFICIENT_ADMIN_STOCK', medicineId, available, required } as const;
+          }
+        }
+      }
+
       const existingSaleForTotals = await tx.sale.findUnique({
         where: { id: idNum },
         select: { discountPercent: true },
@@ -180,11 +208,21 @@ export async function PATCH(
         }
       });
     });
+
+    if ((result as any)?.error === 'INSUFFICIENT_ADMIN_STOCK') {
+      const r = result as any;
+      return Error(
+        `Insufficient admin stock for medicine ${r.medicineId} (available ${r.available}, required ${r.required})`,
+        409
+      );
+    }
+
     return Success(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);
     }
+
     const err = error as { message?: string };
     if (err?.message === 'SALE_DELIVERED') {
       return Error('Sale cannot be updated after it is delivered', 409);

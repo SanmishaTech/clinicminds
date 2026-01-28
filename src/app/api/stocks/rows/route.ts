@@ -72,9 +72,9 @@ export async function GET(req: NextRequest) {
 
     if (search) {
       whereBalance.OR = [
-        { franchise: { name: { contains: search, mode: "insensitive" } } },
-        { medicine: { name: { contains: search, mode: "insensitive" } } },
-        { batchNumber: { contains: search, mode: "insensitive" } },
+        { franchise: { name: { contains: search } } },
+        { medicine: { name: { contains: search } } },
+        { batchNumber: { contains: search } },
       ];
       if (searchIsNumber) {
         whereBalance.OR.push({ franchiseId: searchNumber });

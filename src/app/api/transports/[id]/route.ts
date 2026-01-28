@@ -142,6 +142,31 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
             select: { id: true },
           });
 
+          const adminQtyByMedicineId = new Map<number, number>();
+          for (const d of sale.saleDetails || []) {
+            adminQtyByMedicineId.set(d.medicineId, (adminQtyByMedicineId.get(d.medicineId) ?? 0) + d.quantity);
+          }
+
+          for (const [medicineId, qty] of adminQtyByMedicineId.entries()) {
+            const adminBal = await (tx as any).adminStockBalance.findUnique({
+              where: { medicineId },
+              select: { quantity: true },
+            });
+            const available = Number(adminBal?.quantity ?? 0);
+            if (available < qty) {
+              return { error: 'INSUFFICIENT_ADMIN_STOCK', medicineId, available, required: qty } as const;
+            }
+          }
+
+          for (const [medicineId, qty] of adminQtyByMedicineId.entries()) {
+            await (tx as any).adminStockBalance.upsert({
+              where: { medicineId },
+              create: { medicineId, quantity: -qty },
+              update: { quantity: { decrement: qty } },
+              select: { id: true },
+            });
+          }
+
           const stockTxn = existingStockTxn
             ? await tx.stockTransaction.update({
                 where: { id: existingStockTxn.id },
@@ -305,6 +330,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       if ((res as any).error === 'NOT_FOUND') return ApiError('Transport not found', 404);
       if ((res as any).error === 'FORBIDDEN') return ApiError('Forbidden', 403);
       if ((res as any).error === 'NOT_DISPATCHED') return ApiError('Transport must be DISPATCHED before DELIVERED', 409);
+      if ((res as any).error === 'INSUFFICIENT_ADMIN_STOCK') return ApiError('Insufficient admin stock to post delivery', 409);
       if ((res as any).error === 'SALE_NOT_FOUND') return ApiError('Sale not found', 404);
 
       return Success((res as any).transport);

@@ -1,0 +1,85 @@
+# ClinicMinds Windsurf Rules
+
+## Map (Where things live)
+
+### App Routes (UI Pages)
+- UI route groups live in:
+  - `/src/app/(auth)/` (login/auth screens)
+  - `/src/app/(dashboard)/` (all dashboard pages: patients, medicines, sales, medicine-bills, etc.)
+- Global app shell:
+  - [/src/app/layout.tsx](cci:7://file:///d:/dir/clinicminds/src/app/layout.tsx:0:0-0:0)
+  - [/src/app/globals.css](cci:7://file:///d:/dir/clinicminds/src/app/globals.css:0:0-0:0)
+
+### API (Server Routes)
+- All Next.js API endpoints live in:
+  - `/src/app/api/**/route.ts`
+  - Examples: [/src/app/api/medicine-bills/route.ts](cci:7://file:///d:/dir/clinicminds/src/app/api/medicine-bills/route.ts:0:0-0:0), `/src/app/api/auth/**`
+
+### UI Components
+- Shared components live in:
+  - [/src/components/common/](cci:9://file:///d:/dir/clinicminds/src/components/common:0:0-0:0) (app-specific shared widgets: tables, pagination, inputs, cards, etc.)
+  - [/src/components/ui/](cci:9://file:///d:/dir/clinicminds/src/components/ui:0:0-0:0) (design-system style components)
+  - [/src/components/layout/](cci:9://file:///d:/dir/clinicminds/src/components/layout:0:0-0:0) (layout building blocks)
+  - [/src/components/theme/](cci:9://file:///d:/dir/clinicminds/src/components/theme:0:0-0:0) (theme related)
+
+### State / Hooks / Client Logic
+- Client hooks live in:
+  - [/src/hooks/](cci:9://file:///d:/dir/clinicminds/src/hooks:0:0-0:0) (permissions, current user, page protection, query params state, scroll restoration)
+
+### Core Server/Shared Logic
+- Shared utilities + server helpers live in:
+  - [/src/lib/](cci:9://file:///d:/dir/clinicminds/src/lib:0:0-0:0) (API client/response helpers, auth guard, prisma, pagination, locales, upload, utils)
+- Prisma/db:
+  - [/prisma/schema.prisma](cci:7://file:///d:/dir/clinicminds/prisma/schema.prisma:0:0-0:0) (data models)
+  - [/src/lib/prisma.ts](cci:7://file:///d:/dir/clinicminds/src/lib/prisma.ts:0:0-0:0) (Prisma client)
+  - [/src/lib/prisma-middleware.ts](cci:7://file:///d:/dir/clinicminds/src/lib/prisma-middleware.ts:0:0-0:0) (middleware like auto-number generation)
+
+### Access Control / Permissions / Nav
+- Permissions + access policy live in:
+  - [/src/config/roles.ts](cci:7://file:///d:/dir/clinicminds/src/config/roles.ts:0:0-0:0) (permission constants)
+  - [/src/config/access-control.ts](cci:7://file:///d:/dir/clinicminds/src/config/access-control.ts:0:0-0:0) (API prefix -> required permissions mapping)
+  - [/src/config/nav.ts](cci:7://file:///d:/dir/clinicminds/src/config/nav.ts:0:0-0:0) (sidebar nav tree)
+
+### Middleware
+- Request middleware lives in:
+  - [/src/middleware.ts](cci:7://file:///d:/dir/clinicminds/src/middleware.ts:0:0-0:0)
+
+## Rules (Search shortcuts to reduce time)
+
+- When asked about **Auth / Login / Current User**:
+  - Check [/src/app/api/auth/](cci:9://file:///d:/dir/clinicminds/src/app/api/auth:0:0-0:0) first
+  - Then [/src/lib/access-guard.ts](cci:7://file:///d:/dir/clinicminds/src/lib/access-guard.ts:0:0-0:0), [/src/lib/jwt.ts](cci:7://file:///d:/dir/clinicminds/src/lib/jwt.ts:0:0-0:0)
+  - UI: `/src/app/(auth)/login/`
+  - Client user: [/src/hooks/use-current-user.ts](cci:7://file:///d:/dir/clinicminds/src/hooks/use-current-user.ts:0:0-0:0)
+
+- When asked about **Permissions / Role access / API authorization**:
+  - Check [/src/config/roles.ts](cci:7://file:///d:/dir/clinicminds/src/config/roles.ts:0:0-0:0)
+  - Then [/src/config/access-control.ts](cci:7://file:///d:/dir/clinicminds/src/config/access-control.ts:0:0-0:0)
+  - Then [/src/hooks/use-permissions.ts](cci:7://file:///d:/dir/clinicminds/src/hooks/use-permissions.ts:0:0-0:0) and [/src/hooks/use-page-access.ts](cci:7://file:///d:/dir/clinicminds/src/hooks/use-page-access.ts:0:0-0:0)
+
+- When asked about **Any API endpoint**:
+  - Look in `/src/app/api/<feature>/route.ts` first
+  - If it’s per-record, also check `/src/app/api/<feature>/[id]/route.ts`
+
+- When asked about **UI for a feature (e.g. medicine-bills, patients, sales)**:
+  - Check `/src/app/(dashboard)/<feature>/page.tsx` first
+  - Then related forms/components in that same folder
+  - Then shared UI in [/src/components/common/](cci:9://file:///d:/dir/clinicminds/src/components/common:0:0-0:0)
+
+- When asked about **Database tables / fields / relations**:
+  - Check [/prisma/schema.prisma](cci:7://file:///d:/dir/clinicminds/prisma/schema.prisma:0:0-0:0) first
+
+- When asked about **Medicine Bills**:
+  - UI: `/src/app/(dashboard)/medicine-bills/`
+  - API: [/src/app/api/medicine-bills/](cci:9://file:///d:/dir/clinicminds/src/app/api/medicine-bills:0:0-0:0)
+  - DB: `MedicineBill`, `MedicineBillDetail` in [/prisma/schema.prisma](cci:7://file:///d:/dir/clinicminds/prisma/schema.prisma:0:0-0:0)
+  - Stock side-effects: check `StockTransaction`, `StockLedger` usage in the API route
+
+- When asked about **Stocks / Ledger / Batch balances**:
+  - API: [/src/app/api/stocks/](cci:9://file:///d:/dir/clinicminds/src/app/api/stocks:0:0-0:0), [/src/app/api/recalls/](cci:9://file:///d:/dir/clinicminds/src/app/api/recalls:0:0-0:0)
+  - DB: `StockTransaction`, `StockLedger`, `StockBalance`, `StockBatchBalance` in [/prisma/schema.prisma](cci:7://file:///d:/dir/clinicminds/prisma/schema.prisma:0:0-0:0)
+
+- When asked about **Navigation / Sidebar items**:
+  - Check [/src/config/nav.ts](cci:7://file:///d:/dir/clinicminds/src/config/nav.ts:0:0-0:0)
+
+- Prefer **targeted file reads** in the folders above rather than repo-wide search.
