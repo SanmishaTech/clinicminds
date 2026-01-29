@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
 
   if (!userEmail || !password) return Error("Email & password required", 400);
   if (!userMobile) return Error("Mobile is required", 400);
+  if (!/^[0-9]{6}$/.test(String(pincode))) return Error("Pincode must be 6 digits", 400);
   if (!/^[0-9]{10}$/.test(String(contactNo))) return Error("Contact No must be 10 digits", 400);
   if (!/^[0-9]{10}$/.test(String(userMobile))) return Error("Mobile must be 10 digits", 400);
   if (password.length < 6) return Error("Password must be at least 6 characters", 400);
@@ -292,7 +293,10 @@ export async function PATCH(req: NextRequest) {
   if (typeof addressLine2 === "string" || addressLine2 === null) franchiseData.addressLine2 = addressLine2 || null;
   if (typeof city === "string" && city) franchiseData.city = city;
   if (typeof state === "string" && state) franchiseData.state = state;
-  if (typeof pincode === "string" && pincode) franchiseData.pincode = pincode;
+  if (typeof pincode === "string" && pincode) {
+    if (!/^[0-9]{6}$/.test(pincode)) return Error("Pincode must be 6 digits", 400);
+    franchiseData.pincode = pincode;
+  }
   if (typeof contactNo === "string" && contactNo) {
     if (!/^[0-9]{10}$/.test(contactNo)) return Error("Contact No must be 10 digits", 400);
     franchiseData.contactNo = contactNo;

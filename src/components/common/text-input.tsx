@@ -16,6 +16,7 @@ export interface TextInputProps {
 	max?: number;
 	maxLength?: number;
 	type?: string;
+	inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
 	description?: string;
 	placeholder?: string;
 	disabled?: boolean;
@@ -42,6 +43,7 @@ export function TextInput({
 	max,
 	maxLength,
 	type = 'text',
+	inputMode,
 	description,
 	placeholder,
 	disabled,
@@ -89,6 +91,7 @@ export function TextInput({
 						<FormControl>
 							<Input
 								type={type}
+								inputMode={inputMode}
 								placeholder={placeholder}
 								autoComplete={autoComplete}
 								disabled={disabled}

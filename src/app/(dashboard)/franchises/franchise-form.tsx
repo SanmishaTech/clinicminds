@@ -71,7 +71,7 @@ export function FranchiseForm({
     addressLine2: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     stateId: z.string().min(1, 'State is required'),
     cityId: z.string().min(1, 'City is required'),
-    pincode: z.string().min(1, 'Pincode is required'),
+    pincode: z.string().regex(/^[0-9]{6}$/, 'Pincode must be 6 digits'),
     contactNo: z.string().regex(/^[0-9]{10}$/, 'Contact No must be 10 digits'),
     contactEmail: z.string().email('Invalid contact email'),
     franchiseFeeAmount: z
@@ -300,7 +300,25 @@ export function FranchiseForm({
                 />
               </FormRow>
               <FormRow>
-                <TextInput control={control} name='pincode' label='Pincode' required placeholder='Pincode' />
+                <TextInput
+                  control={control}
+                  name='pincode'
+                  label='Pincode'
+                  required
+                  placeholder='Pincode'
+                  type='tel'
+                  inputMode='numeric'
+                  maxLength={6}
+                  pattern='[0-9]{6}'
+                  onInput={(e) => {
+                    const input = e.currentTarget;
+                    const onlyDigits = (input.value || '').replace(/\D+/g, '').slice(0, 6);
+                    if (onlyDigits !== input.value) {
+                      input.value = onlyDigits;
+                    }
+                    form.setValue('pincode', onlyDigits, { shouldDirty: true, shouldValidate: true });
+                  }}
+                />
               </FormRow>
               <FormRow cols={2}>
                 <TextInput
