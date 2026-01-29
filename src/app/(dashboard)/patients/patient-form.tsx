@@ -594,7 +594,11 @@ export function PatientForm({
                   searchPlaceholder='Search cities...'
                   emptyText={stateIdValue ? 'No city found.' : 'Select a state first.'}
                 />
-                <TextInput control={control} maxLength={6} name='pincode' label='Pincode' placeholder='Pincode' />
+                <TextInput control={control} maxLength={6} name='pincode' label='Pincode' placeholder='Pincode'
+                 onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
+                 />
               </FormRow>
             </FormSection>
 
@@ -644,6 +648,9 @@ export function PatientForm({
                   placeholder='12-digit Aadhar'
                   maxLength={12}
                   pattern='[0-9]{12}'
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
                 />
               </FormRow>
             </FormSection>
@@ -662,6 +669,9 @@ export function PatientForm({
                   type='tel'
                   maxLength={10}
                   pattern='[0-9]{10}'
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
                 />
                 <EmailInput
                   control={control}
