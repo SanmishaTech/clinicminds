@@ -190,8 +190,17 @@ export function PatientForm({
     stateId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     cityId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
 
-    pincode: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-
+    pincode: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine(
+        (v) => {
+          if (!v) return true;
+          return /^[0-9]{6}$/.test(v);
+        },
+        'Pincode must be exactly 6 digits'
+      ),
     mobile: z
       .string()
       .min(1, 'Mobile is required')
@@ -585,7 +594,7 @@ export function PatientForm({
                   searchPlaceholder='Search cities...'
                   emptyText={stateIdValue ? 'No city found.' : 'Select a state first.'}
                 />
-                <TextInput control={control} name='pincode' label='Pincode' placeholder='Pincode' />
+                <TextInput control={control} maxLength={6} name='pincode' label='Pincode' placeholder='Pincode' />
               </FormRow>
             </FormSection>
 
@@ -600,6 +609,9 @@ export function PatientForm({
                   type='tel'
                   maxLength={10}
                   pattern='[0-9]{10}'
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
                 />
                 <TextInput
                   control={control}
@@ -609,6 +621,9 @@ export function PatientForm({
                   type='tel'
                   maxLength={10}
                   pattern='[0-9]{10}'
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
                 />
                 <EmailInput control={control} name='email' label='Email' placeholder='email@example.com' />
               </FormRow>
