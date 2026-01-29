@@ -174,6 +174,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FileText,
     children:[
       {
+        title:"Sales Report",
+        icon: Receipt,
+        href:"/reports/sales",
+        permission: PERMISSIONS.VIEW_SALES,
+      },
+      {
         title:"Closing Stock",
         icon: Archive,
         href:"/reports/closing-stock",
