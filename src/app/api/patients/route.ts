@@ -469,6 +469,7 @@ export async function PATCH(req: NextRequest) {
 
   const {
     id,
+    isReferredToHo,
     teamId,
     firstName,
     middleName,
@@ -507,6 +508,7 @@ export async function PATCH(req: NextRequest) {
   } =
     (body as Partial<{
       id: number | string;
+      isReferredToHo?: boolean;
       teamId?: number | string | null;
       firstName?: string;
       middleName?: string;
@@ -544,6 +546,7 @@ export async function PATCH(req: NextRequest) {
       patientReports?: Array<{ name?: string; url?: string }> | null;
     }>) || {} as {
       id?: number | string;
+      isReferredToHo?: boolean;
       teamId?: number | string | null;
       firstName?: string;
       middleName?: string;
@@ -584,6 +587,10 @@ export async function PATCH(req: NextRequest) {
   if (!id) return ApiError("Patient id required", 400);
 
   const data: Record<string, unknown> = {};
+
+  if (isReferredToHo !== undefined) {
+    data.isReferredToHo = Boolean(isReferredToHo);
+  }
 
   if (teamId !== undefined) {
     if (teamId === null || teamId === "") data.teamId = null;
