@@ -66,7 +66,7 @@ function ConsultationButton({ appointmentId }: { appointmentId: number }) {
 
   if (consultationStatus?.exists && consultationStatus.consultationId) {
     return (
-      <Link href={`/consultations/${appointmentId}/${consultationStatus.consultationId}`}>
+      <Link href={`/consultations/${consultationStatus.consultationId}/edit`}>
         <AppButton size='sm' variant='outline' className='mr-2'>
           Edit Consultation
         </AppButton>

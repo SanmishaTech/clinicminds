@@ -32,15 +32,15 @@ type ConsultationApiResponse = {
 };
 
 export default function EditConsultationPage() {
-  const params = useParams<{ appointmentId?: string; consultationId?: string }>();
-  const consultationId = params?.consultationId;
+  const params = useParams<{ id?: string }>();
+  const id = params?.id;
 
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [initial, setInitial] = useState<ConsultationFormInitialData | null>(null);
 
   useEffect(() => {
-    if (!consultationId) {
+    if (!id) {
       setLoading(false);
       return;
     }
@@ -48,7 +48,7 @@ export default function EditConsultationPage() {
     let mounted = true;
     (async () => {
       try {
-        const data = await apiGet<ConsultationApiResponse>(`/api/consultations/${consultationId}`);
+        const data = await apiGet<ConsultationApiResponse>(`/api/consultations/${id}`);
         if (!mounted) return;
 
         setInitial({
@@ -86,9 +86,9 @@ export default function EditConsultationPage() {
     return () => {
       mounted = false;
     };
-  }, [consultationId, router]);
+  }, [id, router]);
 
-  if (!consultationId) {
+  if (!id) {
     return <div className='p-6'>Invalid consultation</div>;
   }
 
@@ -100,7 +100,7 @@ export default function EditConsultationPage() {
     <ConsultationForm 
       mode='edit' 
       initial={initial} 
-      redirectOnSuccess='/appointments' 
+      redirectOnSuccess='/day-book' 
     />
   );
 }

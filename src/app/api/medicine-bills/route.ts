@@ -262,7 +262,7 @@ export async function POST(req: NextRequest) {
 
         const totalAvailable = availableBatches.reduce((sum, batch) => sum + batch.quantity, 0);
         if (totalAvailable < item.qty) {
-          const medicineDisplayName = medicine.brand?.name ? `${medicine.name} - ${medicine.brand.name}` : medicine.name;
+          const medicineDisplayName = `${medicine.name} - ${medicine.brand?.name || 'Unknown Brand'}`;
           throwHttp(
             `Insufficient stock for ${medicineDisplayName}. Available: ${totalAvailable}, Requested: ${item.qty}`,
             409
