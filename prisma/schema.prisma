@@ -193,6 +193,7 @@ model Medicine{
   stockBalances StockBalance[]
   stockBatchBalances StockBatchBalance[]
   adminStockBalance AdminStockBalance?
+  adminStockBatchBalances AdminStockBatchBalance[]
   stockRecalls StockRecall[] @relation("StockRecallMedicine")
   medicineBillDetails MedicineBillDetail[]
 
@@ -673,6 +674,22 @@ model AdminStockBalance {
 
   @@index([medicineId])
   @@map("admin_stock_balances")
+}
+
+model AdminStockBatchBalance {
+  id          Int      @id @default(autoincrement())
+  medicineId  Int
+  medicine    Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  batchNumber String
+  expiryDate  DateTime
+  quantity    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([medicineId, batchNumber, expiryDate])
+  @@index([medicineId])
+  @@index([expiryDate])
+  @@map("admin_stock_batch_balances")
 }
 
 model StockRecall {

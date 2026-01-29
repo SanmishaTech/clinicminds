@@ -11,6 +11,8 @@ const refillSchema = z.object({
       z.object({
         medicineId: z.number().int().positive(),
         quantity: z.number().int().positive(),
+        batchNumber: z.string().trim().min(1),
+        expiryDate: z.string().trim().min(1),
       })
     )
     .min(1, 'At least one item is required'),
@@ -34,9 +36,40 @@ export async function POST(req: NextRequest) {
   const parsed = refillSchema.safeParse(body);
   if (!parsed.success) return BadRequest(parsed.error.errors);
 
+  const threshold = new Date();
+  threshold.setDate(threshold.getDate() + 90);
+  for (const item of parsed.data.items) {
+    const expiry = new Date(item.expiryDate);
+    if (Number.isNaN(expiry.getTime())) {
+      return BadRequest('Invalid expiry date');
+    }
+    if (expiry <= threshold) {
+      return ApiError('This batch expiry should be above 90 days', 400);
+    }
+  }
+
   try {
     const result = await prisma.$transaction(async (tx: any) => {
       for (const item of parsed.data.items) {
+        const expiry = new Date(item.expiryDate);
+        await (tx as any).adminStockBatchBalance.upsert({
+          where: {
+            medicineId_batchNumber_expiryDate: {
+              medicineId: item.medicineId,
+              batchNumber: item.batchNumber,
+              expiryDate: expiry,
+            },
+          },
+          create: {
+            medicineId: item.medicineId,
+            batchNumber: item.batchNumber,
+            expiryDate: expiry,
+            quantity: item.quantity,
+          },
+          update: { quantity: { increment: item.quantity } },
+          select: { id: true },
+        });
+
         await (tx as any).adminStockBalance.upsert({
           where: { medicineId: item.medicineId },
           create: { medicineId: item.medicineId, quantity: item.quantity },
