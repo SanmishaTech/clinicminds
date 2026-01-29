@@ -137,18 +137,18 @@ export default function PatientsPage() {
         cellClassName: 'font-medium whitespace-nowrap',
       },
       {
-        key: 'team',
-        header: 'Team',
-        sortable: false,
-        cellClassName: 'whitespace-nowrap',
-        accessor: (r) => r.team?.name || '—',
-      },
-      {
         key: 'firstName',
         header: 'Name',
         sortable: true,
         accessor: (r) => [r.firstName, r.middleName, r.lastName].filter(Boolean).join(' '),
         cellClassName: 'whitespace-nowrap',
+      },
+      {
+        key: 'team',
+        header: 'Team',
+        sortable: false,
+        cellClassName: 'whitespace-nowrap',
+        accessor: (r) => r.team?.name || '-',
       },
       {
         key: 'gender',
@@ -166,13 +166,13 @@ export default function PatientsPage() {
       {
         key: 'state',
         header: 'State',
-        accessor: (r) => r.state?.state || '—',
+        accessor: (r) => r.state?.state || '-',
         cellClassName: 'whitespace-nowrap',
       },
       {
         key: 'city',
         header: 'City',
-        accessor: (r) => r.city?.city || '—',
+        accessor: (r) => r.city?.city || '-',
         cellClassName: 'whitespace-nowrap',
       },
       {
@@ -190,7 +190,7 @@ export default function PatientsPage() {
         key: 'franchise',
         header: 'Franchise',
         sortable: false,
-        accessor: (r) => r.franchise?.name || '—',
+        accessor: (r) => r.franchise?.name || '-',
         cellClassName: 'whitespace-nowrap',
       });
     }

@@ -81,6 +81,7 @@ export async function GET(
         cityId: true,
         pincode: true,
         mobile: true,
+        mobile2: true,
         email: true,
         aadharNo: true,
         occupation: true,
