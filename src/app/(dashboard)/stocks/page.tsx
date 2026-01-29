@@ -41,6 +41,8 @@ type AdminStockRow = {
   medicineId: number;
   medicineName: string;
   brandName: string | null;
+  batchNumber: string;
+  expiryDate: string;
   rate: string;
   stock: number;
 };
@@ -142,6 +144,19 @@ export default function StocksPage() {
   const adminColumns: Column<AdminStockRow>[] = [
     { key: 'medicineName', header: 'Medicine', sortable: true, cellClassName: 'font-medium whitespace-nowrap' },
     { key: 'brandName', header: 'Brand', sortable: true, cellClassName: 'whitespace-nowrap' },
+    { key: 'batchNumber', header: 'Batch No', sortable: true, cellClassName: 'whitespace-nowrap' },
+    {
+      key: 'expiryDate',
+      header: 'Expiry Date',
+      sortable: true,
+      cellClassName: 'whitespace-nowrap',
+      accessor: (row) => {
+        if (!row.expiryDate) return '—';
+        const d = new Date(row.expiryDate);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toISOString().split('T')[0];
+      },
+    },
     { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
     { key: 'stock', header: 'Stock', sortable: true, className: 'whitespace-nowrap' },
   ];

@@ -61,11 +61,32 @@ export async function PATCH(
   try {
     const body = await req.json();
     const data = updateSaleSchema.parse(body) as UpdateSaleInput;
+
+    if (data.saleDetails && data.saleDetails.length > 0) {
+      const now = new Date();
+      const in90Days = new Date(now);
+      in90Days.setDate(in90Days.getDate() + 90);
+
+      for (const detail of data.saleDetails) {
+        if (!detail.expiryDate) {
+          return Error('expiryDate is required', 400);
+        }
+        const expiry = new Date(detail.expiryDate);
+        if (Number.isNaN(expiry.getTime())) {
+          return Error('Invalid expiryDate', 400);
+        }
+        if (expiry <= in90Days) {
+          return Error('Cannot sell stock expiring within 90 days', 400);
+        }
+      }
+    }
+
     // Check if sale exists
     const existingSale = await prisma.sale.findUnique({
       where: { id: idNum },
       select: { id: true }
     });
+
     if (!existingSale) {
       return NotFound('Sale not found');
     }

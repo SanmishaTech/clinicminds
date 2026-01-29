@@ -8,6 +8,8 @@ type AdminStockRow = {
   medicineId: number;
   medicineName: string;
   brandName: string | null;
+  batchNumber: string;
+  expiryDate: string;
   rate: string;
   stock: number;
 };
@@ -36,13 +38,14 @@ export async function GET(req: NextRequest) {
   const order = (searchParams.get('order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
 
   try {
-    const model = (prisma as any).adminStockBalance;
+    const model = (prisma as any).adminStockBatchBalance;
 
     const where: any = {};
     if (search) {
       where.OR = [
         { medicine: { name: { contains: search } } },
         { medicine: { brand: { name: { contains: search } } } },
+        { batchNumber: { contains: search } },
       ];
       const searchNumber = Number(search);
       if (!Number.isNaN(searchNumber)) {
@@ -50,7 +53,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const sortable = new Set(['medicineName', 'brandName', 'rate', 'stock', 'medicineId']);
+    const sortable = new Set(['medicineName', 'brandName', 'batchNumber', 'expiryDate', 'rate', 'stock', 'medicineId']);
     const sortKey = sortable.has(sort) ? sort : 'medicineName';
 
     const orderBy: any = (() => {
@@ -59,6 +62,10 @@ export async function GET(req: NextRequest) {
           return { medicineId: order };
         case 'rate':
           return { medicine: { rate: order } };
+        case 'batchNumber':
+          return { batchNumber: order };
+        case 'expiryDate':
+          return { expiryDate: order };
         case 'stock':
           return { quantity: order };
         case 'brandName':
@@ -80,6 +87,8 @@ export async function GET(req: NextRequest) {
       take: perPage,
       select: {
         medicineId: true,
+        batchNumber: true,
+        expiryDate: true,
         quantity: true,
         medicine: {
           select: {
@@ -95,6 +104,8 @@ export async function GET(req: NextRequest) {
       medicineId: r.medicineId,
       medicineName: r.medicine?.name || `Medicine ${r.medicineId}`,
       brandName: r.medicine?.brand?.name ?? null,
+      batchNumber: String(r.batchNumber ?? ''),
+      expiryDate: r.expiryDate ? new Date(r.expiryDate).toISOString() : '',
       rate: String(r.medicine?.rate ?? 0),
       stock: Number(r.quantity ?? 0),
     }));

@@ -13,6 +13,7 @@ import { FormSection, FormRow } from '@/components/common/app-form';
 import { Form } from '@/components/ui/form';
 import { TextInput } from '@/components/common/text-input';
 import { ComboboxInput } from '@/components/common/combobox-input';
+import { AppCombobox } from '@/components/common/app-combobox';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 import { salesFormSchema, SalesFormValues } from '@/lib/schemas/frontend/sales';
@@ -65,6 +66,12 @@ type Franchise = {
   name: string;
 };
 
+type AdminBatch = {
+  batchNumber: string;
+  expiryDate: string;
+  quantity: number;
+};
+
 interface SalesFormProps {
   mode: 'create' | 'edit';
   saleId?: number;
@@ -77,6 +84,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   const [franchises, setFranchises] = useState<Franchise[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [adminBatchesByIndex, setAdminBatchesByIndex] = useState<Record<number, AdminBatch[]>>({});
 
   const schema = salesFormSchema;
   
@@ -110,6 +118,50 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
 
   const { control, handleSubmit, setValue } = form;
   const isCreate = mode === 'create';
+
+  const toInputDate = (value?: string | Date | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toISOString().split('T')[0];
+  };
+
+  const loadAdminBatchesForMedicine = async (index: number, medicineId: number) => {
+    try {
+      const res = (await apiGet(`/api/admin-stocks/batches?medicineId=${medicineId}`)) as any;
+      const items: AdminBatch[] = Array.isArray(res?.items)
+        ? res.items.map((it: any) => ({
+            batchNumber: String(it.batchNumber ?? ''),
+            expiryDate: String(it.expiryDate ?? ''),
+            quantity: Number(it.quantity ?? 0),
+          }))
+        : [];
+
+      setAdminBatchesByIndex((prev) => ({ ...prev, [index]: items }));
+
+      if (!items.length) {
+        setValue(`saleDetails.${index}.batchNumber`, '');
+        setValue(`saleDetails.${index}.expiryDate`, '');
+        toast.error('No sellable batch available (expiry must be more than 90 days)');
+        return;
+      }
+
+      const first = items[0];
+      setValue(`saleDetails.${index}.batchNumber`, first.batchNumber, { shouldDirty: true });
+      setValue(`saleDetails.${index}.expiryDate`, toInputDate(first.expiryDate), { shouldDirty: true });
+    } catch (error) {
+      setAdminBatchesByIndex((prev) => ({ ...prev, [index]: [] }));
+      setValue(`saleDetails.${index}.batchNumber`, '');
+      setValue(`saleDetails.${index}.expiryDate`, '');
+      toast.error('Failed to load batch details');
+    }
+  };
+
+  const applyExpiryForBatch = (index: number, batchNumber: string) => {
+    const list = adminBatchesByIndex[index] || [];
+    const match = list.find((b) => b.batchNumber === batchNumber);
+    setValue(`saleDetails.${index}.expiryDate`, match ? toInputDate(match.expiryDate) : '', { shouldDirty: true });
+  };
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -329,6 +381,13 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                             const quantity = parseFloat(watchedSaleDetails[index]?.quantity || '1');
                             setValue(`saleDetails.${index}.amount`, (quantity * medicine.rate).toString());
                           }
+                          setValue(`saleDetails.${index}.batchNumber`, '');
+                          setValue(`saleDetails.${index}.expiryDate`, '');
+                          void loadAdminBatchesForMedicine(index, medicineId);
+                        } else {
+                          setValue(`saleDetails.${index}.batchNumber`, '');
+                          setValue(`saleDetails.${index}.expiryDate`, '');
+                          setAdminBatchesByIndex((prev) => ({ ...prev, [index]: [] }));
                         }
                       }}
                     />
@@ -338,12 +397,19 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                       control={control}
                       name={`saleDetails.${index}.batchNumber`}
                       render={({ field }) => (
-                        <Input
-                          {...field}
-                          type="text"
-                          placeholder="Batch"
-                          className="w-full h-10 border"
+                        <AppCombobox
                           value={field.value || ''}
+                          onValueChange={(value) => {
+                            field.onChange(value);
+                            applyExpiryForBatch(index, value);
+                          }}
+                          options={(adminBatchesByIndex[index] || []).map((b) => ({
+                            value: b.batchNumber,
+                            label: b.batchNumber,
+                          }))}
+                          placeholder='Select batch'
+                          disabled={!watchedSaleDetails[index]?.medicineId || (adminBatchesByIndex[index] || []).length === 0}
+                          className='w-full h-10 bg-background'
                         />
                       )}
                     />
@@ -356,8 +422,9 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                         <Input
                           {...field}
                           type="date"
-                          className="w-full h-10 border"
+                          className="w-full h-10 border bg-muted/40"
                           value={field.value || ''}
+                          readOnly
                         />
                       )}
                     />

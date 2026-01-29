@@ -32,9 +32,9 @@ export async function POST(req: NextRequest) {
   if (Number.isNaN(expiry.getTime())) return Error('Invalid expiryDate', 400);
 
   const now = new Date();
-  const in45Days = new Date(now);
-  in45Days.setDate(in45Days.getDate() + 45);
-  if (expiry > in45Days) return Error('Recall is only allowed for expiring stock (within 45 days)', 400);
+  const in120Days = new Date(now);
+  in120Days.setDate(in120Days.getDate() + 120);
+  if (expiry > in120Days) return Error('Recall is only allowed for expiring stock (within 120 days)', 400);
 
   try {
     const result = await prisma.$transaction(async (tx: any) => {

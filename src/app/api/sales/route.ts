@@ -118,6 +118,19 @@ export async function POST(req: NextRequest) {
     
     const data = createSaleSchema.parse(body) as CreateSaleInput;
     
+    const now = new Date();
+    const in90Days = new Date(now);
+    in90Days.setDate(in90Days.getDate() + 90);
+    for (const detail of data.saleDetails) {
+      const expiry = new Date(detail.expiryDate);
+      if (Number.isNaN(expiry.getTime())) {
+        return Error('Invalid expiryDate', 400);
+      }
+      if (expiry <= in90Days) {
+        return Error('Cannot sell stock expiring within 90 days', 400);
+      }
+    }
+    
     const result = await prisma.$transaction(async (tx: any) => {
       const detailsData = data.saleDetails.map((detail) => {
         const quantity = Number(detail.quantity) || 0;
