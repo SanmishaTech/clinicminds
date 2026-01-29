@@ -215,8 +215,8 @@ export async function POST(req: NextRequest) {
     throwHttp('Current user is not associated with any franchise', 400);
   }
       const now = new Date();
-      const in45Days = new Date(now.getTime());
-      in45Days.setDate(in45Days.getDate() + 45);
+      const in90Days = new Date(now.getTime());
+      in90Days.setDate(in90Days.getDate() + 90);
 
       // Validate and process each medicine item
       const processedItems: Array<{
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
         // Get medicine details
         const medicine = await tx.medicine.findUnique({
           where: { id: item.medicineId },
-          select: { id: true, name: true, rate: true, mrp: true },
+          select: { id: true, name: true, rate: true, mrp: true, brand: { select: { name: true } } },
         });
 
         if (!medicine) {
@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
             franchiseId,
             medicineId: item.medicineId,
             quantity: { gt: 0 },
-            expiryDate: { gt: in45Days }, // Only stock expiring after 45 days
+            expiryDate: { gt: in90Days }, // Only stock expiring after 90 days
           },
           orderBy: { expiryDate: 'asc' }, // FIFO/FEFO - earliest expiry first
           select: {
@@ -261,10 +261,10 @@ export async function POST(req: NextRequest) {
         });
 
         const totalAvailable = availableBatches.reduce((sum, batch) => sum + batch.quantity, 0);
-        console.log(totalAvailable, item.qty);
         if (totalAvailable < item.qty) {
+          const medicineDisplayName = medicine.brand?.name ? `${medicine.name} - ${medicine.brand.name}` : medicine.name;
           throwHttp(
-            `Insufficient stock for ${medicine.name}. Available: ${totalAvailable}, Requested: ${item.qty}`,
+            `Insufficient stock for ${medicineDisplayName}. Available: ${totalAvailable}, Requested: ${item.qty}`,
             409
           );
         }
