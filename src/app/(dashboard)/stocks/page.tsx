@@ -96,6 +96,7 @@ export default function StocksPage() {
   const { data, error, isLoading, mutate } = useSWR<StocksRowsResponse>(query, apiGet);
 
   const adminQuery = useMemo(() => {
+    if (role !== ROLES.ADMIN) return null;
     const sp = new URLSearchParams();
     sp.set('page', String(page));
     sp.set('perPage', String(perPage));
@@ -103,7 +104,7 @@ export default function StocksPage() {
     if (sort) sp.set('sort', sort);
     if (order) sp.set('order', order);
     return `/api/admin-stocks/rows?${sp.toString()}`;
-  }, [page, perPage, search, sort, order]);
+  }, [role, page, perPage, search, sort, order]);
 
   const { data: adminData, error: adminError, isLoading: adminLoading, mutate: mutateAdmin } = useSWR<AdminStocksRowsResponse>(
     adminQuery,
@@ -114,7 +115,7 @@ export default function StocksPage() {
     toast.error((error as Error).message || 'Failed to load Stocks');
   }
 
-  if (adminError) {
+  if (role === ROLES.ADMIN && adminError) {
     toast.error((adminError as Error).message || 'Failed to load Admin Stocks');
   }
 
