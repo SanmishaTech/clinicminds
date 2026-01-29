@@ -21,17 +21,15 @@ const paymentModeOptions = [
   { value: 'CASH', label: 'Cash' },
   { value: 'UPI', label: 'UPI' },
   { value: 'CHEQUE', label: 'Cheque' },
-  { value: 'CARD', label: 'Card' },
-  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
 ];
 
 const receiptSchema = z.object({
-  date: z.string().optional(),
-  paymentMode: z.string().optional(),
+  date: z.string(),
+  paymentMode: z.enum(['CASH', 'UPI', 'CHEQUE']),
   payerName: z.string().optional(),
   contactNumber: z.string().optional(),
   utrNumber: z.string().optional(),
-  amount: z.string().optional(),
+  amount: z.string().min(1),
   chequeNumber: z.string().optional(),
   chequeDate: z.string().optional(),
   notes: z.string().optional(),
@@ -85,14 +83,6 @@ export default function ReceiptPage() {
     resolver: zodResolver(receiptSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
-      paymentMode: '',
-      payerName: '',
-      contactNumber: '',
-      utrNumber: '',
-      amount: '',
-      chequeNumber: '',
-      chequeDate: '',
-      notes: '',
     },
   });
 
@@ -154,8 +144,6 @@ export default function ReceiptPage() {
 
       await apiPost('/api/consultation-receipts', receiptData);
       toast.success('Receipt created successfully');
-      
-      // Redirect to day-book on success
       router.push('/day-book');
     } catch (error) {
       toast.error('Failed to create receipt');
@@ -254,7 +242,7 @@ export default function ReceiptPage() {
               </p>
             </div>
           </FormRow>
-          <FormRow cols={3}>
+          <FormRow cols={4}>
             <div>
               <label className="block text-sm font-medium">Total Amount</label>
               <p className="text-sm font-medium">
@@ -273,6 +261,14 @@ export default function ReceiptPage() {
                 {formatIndianCurrency(currentBalance)}
               </p>
             </div>
+            <AppButton
+             type='button'
+             disabled={currentBalance !== 0}
+             iconName='Download'
+             size='sm'
+             >
+              Download Invoice
+            </AppButton>
           </FormRow>
         </AppCard.Content>
       </AppCard>
@@ -291,12 +287,14 @@ export default function ReceiptPage() {
                   name="date"
                   label="Receipt Date"
                   type="date"
+                  required
                 />
                 <ComboboxInput
                   control={control}
                   name="paymentMode"
                   label="Payment Mode"
                   options={paymentModeOptions}
+                  required
                   placeholder="Select payment mode"
                 />
                 <TextInput
@@ -370,6 +368,7 @@ export default function ReceiptPage() {
                   label="Receipt Amount"
                   type="number"
                   step="0.01"
+                  required
                   placeholder="Enter amount"
                 />
                 <TextInput
