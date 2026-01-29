@@ -33,17 +33,18 @@ export default function EditPatientPage() {
           middleName: string;
           lastName: string;
           dateOfBirth: string | null;
-          age: number | null;
+          age: number;
           gender: string;
           bloodGroup: string;
           height: string | null;
           weight: string | null;
           bmi: string | null;
           address: string;
-          stateId: number;
-          cityId: number;
+          stateId: number | null;
+          cityId: number | null;
           pincode: string | null;
           mobile: string;
+          mobile2: string | null;
           email: string | null;
           aadharNo: string;
           occupation: string | null;
@@ -90,6 +91,7 @@ export default function EditPatientPage() {
           cityId: data.cityId,
           pincode: data.pincode,
           mobile: data.mobile,
+          mobile2: data.mobile2,
           email: data.email,
           aadharNo: data.aadharNo,
           occupation: data.occupation,

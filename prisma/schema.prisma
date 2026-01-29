@@ -332,7 +332,7 @@ model Patient {
   middleName                    String?
   lastName                      String
   dateOfBirth                   DateTime?
-  age                           Int?
+  age                           Int
   gender                        String?
   bloodGroup                    String?
   height                        String?
@@ -343,6 +343,7 @@ model Patient {
   cityId                        Int?
   pincode                       String?
   mobile                        String
+  mobile2                       String?
   email                         String?
   aadharNo                      String?
   occupation                    String?

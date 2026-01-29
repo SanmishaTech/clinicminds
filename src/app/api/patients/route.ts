@@ -214,6 +214,7 @@ export async function POST(req: NextRequest) {
     pincode,
     email,
     mobile,
+    mobile2,
     aadharNo,
     occupation,
     maritalStatus,
@@ -239,7 +240,7 @@ export async function POST(req: NextRequest) {
       middleName: string;
       lastName: string;
       dateOfBirth?: string | null;
-      age?: number | string | null;
+      age: number | string;
       gender: string;
       bloodGroup: string;
       height?: string | null;
@@ -251,6 +252,7 @@ export async function POST(req: NextRequest) {
       pincode?: string | null;
       email?: string | null;
       mobile: string;
+      mobile2?: string | null;
       aadharNo: string;
       occupation?: string | null;
       maritalStatus?: string | null;
@@ -274,11 +276,10 @@ export async function POST(req: NextRequest) {
   if (!firstName) return ApiError("First name is required", 400);
   if (!middleName) return ApiError("Middle name is required", 400);
   if (!lastName) return ApiError("Last name is required", 400);
+  if (!age) return ApiError("Age is required", 400);
   if (!gender) return ApiError("Gender is required", 400);
   if (!bloodGroup) return ApiError("Blood group is required", 400);
   if (!address) return ApiError("Address is required", 400);
-  if (!stateId) return ApiError("State is required", 400);
-  if (!cityId) return ApiError("City is required", 400);
   if (!mobile) return ApiError("Mobile is required", 400);
   if (!aadharNo) return ApiError("Aadhar No is required", 400);
 
@@ -303,11 +304,9 @@ export async function POST(req: NextRequest) {
   const parsedDob = dateOfBirth ? new Date(dateOfBirth) : null;
   if (dateOfBirth && Number.isNaN(parsedDob?.getTime() as number)) return ApiError("Invalid date of birth", 400);
 
-  const parsedAge = age === null || age === undefined || age === "" ? null : Number(age);
-  if (parsedAge !== null) {
-    if (Number.isNaN(parsedAge)) return ApiError("Invalid age", 400);
-    if (parsedAge < 0) return ApiError("Invalid age", 400);
-  }
+  const parsedAge = Number(age);
+  if (Number.isNaN(parsedAge)) return ApiError("Invalid age", 400);
+  if (parsedAge < 0) return ApiError("Invalid age", 400);
 
   const parsedBalance = balanceAmount === null || balanceAmount === undefined || balanceAmount === "" ? 0 : Number(balanceAmount);
   if (Number.isNaN(parsedBalance)) return ApiError("Invalid balance amount", 400);
@@ -336,10 +335,12 @@ export async function POST(req: NextRequest) {
     const dateKey = dateKeyUtc(now);
 
     const created = await prisma.$transaction(async (tx) => {
-      // Validate city belongs to state
-      const cityRow = await tx.city.findUnique({ where: { id: Number(cityId) }, select: { id: true, stateId: true } });
-      if (!cityRow) throw new globalThis.Error("City not found");
-      if (cityRow.stateId !== Number(stateId)) throw new globalThis.Error("City does not belong to selected state");
+      // Validate city belongs to state only if both stateId and cityId are provided
+      if (stateId && cityId) {
+        const cityRow = await tx.city.findUnique({ where: { id: Number(cityId) }, select: { id: true, stateId: true } });
+        if (!cityRow) throw new globalThis.Error("City not found");
+        if (cityRow.stateId !== Number(stateId)) throw new globalThis.Error("City does not belong to selected state");
+      }
 
       const seq = await (tx as any).patientSequence.upsert({
         where: { dateKey },
@@ -366,10 +367,11 @@ export async function POST(req: NextRequest) {
           weight: typeof weight === "string" ? weight : null,
           bmi: typeof bmi === "string" ? bmi : null,
           address: address.trim(),
-          state: { connect: { id: Number(stateId) } },
-          city: { connect: { id: Number(cityId) } },
+          state: stateId ? { connect: { id: Number(stateId) } } : undefined,
+          city: cityId ? { connect: { id: Number(cityId) } } : undefined,
           pincode: pincode || null,
           mobile: mobile.trim(),
+          mobile2: mobile2 ? mobile2.trim() : null,
           email: email || null,
           aadharNo: aadharNo.trim(),
           occupation: occupation || null,
@@ -487,6 +489,7 @@ export async function PATCH(req: NextRequest) {
     pincode,
     email,
     mobile,
+    mobile2,
     aadharNo,
     occupation,
     maritalStatus,
@@ -514,7 +517,7 @@ export async function PATCH(req: NextRequest) {
       middleName?: string;
       lastName?: string;
       dateOfBirth?: string | null;
-      age?: number | string | null;
+      age: number | string;
       gender?: string;
       bloodGroup?: string;
       height?: string | null;
@@ -526,6 +529,7 @@ export async function PATCH(req: NextRequest) {
       pincode?: string | null;
       email?: string | null;
       mobile?: string;
+      mobile2?: string | null;
       aadharNo?: string;
       occupation?: string | null;
       maritalStatus?: string | null;
@@ -627,12 +631,9 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (age !== undefined) {
-    if (age === null || age === "") data.age = null;
-    else {
-      const n = Number(age);
-      if (Number.isNaN(n) || n < 0) return ApiError("Invalid age", 400);
-      data.age = n;
-    }
+    const n = Number(age);
+    if (Number.isNaN(n) || n < 0) return ApiError("Invalid age", 400);
+    data.age = n;
   }
 
   if (gender !== undefined) {
@@ -680,6 +681,7 @@ export async function PATCH(req: NextRequest) {
     }
   }
   if (typeof contactPersonEmail === "string" || contactPersonEmail === null) data.contactPersonEmail = contactPersonEmail || null;
+  if (typeof mobile2 === "string" || mobile2 === null) data.mobile2 = mobile2 || null;
 
   if (medicalInsurance !== undefined) {
     if (medicalInsurance === null || medicalInsurance === "") data.medicalInsurance = false;
@@ -742,10 +744,8 @@ export async function PATCH(req: NextRequest) {
         (data.cityId as number | undefined) ??
         (await (tx as any).patient.findUnique({ where: { id: Number(id) }, select: { cityId: true } }))?.cityId;
 
-      if (!effectiveStateId || !effectiveCityId) throw new globalThis.Error("Patient not found");
-
-      // Validate city belongs to state when either changes
-      if (stateId !== undefined || cityId !== undefined) {
+      // Validate city belongs to state only when both stateId and cityId are provided
+      if (effectiveStateId && effectiveCityId && (stateId !== undefined || cityId !== undefined)) {
         const cityRow = await tx.city.findUnique({ where: { id: effectiveCityId }, select: { id: true, stateId: true } });
         if (!cityRow) throw new globalThis.Error("City not found");
         if (cityRow.stateId !== effectiveStateId) throw new globalThis.Error("City does not belong to selected state");

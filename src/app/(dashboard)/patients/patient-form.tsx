@@ -65,17 +65,18 @@ export interface PatientFormInitialData {
   middleName?: string;
   lastName?: string;
   dateOfBirth?: string | null;
-  age?: number | null;
+  age: number;
   gender?: string;
   bloodGroup?: string;
   height?: string | null;
   weight?: string | null;
   bmi?: string | null;
   address?: string;
-  stateId?: number;
-  cityId?: number;
+  stateId?: number | null;
+  cityId?: number | null;
   pincode?: string | null;
   mobile?: string;
+  mobile2?: string | null;
   email?: string | null;
   aadharNo?: string;
   occupation?: string | null;
@@ -169,11 +170,9 @@ export function PatientForm({
     dateOfBirth: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     age: z
       .string()
-      .optional()
-      .transform((v) => (v === '' ? undefined : v))
+      .min(1, 'Age is required')
       .refine(
         (v) => {
-          if (!v) return true;
           const n = Number(v);
           return Number.isFinite(n) && !Number.isNaN(n) && n >= 0;
         },
@@ -188,15 +187,36 @@ export function PatientForm({
 
     address: z.string().min(1, 'Address is required'),
 
-    stateId: z.string().min(1, 'State is required'),
-    cityId: z.string().min(1, 'City is required'),
+    stateId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    cityId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
 
-    pincode: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-
+    pincode: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine(
+        (v) => {
+          if (!v) return true;
+          return /^[0-9]{6}$/.test(v);
+        },
+        'Pincode must be exactly 6 digits'
+      ),
     mobile: z
       .string()
       .min(1, 'Mobile is required')
       .regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
+
+    mobile2: z
+      .string()
+      .optional()
+      .transform((v) => (v === '' ? undefined : v))
+      .refine(
+        (v) => {
+          if (!v) return true;
+          return /^[0-9]{10}$/.test(v);
+        },
+        'Mobile2 must be 10 digits'
+      ),
 
     email: z
       .string()
@@ -270,6 +290,7 @@ export function PatientForm({
       cityId: initial?.cityId ? String(initial.cityId) : '',
       pincode: initial?.pincode || '',
       mobile: initial?.mobile || '',
+      mobile2: initial?.mobile2 || '',
       email: initial?.email || '',
       aadharNo: initial?.aadharNo || '',
       occupation: initial?.occupation || '',
@@ -394,17 +415,18 @@ export function PatientForm({
         middleName: values.middleName,
         lastName: values.lastName,
         dateOfBirth: values.dateOfBirth || null,
-        age: values.age ?? null,
+        age: Number(values.age),
         gender: values.gender,
         bloodGroup: values.bloodGroup,
         height: values.height || null,
         weight: values.weight || null,
         bmi: values.bmi || null,
         address: values.address,
-        stateId: Number(values.stateId),
-        cityId: Number(values.cityId),
+        stateId: values.stateId ? Number(values.stateId) : undefined,
+        cityId: values.cityId ? Number(values.cityId) : undefined,
         pincode: values.pincode || null,
         mobile: values.mobile,
+        mobile2: values.mobile2 || null,
         email: values.email || null,
         aadharNo: values.aadharNo,
         occupation: values.occupation || null,
@@ -492,7 +514,7 @@ export function PatientForm({
               </FormRow>
               <FormRow cols={2}>
                 <TextInput control={control} name='dateOfBirth' label='Date of Birth' type='date' />
-                <TextInput control={control} name='age' label='Age' type='number' min={0} placeholder='Enter Age' />
+                <TextInput control={control} name='age' label='Age' type='number' min={0} placeholder='Enter Age' required />
               </FormRow>
               <FormRow cols={2}>
                 <SelectInput
@@ -559,36 +581,53 @@ export function PatientForm({
                   name={'stateId' as any}
                   label='State'
                   options={stateOptions}
-                  placeholder='Select state'
+                  placeholder='Select state (optional)'
                   searchPlaceholder='Search states...'
                   emptyText='No state found.'
-                  required
                 />
                 <ComboboxInput
                   control={control as any}
                   name={'cityId' as any}
                   label='City'
                   options={cityOptions}
-                  placeholder={stateIdValue ? 'Select city' : 'Select state first'}
+                  placeholder={stateIdValue ? 'Select city (optional)' : 'Select state first'}
                   searchPlaceholder='Search cities...'
                   emptyText={stateIdValue ? 'No city found.' : 'Select a state first.'}
-                  required
                 />
-                <TextInput control={control} name='pincode' label='Pincode' placeholder='Pincode' />
+                <TextInput control={control} maxLength={6} name='pincode' label='Pincode' placeholder='Pincode'
+                 onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
+                 />
               </FormRow>
             </FormSection>
 
             <FormSection legend='Contact Details'>
-              <FormRow cols={2}>
+              <FormRow cols={3}>
                 <TextInput
                   control={control}
                   name='mobile'
-                  label='Mobile'
+                  label='Mobile No. 1'
                   required
-                  placeholder='Mobile number'
+                  placeholder='Primary Mobile number'
                   type='tel'
                   maxLength={10}
                   pattern='[0-9]{10}'
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
+                />
+                <TextInput
+                  control={control}
+                  name='mobile2'
+                  label='Mobile No. 2'
+                  placeholder='Secondary mobile number'
+                  type='tel'
+                  maxLength={10}
+                  pattern='[0-9]{10}'
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
                 />
                 <EmailInput control={control} name='email' label='Email' placeholder='email@example.com' />
               </FormRow>
@@ -609,6 +648,9 @@ export function PatientForm({
                   placeholder='12-digit Aadhar'
                   maxLength={12}
                   pattern='[0-9]{12}'
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
                 />
               </FormRow>
             </FormSection>
@@ -627,6 +669,9 @@ export function PatientForm({
                   type='tel'
                   maxLength={10}
                   pattern='[0-9]{10}'
+                  onInput={(e) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                  }}
                 />
                 <EmailInput
                   control={control}
@@ -742,7 +787,7 @@ export function PatientForm({
                     Report Name
                   </div>
                   <div className='col-span-6 px-4 py-3 font-medium text-sm text-muted-foreground'>
-                    Report URL
+                    Attach Report
                   </div>
                 </div>
 
