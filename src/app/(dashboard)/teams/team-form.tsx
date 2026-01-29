@@ -269,7 +269,17 @@ export function TeamForm({
                   />
                 </div>
                 <div className='flex-1'>
-                  <TextInput control={control} name='pincode' label='Pincode' required placeholder='Pincode' />
+                  <TextInput 
+                    control={control} 
+                    maxLength={6}
+                    name='pincode' 
+                    label='Pincode' 
+                    required 
+                    placeholder='Pincode' 
+                    onInput={(e) => {
+                      e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                    }} 
+                    />
                 </div>
               </div>
               <FormRow cols={2}>
