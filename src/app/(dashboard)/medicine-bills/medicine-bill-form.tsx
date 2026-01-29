@@ -22,6 +22,7 @@ export interface MedicineBillFormInitialData {
   discountPercent?: number;
   totalAmount?: number;
   medicineBillDetails?: {
+    id?: number;
     medicineId: number;
     qty: number;
     mrp: number;
@@ -63,7 +64,7 @@ const medicineBillDetailSchema = z.object({
 });
 
 const medicineBillSchema = z.object({
-  patientId: z.string().refine((v) => !v || /^\d+$/.test(v), 'Must be a valid number'),
+  patientId: z.string().min(1, 'Patient is required'),
   discountPercent: z
     .string()
     .trim()
@@ -86,7 +87,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
-      patientId: String(initial?.patientId || ''),
+      patientId: initial?.patientId?.toString() || undefined,
       discountPercent: "0",
       totalAmount: initial?.totalAmount || 0,
       medicineBillDetails: initial?.medicineBillDetails?.length ? initial.medicineBillDetails.map(detail => ({
@@ -178,7 +179,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
   const medicineOptions = useMemo(() => 
     medicines.map(med => ({
       value: String(med.id),
-      label: `${med.name} - ${med.brand?.name || ''}`,
+      label: med.brand?.name ? `${med.name} - ${med.brand.name}` : med.name,
     }))
   , [medicines]);
 
