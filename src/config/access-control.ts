@@ -70,6 +70,8 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/labs/new", permissions: [PERMISSIONS.CREATE_LABS] },
   { prefix: "/labs/", permissions: [PERMISSIONS.EDIT_LABS] },
   { prefix: "/labs", permissions: [PERMISSIONS.READ_LABS] },
+
+  { prefix: "/day-book", permissions: [PERMISSIONS.READ_DAY_BOOK] },
   
 ];
 

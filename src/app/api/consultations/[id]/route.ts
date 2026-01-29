@@ -60,6 +60,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         casePaperUrl: true,
         nextFollowUpDate: true,
         totalAmount: true,
+        totalReceivedAmount: true,
         createdAt: true,
         updatedAt: true,
         appointment: {
@@ -70,7 +71,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             patient: {
               select: {
                 id: true,
+                patientNo: true,
                 firstName: true,
+                middleName: true,
                 lastName: true,
                 mobile: true,
               },

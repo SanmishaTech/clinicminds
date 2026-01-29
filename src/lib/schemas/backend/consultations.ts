@@ -30,6 +30,17 @@ export const createConsultationSchema = z.object({
   consultationMedicines: z
     .array(consultationMedicineSchema)
     .optional(),
+  receipt: z.object({
+    date: z.string().datetime().optional(),
+    paymentMode: z.string().optional(),
+    payerName: z.string().optional(),
+    contactNumber: z.string().optional(),
+    utrNumber: z.string().optional(),
+    amount: z.number().nonnegative().optional(),
+    chequeNumber: z.string().optional(),
+    chequeDate: z.string().datetime().optional().nullable(),
+    notes: z.string().optional().nullable(),
+  }).optional(),
 });
 
 export const updateConsultationSchema = createConsultationSchema.partial().extend({
