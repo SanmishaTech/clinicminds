@@ -130,7 +130,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   const medicineOptions = useMemo(() => {
     return medicines.map((medicine) => ({
       value: String(medicine.id),
-      label: `${medicine.brand.name} ${medicine.name}`
+      label: `${medicine.name} - ${medicine.brand?.name || ''}`
     }));
   }, [medicines]);
 

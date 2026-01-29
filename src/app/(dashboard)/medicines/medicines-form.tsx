@@ -180,7 +180,7 @@ export function MedicineForm({
                   className='col-span-12 md:col-span-6'
                 />
               </FormRow>
-              <FormRow cols={4} from='md'>
+              <FormRow cols={3} from='md'>
                 <TextInput
                   control={control}
                   name='rate'
@@ -189,8 +189,6 @@ export function MedicineForm({
                   type='number'
                   step='0.01'
                   required
-                  span={1}
-                  spanFrom='md'
                 />
                 <TextInput
                   control={control}
@@ -200,8 +198,6 @@ export function MedicineForm({
                   type='number'
                   step='0.01'
                   required
-                  span={1}
-                  spanFrom='md'
                 />
                 <TextInput
                   control={control}
@@ -212,8 +208,6 @@ export function MedicineForm({
                   step='0.01'
                   required
                   disabled
-                  span={1}
-                  spanFrom='md'
                 />
               </FormRow>
             </FormSection>

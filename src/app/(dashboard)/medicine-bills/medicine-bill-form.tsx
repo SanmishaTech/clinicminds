@@ -178,7 +178,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
   const medicineOptions = useMemo(() => 
     medicines.map(med => ({
       value: String(med.id),
-      label: `${med.brand.name} ${med.name}`,
+      label: `${med.name} - ${med.brand?.name || ''}`,
     }))
   , [medicines]);
 

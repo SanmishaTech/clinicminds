@@ -208,7 +208,7 @@ export function PackageForm({
   const medicineOptions = useMemo(() => {
     return medicines.map((m) => ({
       value: String(m.id),
-      label: m.brand?.name ? `${m.name} (${m.brand.name})` : m.name,
+      label: `${m.name} - ${m.brand?.name || ''}`,
     }));
   }, [medicines]);
 
