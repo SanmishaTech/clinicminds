@@ -453,7 +453,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
           {/* Total Amount */}
           <FormRow className='grid-cols-12'>
             <div className="col-span-12 flex justify-end">
-              <div className='w-full max-w-sm space-y-3'>
+              <div className='w-full max-w-[220px] space-y-3'>
                 <div>
                   <div className='text-sm text-muted-foreground'>Discount (%)</div>
                   <Controller

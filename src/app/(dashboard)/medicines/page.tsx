@@ -24,6 +24,8 @@ type MedicineListItem = {
   brand: {
     name: string;
   };
+  baseRate: string;
+  gstPercent: string;
   rate: string;
   mrp: string;
   createdAt: string;
@@ -99,6 +101,8 @@ export default function MedicinesPage() {
   const columns: Column<MedicineListItem>[] = [
     { key: 'name', header: 'Medicine', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
     { key: 'brand', header: 'Brand', sortable: true, accessor: (r) => r.brand?.name || '-' },
+    { key: 'baseRate', header: 'Base Rate', sortable: true, className: 'whitespace-nowrap' },
+    { key: 'gstPercent', header: 'GST %', sortable: true, className: 'whitespace-nowrap', accessor: (r) => `${r.gstPercent}%` },
     { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
     { key: 'mrp', header: 'MRP', sortable: true, className: 'whitespace-nowrap' },
     { key: 'createdAt', header: 'Created', sortable: true, className: 'whitespace-nowrap', cellClassName: 'text-muted-foreground whitespace-nowrap', accessor: (r) => formatRelativeTime(r.createdAt) },

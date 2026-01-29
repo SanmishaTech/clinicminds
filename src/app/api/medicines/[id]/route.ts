@@ -5,6 +5,20 @@ import { guardApiAccess } from '@/lib/access-guard';
 import { medicineSchema } from '@/lib/schemas/backend/medicines';
 import { z } from 'zod';
 
+function toDecimal2(n: number) {
+  return Number.isFinite(n) ? n.toFixed(2) : '0.00';
+}
+
+function computeInclusiveRate(baseRate: number, gstPercent: number) {
+  const gst = Number.isFinite(gstPercent) ? gstPercent : 0;
+  const base = Number.isFinite(baseRate) ? baseRate : 0;
+  const rate = base + (base * gst) / 100;
+  return {
+    baseRate: toDecimal2(base),
+    gstPercent: toDecimal2(gst),
+    rate: toDecimal2(rate),
+  };
+}
 
 // GET /api/medicines/:id
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -28,6 +42,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
           }
         },
         rate: true,
+        baseRate: true,
+        gstPercent: true,
         mrp: true,
         createdAt: true,
         updatedAt: true,
@@ -70,16 +86,35 @@ export async function PATCH(
 
     const existingMedicine = await prisma.medicine.findUnique({
       where: { id: medicineId },
-      select: { id: true }
+      select: { id: true, rate: true, baseRate: true, gstPercent: true }
     });
 
     if (!existingMedicine) {
       return NotFound('Medicine not found');
     }
 
+    const updateData: Record<string, unknown> = { ...data };
+
+    const hasRate = Object.prototype.hasOwnProperty.call(data, 'rate');
+    const hasGst = Object.prototype.hasOwnProperty.call(data, 'gstPercent');
+    if (hasRate || hasGst) {
+      const existingRate = Number((existingMedicine as any).rate ?? 0);
+      const existingBase = Number((existingMedicine as any).baseRate ?? 0);
+      const existingGst = Number((existingMedicine as any).gstPercent ?? 0);
+
+      const baseForCalc = hasRate
+        ? Number((data as any).rate)
+        : (existingBase === 0 && existingRate !== 0 && existingGst === 0 ? existingRate : existingBase);
+      const gstForCalc = hasGst ? Number((data as any).gstPercent) : existingGst;
+      const computed = computeInclusiveRate(baseForCalc, gstForCalc);
+      updateData.rate = computed.rate;
+      updateData.baseRate = computed.baseRate;
+      updateData.gstPercent = computed.gstPercent;
+    }
+
     const updatedMedicine = await prisma.medicine.update({
       where: { id: medicineId },
-      data,
+      data: updateData as any,
     });
 
     return Success(updatedMedicine);

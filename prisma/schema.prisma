@@ -180,6 +180,8 @@ model Medicine{
   brandId     Int
   brand       Brand    @relation(fields: [brandId], references: [id])
   rate        Decimal  @db.Decimal(10, 2)
+  baseRate    Decimal  @default(0) @db.Decimal(10, 2)
+  gstPercent  Decimal  @default(0) @db.Decimal(5, 2)
   mrp         Decimal  @db.Decimal(10, 2)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -197,6 +199,7 @@ model Medicine{
   @@index([name])                    // For searching by name
   @@index([brandId])                   // For filtering by brand
   @@index([rate])                    // For sorting by rate
+  @@index([gstPercent])
   @@index([mrp])                     // For sorting by mrp
   @@index([createdAt])                // For sorting by creation date
   @@map("medicines")

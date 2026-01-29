@@ -21,6 +21,8 @@ export interface MedicineFormInitialData {
   brandId?: string;
   brand?: string;
   rate?: string;
+  baseRate?: string;
+  gstPercent?: string;
   mrp?: string;
 }
 
@@ -39,6 +41,8 @@ export const medicineSchema = z.object({
     rate: z.string().trim()
       .refine((val) => val && val.trim().length > 0, "Rate is required")
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Rate must be a valid positive number"),
+    gstPercent: z.string().trim()
+      .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "GST must be a valid positive number"),
     mrp: z.string().trim()
       .refine((val) => val && val.trim().length > 0, "MRP is required")
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "MRP must be a valid positive number"),
@@ -71,7 +75,8 @@ export function MedicineForm({
     defaultValues: {
       name: initial?.name || '',
       brandId: initial?.brandId?.toString() || '',
-      rate: initial?.rate || '',
+      rate: initial?.baseRate || initial?.rate || '',
+      gstPercent: initial?.gstPercent || '0',
       mrp: initial?.mrp || '',
     } 
   });
@@ -89,8 +94,26 @@ export function MedicineForm({
     fetchData();
   }, []);
 
-  const { control, handleSubmit, setError, clearErrors } = form;
+  const { control, handleSubmit, setError, clearErrors, watch, setValue, getValues } = form;
   const isCreate = mode === 'create';
+
+  const baseRateRaw = watch('rate');
+  const gstPercentRaw = watch('gstPercent');
+  const computedMrp = useMemo(() => {
+    const base = parseFloat(String(baseRateRaw ?? '0'));
+    const gst = parseFloat(String(gstPercentRaw ?? '0'));
+    const safeBase = Number.isFinite(base) ? base : 0;
+    const safeGst = Number.isFinite(gst) ? gst : 0;
+    const rate = safeBase + (safeBase * safeGst) / 100;
+    return rate.toFixed(2);
+  }, [baseRateRaw, gstPercentRaw]);
+
+  useEffect(() => {
+    const current = getValues('mrp');
+    if (String(current ?? '') === String(computedMrp)) return;
+    const shouldDirty = String(current ?? '') !== '';
+    setValue('mrp', computedMrp, { shouldDirty, shouldValidate: true });
+  }, [computedMrp, getValues, setValue]);
 
   async function onSubmit(values: RawFormValues) {
     clearErrors('name');
@@ -99,6 +122,7 @@ export function MedicineForm({
       ...values,
       brandId: parseInt(values.brandId),
       rate: parseFloat(values.rate),
+      gstPercent: parseFloat((values as any).gstPercent),
       mrp: parseFloat(values.mrp),
     };
     try {
@@ -156,26 +180,40 @@ export function MedicineForm({
                   className='col-span-12 md:col-span-6'
                 />
               </FormRow>
-              <FormRow className='grid-cols-12'>
+              <FormRow cols={4} from='md'>
                 <TextInput
                   control={control}
                   name='rate'
-                  label='Rate'
-                  placeholder='Rate'
+                  label='Base Rate'
+                  placeholder='Base rate'
                   type='number'
-                  step='1'
+                  step='0.01'
                   required
-                  itemClassName='col-span-12 md:col-span-6' 
-                  />
-                  <TextInput
+                  span={1}
+                  spanFrom='md'
+                />
+                <TextInput
+                  control={control}
+                  name='gstPercent'
+                  label='GST %'
+                  placeholder='GST %'
+                  type='number'
+                  step='0.01'
+                  required
+                  span={1}
+                  spanFrom='md'
+                />
+                <TextInput
                   control={control}
                   name='mrp'
                   label='MRP'
                   placeholder='MRP'
                   type='number'
-                  step='1'
+                  step='0.01'
                   required
-                  itemClassName='col-span-12 md:col-span-6'
+                  disabled
+                  span={1}
+                  spanFrom='md'
                 />
               </FormRow>
             </FormSection>

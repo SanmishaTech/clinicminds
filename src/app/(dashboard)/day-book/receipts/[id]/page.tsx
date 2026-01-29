@@ -89,6 +89,12 @@ export default function ReceiptPage() {
   const { control, handleSubmit, watch, reset } = form;
 
   const selectedPaymentMode = watch('paymentMode');
+  const payerNameLabel =
+    selectedPaymentMode === 'UPI'
+      ? 'UPI App Name'
+      : selectedPaymentMode === 'CHEQUE'
+        ? 'Cheque Bank Name'
+        : 'Name';
 
   // Fetch consultation data
   const fetchConsultationData = async () => {
@@ -300,7 +306,7 @@ export default function ReceiptPage() {
                 <TextInput
                   control={control}
                   name="payerName"
-                  label="Payer Name"
+                  label={payerNameLabel}
                   placeholder="Enter payer name"
                 />
               </FormRow>

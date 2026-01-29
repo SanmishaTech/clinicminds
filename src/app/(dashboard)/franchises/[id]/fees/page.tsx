@@ -119,6 +119,12 @@ export default function FranchiseFeesPage() {
   );
 
   const paymentMode = form.watch('paymentMode');
+  const payerNameLabel =
+    paymentMode === 'UPI'
+      ? 'UPI App Name'
+      : paymentMode === 'CHEQUE'
+        ? 'Cheque Bank Name'
+        : 'Name';
 
   const columns: Column<FeePaymentRow>[] = [
     {
@@ -269,7 +275,7 @@ export default function FranchiseFeesPage() {
                   {paymentMode === 'CHEQUE' ? (
                     <>
                       <FormRow cols={3}>
-                        <TextInput control={control} name='payerName' label='Name' required placeholder='Name' />
+                        <TextInput control={control} name='payerName' label={payerNameLabel} required placeholder='Name' />
                         <TextInput control={control} name='chequeDate' label='Cheque Date' type='date' required />
                         <TextInput
                           control={control}
@@ -282,7 +288,7 @@ export default function FranchiseFeesPage() {
                     </>
                   ) : (
                     <FormRow cols={2}>
-                      <TextInput control={control} name='payerName' label='Name' required placeholder='Name' />
+                      <TextInput control={control} name='payerName' label={payerNameLabel} required placeholder='Name' />
                       {paymentMode === 'CASH' && (
                         <TextInput
                           control={control}

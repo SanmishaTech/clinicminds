@@ -377,7 +377,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
               {/* Total Amount */}
               <FormRow className='grid-cols-12'>
                  <div className="col-span-12 flex justify-end">
-                    <div className='max-w-2xs space-y-3'>
+                    <div className='w-full max-w-[220px] space-y-3'>
                       <div>
                         <div className='text-sm text-muted-foreground'>Discount (%)</div>
                         <Controller
