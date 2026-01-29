@@ -118,6 +118,24 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             },
           },
         },
+        receipts: {
+          select: {
+            id: true,
+            receiptNumber: true,
+            date: true,
+            paymentMode: true,
+            payerName: true,
+            contactNumber: true,
+            upiName: true,
+            utrNumber: true,
+            bankName: true,
+            amount: true,
+            chequeNumber: true,
+            chequeDate: true,
+            notes: true,
+            createdAt: true,
+          },
+        },
       },
     });
 

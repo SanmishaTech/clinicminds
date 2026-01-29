@@ -526,6 +526,7 @@ model Consultation{
   totalReceivedAmount   Decimal?  @db.Decimal(10, 2)
   consultationDetails   ConsultationDetail[]
   consultationMedicines ConsultationMedicine[]
+  stockTransaction      StockTransaction?
   receipts              ConsultationReceipt[]
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
@@ -568,7 +569,9 @@ model ConsultationReceipt{
   paymentMode           String
   payerName             String?
   contactNumber         String?
+  upiName               String?
   utrNumber             String?
+  bankName              String?
   chequeDate            DateTime?
   chequeNumber          String?
   notes                 String?  @db.Text
@@ -591,6 +594,8 @@ model StockTransaction {
   sale            Sale?    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   medicineBillId  Int?     @unique
   medicineBill    MedicineBill? @relation(fields: [medicineBillId], references: [id], onDelete: Cascade)
+  consultationId  Int?     @unique
+  consultation    Consultation? @relation(fields: [consultationId], references: [id], onDelete: Cascade)
   notes           String?  @db.Text
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

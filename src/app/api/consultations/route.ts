@@ -169,6 +169,24 @@ export async function GET(req: NextRequest) {
             },
           },
         },
+        receipts: {
+          select: {
+            id: true,
+            receiptNumber: true,
+            date: true,
+            paymentMode: true,
+            payerName: true,
+            contactNumber: true,
+            upiName: true,
+            utrNumber: true,
+            bankName: true,
+            amount: true,
+            chequeNumber: true,
+            chequeDate: true,
+            notes: true,
+            createdAt: true,
+          },
+        },
       },
     });
     return Success(result);
@@ -194,44 +212,131 @@ export async function POST(req: NextRequest) {
     if (existingConsultation) return Error('Consultation already exists for this appointment', 409);
 
     const created = await prisma.$transaction(async (tx) => {
-      const consultation = await tx.consultation.create({
-        data: {
-          appointmentId: data.appointmentId,
-          complaint: data.complaint,
-          diagnosis: data.diagnosis,
-          remarks: data.remarks,
-          casePaperUrl: data.casePaperUrl,
-          nextFollowUpDate: data.nextFollowUpDate ? new Date(data.nextFollowUpDate) : null,
-          totalAmount: data.totalAmount,
-        },
-        select: {
+      // Get current user's franchise ID, role, and team
+      const currentUser = await tx.user.findUnique({
+        where: { id: auth.user.id },
+        select: { 
           id: true,
-          appointmentId: true,
-          complaint: true,
-          diagnosis: true,
-          remarks: true,
-          casePaperUrl: true,
-          nextFollowUpDate: true,
-          totalAmount: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+          role: true,
+          franchise: {
+            select: { id: true }
+          },
+          team: {
+            select: { 
+              id: true,
+              franchise: {
+                select: { id: true }
+              }
+            }
+          }
+        }
       });
 
-      if (data.consultationDetails && data.consultationDetails.length > 0) {
-        await tx.consultationDetail.createMany({
-          data: data.consultationDetails.map((d) => ({
-            consultationId: consultation.id,
-            serviceId: d.serviceId || null,
-            description: d.description || null,
-            qty: d.qty,
-            rate: d.rate,
-            amount: d.amount,
-          })),
-        });
+      if (!currentUser) {
+        throw Error('Current user not found');
       }
 
+      // Get franchise ID from either direct assignment or through team
+      const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+      
+      if (!franchiseId) {
+        throw Error('Current user is not associated with any franchise');
+      }
+
+      // Step 1: Check if medicines are included in the request
       if (data.consultationMedicines && data.consultationMedicines.length > 0) {
+        // Step 2: Validate stock availability
+        const now = new Date();
+        const ninetyDaysFromNow = new Date(now.getTime() + (90 * 24 * 60 * 60 * 1000));
+        
+        // Get medicine requirements and names
+        const requiredByMedicineId = new Map<number, { qty: number; name: string }>();
+        const medicineIds = data.consultationMedicines.map(m => m.medicineId).filter(Boolean) as number[];
+        
+        const medicines = await tx.medicine.findMany({
+          where: { id: { in: medicineIds } },
+          select: { id: true, name: true, brand: { select: { name: true } } },
+        });
+        
+        const medicineMap = new Map(medicines.map(m => [m.id, `${m.name} - ${m.brand?.name || 'Unknown Brand'}`]));
+        
+        // Aggregate requirements by medicine
+        for (const medicine of data.consultationMedicines) {
+          if (!medicine.medicineId) continue;
+          const existing = requiredByMedicineId.get(medicine.medicineId);
+          const medicineName = medicineMap.get(medicine.medicineId) || `Medicine ID: ${medicine.medicineId}`;
+          
+          if (existing) {
+            existing.qty += medicine.qty;
+          } else {
+            requiredByMedicineId.set(medicine.medicineId, { qty: medicine.qty, name: medicineName });
+          }
+        }
+
+        // Check stock availability
+        const availableBatches = await tx.stockBatchBalance.findMany({
+          where: {
+            franchiseId,
+            medicineId: { in: Array.from(requiredByMedicineId.keys()) },
+            quantity: { gt: 0 },
+            expiryDate: { gt: ninetyDaysFromNow }
+          },
+        });
+
+        const availableByMedicineId = new Map<number, number>();
+        for (const batch of availableBatches) {
+          const existing = availableByMedicineId.get(batch.medicineId);
+          availableByMedicineId.set(batch.medicineId, (existing || 0) + batch.quantity);
+        }
+
+        // Validate stock for all medicines
+        for (const [medicineId, { qty: required, name }] of requiredByMedicineId.entries()) {
+          const available = availableByMedicineId.get(medicineId) ?? 0;
+          if (available < required) {
+            return { error: 'INSUFFICIENT_STOCK', medicineId, medicineName: name, available, required } as const;
+          }
+        }
+
+        // Step 3: Stock validation passed - create consultation with all details
+        const consultation = await tx.consultation.create({
+          data: {
+            appointmentId: data.appointmentId,
+            complaint: data.complaint,
+            diagnosis: data.diagnosis,
+            remarks: data.remarks,
+            casePaperUrl: data.casePaperUrl,
+            nextFollowUpDate: data.nextFollowUpDate ? new Date(data.nextFollowUpDate) : null,
+            totalAmount: data.totalAmount,
+          },
+          select: {
+            id: true,
+            appointmentId: true,
+            complaint: true,
+            diagnosis: true,
+            remarks: true,
+            casePaperUrl: true,
+            nextFollowUpDate: true,
+            totalAmount: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        });
+
+        // Create consultation details
+        if (data.consultationDetails && data.consultationDetails.length > 0) {
+          await tx.consultationDetail.createMany({
+            data: data.consultationDetails.map((d) => ({
+              consultationId: consultation.id,
+              serviceId: d.serviceId || null,
+              description: d.description || null,
+              qty: d.qty,
+              rate: d.rate,
+              amount: d.amount,
+            })),
+          });
+        }
+
+        // Create consultation medicines
         await tx.consultationMedicine.createMany({
           data: data.consultationMedicines.map((m) => ({
             consultationId: consultation.id,
@@ -242,42 +347,213 @@ export async function POST(req: NextRequest) {
             doses: m.doses || null,
           })),
         });
-      }
 
-      // Create receipt if receipt data is provided and amount is greater than 0
-      if (data.receipt && data.receipt.amount && data.receipt.amount > 0) {
-        const receipt = await tx.consultationReceipt.create({
+        // Create stock transaction
+        const stockTransaction = await tx.stockTransaction.create({
           data: {
-            receiptNumber: '', // Will be auto-generated by middleware
-            consultationId: consultation.id,
-            date: data.receipt.date ? new Date(data.receipt.date) : new Date(),
-            paymentMode: data.receipt.paymentMode || '',
-            payerName: data.receipt.payerName || '',
-            contactNumber: data.receipt.contactNumber || '',
-            utrNumber: data.receipt.utrNumber || '',
-            amount: data.receipt.amount,
-            chequeNumber: data.receipt.chequeNumber || '',
-            chequeDate: data.receipt.chequeDate ? new Date(data.receipt.chequeDate) : null,
-            notes: data.receipt.notes || '',
+            txnType: 'FRANCHISE_TO_PATIENT_SALE',
+            txnNo: '', // Will be auto-generated by middleware
+            txnDate: now,
+            franchiseId,
             createdByUserId: auth.user.id,
+            consultationId: consultation.id,
+          },
+          select: { id: true },
+        });
+
+        // Create stock ledger entries and update stock balances
+        const allBatches = await tx.stockBatchBalance.findMany({
+          where: {
+            franchiseId,
+            medicineId: { in: Array.from(requiredByMedicineId.keys()) },
+            quantity: { gt: 0 },
+            expiryDate: { gt: ninetyDaysFromNow }
+          },
+          orderBy: [
+            { expiryDate: 'asc' },
+            { createdAt: 'asc' },
+          ],
+        });
+
+        const batchesByMedicineId = new Map<number, typeof allBatches>();
+        for (const batch of allBatches) {
+          const existing = batchesByMedicineId.get(batch.medicineId);
+          if (existing) {
+            existing.push(batch);
+          } else {
+            batchesByMedicineId.set(batch.medicineId, [batch]);
+          }
+        }
+
+        const stockLedgerEntries: any[] = [];
+        const batchBalanceUpdates: any[] = [];
+
+        for (const medicine of data.consultationMedicines) {
+          if (!medicine.medicineId) continue;
+
+          const availableBatches = batchesByMedicineId.get(medicine.medicineId) || [];
+          let remainingQty = medicine.qty;
+
+          for (const batch of availableBatches) {
+            if (remainingQty <= 0) break;
+
+            const allocateQty = Math.min(remainingQty, batch.quantity);
+            
+            stockLedgerEntries.push({
+              transactionId: stockTransaction.id,
+              franchiseId,
+              medicineId: medicine.medicineId,
+              batchNumber: batch.batchNumber,
+              expiryDate: batch.expiryDate,
+              qtyChange: -allocateQty,
+              rate: medicine.mrp,
+              amount: medicine.mrp * allocateQty,
+            });
+
+            batchBalanceUpdates.push({
+              where: { id: batch.id },
+              data: { quantity: { decrement: allocateQty } },
+            });
+
+            remainingQty -= allocateQty;
+          }
+
+          // Update overall stock balance
+          await tx.stockBalance.update({
+            where: {
+              franchiseId_medicineId: {
+                franchiseId,
+                medicineId: medicine.medicineId,
+              },
+            },
+            data: {
+              quantity: { decrement: medicine.qty },
+            },
+          });
+        }
+
+        // Create stock ledger entries
+        if (stockLedgerEntries.length > 0) {
+          await tx.stockLedger.createMany({
+            data: stockLedgerEntries,
+          });
+        }
+
+        // Update batch balances
+        for (const update of batchBalanceUpdates) {
+          await tx.stockBatchBalance.update(update);
+        }
+
+        // Create receipt if provided
+        if (data.receipt && data.receipt.amount && data.receipt.amount > 0) {
+          const receipt = await tx.consultationReceipt.create({
+            data: {
+              receiptNumber: '', // Will be auto-generated by middleware
+              consultationId: consultation.id,
+              date: data.receipt.date ? new Date(data.receipt.date) : new Date(),
+              paymentMode: data.receipt.paymentMode || '',
+              payerName: data.receipt.payerName || '',
+              contactNumber: data.receipt.contactNumber || '',
+              upiName: data.receipt.upiName || '',
+              utrNumber: data.receipt.utrNumber || '',
+              bankName: data.receipt.bankName || '',
+              amount: data.receipt.amount,
+              chequeNumber: data.receipt.chequeNumber || '',
+              chequeDate: data.receipt.chequeDate ? new Date(data.receipt.chequeDate) : null,
+              notes: data.receipt.notes || '',
+              createdByUserId: auth.user.id,
+            },
+          });
+
+          if (receipt) {
+            await tx.consultation.update({
+              where: { id: consultation.id },
+              data: { totalReceivedAmount: data.receipt.amount }
+            });
+          }
+        }
+
+        return consultation;
+      } else {
+        // No medicines - just create consultation
+        const consultation = await tx.consultation.create({
+          data: {
+            appointmentId: data.appointmentId,
+            complaint: data.complaint,
+            diagnosis: data.diagnosis,
+            remarks: data.remarks,
+            casePaperUrl: data.casePaperUrl,
+            nextFollowUpDate: data.nextFollowUpDate ? new Date(data.nextFollowUpDate) : null,
+            totalAmount: data.totalAmount,
+          },
+          select: {
+            id: true,
+            appointmentId: true,
+            complaint: true,
+            diagnosis: true,
+            remarks: true,
+            casePaperUrl: true,
+            nextFollowUpDate: true,
+            totalAmount: true,
+            createdAt: true,
+            updatedAt: true,
           },
         });
 
-        // Only update totalReceivedAmount if receipt was created successfully
-        if (receipt) {
-          // During consultation creation, totalReceivedAmount will always be NULL
-          // So we can directly set it to the receipt amount
-          await tx.consultation.update({
-            where: { id: consultation.id },
-            data: {
-              totalReceivedAmount: data.receipt.amount
-            }
+        // Create consultation details (if any)
+        if (data.consultationDetails && data.consultationDetails.length > 0) {
+          await tx.consultationDetail.createMany({
+            data: data.consultationDetails.map((d) => ({
+              consultationId: consultation.id,
+              serviceId: d.serviceId || null,
+              description: d.description || null,
+              qty: d.qty,
+              rate: d.rate,
+              amount: d.amount,
+            })),
           });
         }
-      }
 
-      return consultation;
+        // Create receipt if provided
+        if (data.receipt && data.receipt.amount && data.receipt.amount > 0) {
+          const receipt = await tx.consultationReceipt.create({
+            data: {
+              receiptNumber: '', // Will be auto-generated by middleware
+              consultationId: consultation.id,
+              date: data.receipt.date ? new Date(data.receipt.date) : new Date(),
+              paymentMode: data.receipt.paymentMode || '',
+              payerName: data.receipt.payerName || '',
+              contactNumber: data.receipt.contactNumber || '',
+              upiName: data.receipt.upiName || '',
+              utrNumber: data.receipt.utrNumber || '',
+              bankName: data.receipt.bankName || '',
+              amount: data.receipt.amount,
+              chequeNumber: data.receipt.chequeNumber || '',
+              chequeDate: data.receipt.chequeDate ? new Date(data.receipt.chequeDate) : null,
+              notes: data.receipt.notes || '',
+              createdByUserId: auth.user.id,
+            },
+          });
+
+          if (receipt) {
+            await tx.consultation.update({
+              where: { id: consultation.id },
+              data: { totalReceivedAmount: data.receipt.amount }
+            });
+          }
+        }
+
+        return consultation;
+      }
     });
+
+    if ((created as any)?.error === 'INSUFFICIENT_STOCK') {
+      const r = created as any;
+      return Error(
+        `Insufficient stock for ${r.medicineName} (available ${r.available}, required ${r.required})`,
+        409
+      );
+    }
 
     return Success(created, 201);
   } catch (e: unknown) {
@@ -316,7 +592,6 @@ export async function PATCH(req: NextRequest) {
       if (parsed.nextFollowUpDate !== undefined) {
         data.nextFollowUpDate = parsed.nextFollowUpDate ? new Date(parsed.nextFollowUpDate) : null;
       }
-      if (parsed.totalAmount !== undefined) data.totalAmount = parsed.totalAmount;
 
       const consultation = await tx.consultation.update({
         where: { id: Number(id) },
@@ -329,43 +604,10 @@ export async function PATCH(req: NextRequest) {
           remarks: true,
           casePaperUrl: true,
           nextFollowUpDate: true,
-          totalAmount: true,
           createdAt: true,
           updatedAt: true,
         },
       });
-
-      if (parsed.consultationDetails) {
-        await tx.consultationDetail.deleteMany({ where: { consultationId: Number(id) } });
-        if (parsed.consultationDetails.length) {
-          await tx.consultationDetail.createMany({
-            data: parsed.consultationDetails.map((d) => ({
-              consultationId: Number(id),
-              serviceId: d.serviceId || null,
-              description: d.description || null,
-              qty: d.qty!,
-              rate: d.rate!,
-              amount: d.amount!,
-            })),
-          });
-        }
-      }
-
-      if (parsed.consultationMedicines) {
-        await tx.consultationMedicine.deleteMany({ where: { consultationId: Number(id) } });
-        if (parsed.consultationMedicines.length) {
-          await tx.consultationMedicine.createMany({
-            data: parsed.consultationMedicines.map((m) => ({
-              consultationId: Number(id),
-              medicineId: m.medicineId || null,
-              qty: m.qty!,
-              mrp: m.mrp!,
-              amount: m.amount!,
-              doses: m.doses || null,
-            })),
-          });
-        }
-      }
 
       return consultation;
     });

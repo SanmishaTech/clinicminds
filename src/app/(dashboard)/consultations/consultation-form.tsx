@@ -12,6 +12,7 @@ import { AppButton } from '@/components/common/app-button';
 import { AppCheckbox } from '@/components/common/app-checkbox';
 import { FormSection, FormRow } from '@/components/common/app-form';
 import { Form } from '@/components/ui/form';
+import { formatIndianCurrency } from '@/lib/locales';
 import { TextInput } from '@/components/common/text-input';
 import { TextareaInput } from '@/components/common/textarea-input';
 import { ComboboxInput } from '@/components/common/combobox-input';
@@ -116,13 +117,6 @@ const consultationFormSchema = z.object({
             return v && v.trim().length > 0;
           }, 'Service is required'),
         description: z.string().optional(),
-        qty: z
-          .string()
-          .refine((v) => {
-            // If serviceId is empty, qty can be empty
-            const serviceId = v; // This will be replaced with proper context in superRefine
-            return true; // Skip validation here, will be handled in superRefine
-          }),
         rate: z
           .string()
           .refine((v) => {
@@ -142,17 +136,15 @@ const consultationFormSchema = z.object({
       return details.every((detail) => {
         if (detail.serviceId && detail.serviceId.trim().length > 0) {
           return (
-            detail.qty && detail.qty.trim().length > 0 &&
             detail.rate && detail.rate.trim().length > 0 &&
             detail.amount && detail.amount.trim().length > 0 &&
-            !isNaN(parseFloat(detail.qty)) && parseFloat(detail.qty) > 0 &&
             !isNaN(parseFloat(detail.rate)) && parseFloat(detail.rate) >= 0 &&
             !isNaN(parseFloat(detail.amount)) && parseFloat(detail.amount) > 0
           );
         }
         return true; // Allow empty rows
       });
-    }, 'If service is selected, qty, rate, and amount are required and must be valid numbers greater than 0')
+    }, 'If service is selected, rate and amount are required and must be valid numbers greater than 0')
     .optional(),
   consultationMedicines: z
     .array(
@@ -220,7 +212,9 @@ const consultationFormSchema = z.object({
     paymentMode: z.string().optional(),
     payerName: z.string().optional(),
     contactNumber: z.string().optional(),
+    upiName: z.string().optional(),
     utrNumber: z.string().optional(),
+    bankName: z.string().optional(),
     amount: z.string().optional(),
     chequeNumber: z.string().optional(),
     chequeDate: z.string().optional(),
@@ -262,10 +256,9 @@ export function ConsultationForm({
       consultationDetails: initial?.consultationDetails?.map((d) => ({
         serviceId: d.serviceId.toString(),
         description: d.description || '',
-        qty: d.qty.toString(),
         rate: d.rate.toString(),
         amount: d.amount.toString(),
-      })) || [{ serviceId: '', description: '', qty: '', rate: '', amount: '' }],
+      })) || [{ serviceId: '', description: '', rate: '', amount: '' }],
       consultationMedicines: initial?.consultationMedicines?.map((m) => ({
         medicineId: m.medicineId.toString(),
         qty: m.qty.toString(),
@@ -276,15 +269,7 @@ export function ConsultationForm({
       totalAmount: (initial?.totalAmount ?? 0).toString(),
       addReceipt: mode === 'create' ? false : undefined,
       receipt: mode === 'create' ? {
-        paymentMode: '',
-        payerName: '',
-        contactNumber: '',
-        utrNumber: '',
-        amount: '',
-        chequeNumber: '',
-        chequeDate: '',
         date: new Date().toISOString().split('T')[0], // Today's date for receipt
-        notes: '',
       } : undefined,
     },
   });
@@ -308,7 +293,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
   const medicineOptions = useMemo(() => {
     return medicines.map((m) => ({
       value: String(m.id),
-      label: `${m.brand.name} ${m.name}`,
+      label: `${m.name} - ${m.brand.name}`,
     }));
   }, [medicines]);
 
@@ -342,7 +327,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
     return () => clearTimeout(timeoutId);
   }, [
     // Only watch specific fields that affect validation
-    watchedDetails?.map(d => `${d.serviceId}-${d.qty}-${d.rate}-${d.amount}`).join('|'),
+    watchedDetails?.map(d => `${d.serviceId}-${d.rate}-${d.amount}`).join('|'),
     watchedMedicines?.map(m => `${m.medicineId}-${m.qty}-${m.mrp}-${m.amount}`).join('|'),
     trigger
   ]);
@@ -373,19 +358,16 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
     calculateTotal();
   }, [watchedDetails, watchedMedicines, setValue, form]);
 
-  function updateDetailAmount(index: number, field: 'qty' | 'rate', value: string) {
+  function updateDetailAmount(index: number, field: 'rate', value: string) {
     const details = [...(watchedDetails || [])];
     const row = details[index];
     if (!row) return;
 
-    if (field === 'qty') row.qty = value;
     if (field === 'rate') row.rate = value;
 
-    const qty = parseFloat(row.qty) || 0;
     const rate = parseFloat(row.rate) || 0;
-    row.amount = (qty * rate).toFixed(2);
+    row.amount = rate.toFixed(2);
 
-    setValue(`consultationDetails.${index}.qty`, row.qty);
     setValue(`consultationDetails.${index}.rate`, row.rate);
     setValue(`consultationDetails.${index}.amount`, row.amount);
     
@@ -492,25 +474,6 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
         remarks: values.remarks || null,
         casePaperUrl: values.casePaperUrl || null,
         nextFollowUpDate: values.nextFollowUpDate ? new Date(values.nextFollowUpDate).toISOString() : null,
-        totalAmount: parseFloat(values.totalAmount),
-        consultationDetails: values.consultationDetails
-          ?.filter((d) => d.serviceId && d.serviceId.trim().length > 0)
-          ?.map((d) => ({
-            serviceId: parseInt(d.serviceId),
-            description: d.description || null,
-            qty: parseInt(d.qty),
-            rate: parseFloat(d.rate),
-            amount: parseFloat(d.amount),
-          })) || [],
-        consultationMedicines: values.consultationMedicines
-          ?.filter((m) => m.medicineId && m.medicineId.trim().length > 0)
-          ?.map((m) => ({
-            medicineId: parseInt(m.medicineId),
-            qty: parseInt(m.qty),
-            mrp: parseFloat(m.mrp),
-            amount: parseFloat(m.amount),
-            doses: m.doses || null,
-          })) || [],
       };
 
       const consultationData = {
@@ -526,7 +489,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
           ?.map((d) => ({
             serviceId: parseInt(d.serviceId),
             description: d.description || null,
-            qty: parseInt(d.qty),
+            qty: 1, // Always 1 for services
             rate: parseFloat(d.rate),
             amount: parseFloat(d.amount),
           })) || [],
@@ -551,7 +514,9 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
               paymentMode: values.receipt.paymentMode || '',
               payerName: values.receipt.payerName || '',
               contactNumber: values.receipt.contactNumber || '',
+              upiName: values.receipt.upiName || '',
               utrNumber: values.receipt.utrNumber || '',
+              bankName: values.receipt.bankName || '',
               amount: parseFloat(values.receipt.amount || '0'),
               chequeNumber: values.receipt.chequeNumber || '',
               chequeDate: values.receipt.chequeDate ? new Date(values.receipt.chequeDate).toISOString() : null,
@@ -675,6 +640,42 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                 
                   </FormSection>
 
+                  {mode === 'edit' ? (
+                    <FormSection legend='Services'>
+                      <div className='border rounded-lg overflow-hidden'>
+                        <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
+                          <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                            Service
+                          </div>
+                          <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                            Description
+                          </div>
+                          <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                            Rate
+                          </div>
+                          <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground'>
+                            Amount
+                          </div>
+                        </div>
+                        {initial?.consultationDetails?.map((detail, index) => {
+                          const service = serviceOptions.find(s => s.value === String(detail.serviceId));
+                          return (
+                          <div key={index} className='grid grid-cols-12 gap-0 border-b last:border-b-0'>
+                            <div className='col-span-3 p-2 border-r text-sm'>{service?.label || '-'}</div>
+                            <div className='col-span-3 p-2 border-r text-sm'>{detail.description || '-'}</div>
+                            <div className='col-span-3 p-2 border-r text-sm'>{formatIndianCurrency(detail.rate)}</div>
+                            <div className='col-span-3 p-2 text-sm'>{formatIndianCurrency(detail.amount)}</div>
+                          </div>
+                          );
+                        })}
+                        {(!initial?.consultationDetails || initial.consultationDetails.length === 0) && (
+                          <div className='px-4 py-8 text-center text-muted-foreground'>
+                            No services added
+                          </div>
+                        )}
+                      </div>
+                    </FormSection>
+                  ) : (
                   <FormSection legend='Services'>
                     <div className='border rounded-lg overflow-hidden'>
                       <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
@@ -684,13 +685,10 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                         <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                           Description
                         </div>
-                        <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
-                          Qty
-                        </div>
-                        <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                        <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                           Rate
                         </div>
-                        <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground text-center'>
+                        <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground text-center'>
                           Amount
                         </div>
                       </div>
@@ -712,10 +710,9 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   `consultationDetails.${index}.rate`,
                                   String(service.rate)
                                 );
-                                const qty = parseFloat(watchedDetails?.[index]?.qty || '') || 0;
                                 setValue(
                                   `consultationDetails.${index}.amount`,
-                                  (qty * Number(service.rate)).toFixed(2)
+                                  String(service.rate)
                                 );
                                 const existingDesc = watchedDetails?.[index]?.description || '';
                                 if (!existingDesc && service.description) {
@@ -742,25 +739,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                               )}
                             />
                           </div>
-                          <div className='col-span-2 p-3 border-r'>
-                            <Controller
-                              control={control}
-                              name={`consultationDetails.${index}.qty`}
-                              render={({ field }) => (
-                                <Input
-                                  {...field}
-                                  type='number'
-                                  min='1'
-                                  placeholder='0'
-                                  className='w-full h-10 border'
-                                  value={field.value || ''}
-                                  onChange={(e) => updateDetailAmount(index, 'qty', e.target.value)}
-                                  disabled={!watchedDetails?.[index]?.serviceId}
-                                />
-                              )}
-                            />
-                          </div>
-                          <div className='col-span-2 p-3 border-r'>
+                          <div className='col-span-3 p-3 border-r'>
                             <Controller
                               control={control}
                               name={`consultationDetails.${index}.rate`}
@@ -784,7 +763,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                               )}
                             />
                           </div>
-                          <div className='col-span-2 p-3 flex items-center gap-2'>
+                          <div className='col-span-3 p-3 flex items-center gap-2'>
                             <div className='relative w-full'>
                               <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
                               <Input
@@ -821,7 +800,6 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                           appendDetail({
                             serviceId: '',
                             description: '',
-                            qty: '',
                             rate: '',
                             amount: '',
                           })
@@ -833,9 +811,46 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                       </AppButton>
                     </div>
                   </FormSection>
+                  )}
 
-                  <FormSection legend='Medicines'>
-                    <div className='border rounded-lg overflow-hidden'>
+                  {mode === 'edit' ? (
+                    <FormSection legend='Medicines'>
+                      <div className='border rounded-lg overflow-hidden'>
+                        <div className='grid grid-cols-4 gap-0 bg-muted border-b'>
+                          <div className='col-span-1 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                            Medicine
+                          </div>
+                          <div className='col-span-1 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                            Qty
+                          </div>
+                          <div className='col-span-1 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                            MRP
+                          </div>
+                          <div className='col-span-1 px-4 py-3 font-medium text-sm text-muted-foreground'>
+                            Doses
+                          </div>
+                        </div>
+                        {initial?.consultationMedicines?.map((medicine, index) => {
+                          const medOption = medicineOptions.find(m => m.value === String(medicine.medicineId));
+                          return (
+                          <div key={index} className='grid grid-cols-4 gap-0 border-b last:border-b-0'>
+                            <div className='col-span-1 p-2 border-r text-sm'>{medOption?.label || '-'}</div>
+                            <div className='col-span-1 p-2 border-r text-sm'>{medicine.qty}</div>
+                            <div className='col-span-1 p-2 border-r text-sm'>{formatIndianCurrency(medicine.mrp)}</div>
+                            <div className='col-span-1 p-2 text-sm'>{medicine.doses || '-'}</div>
+                          </div>
+                          );
+                        })}
+                        {(!initial?.consultationMedicines || initial.consultationMedicines.length === 0) && (
+                          <div className='px-4 py-8 text-center text-muted-foreground'>
+                            No medicines added
+                          </div>
+                        )}
+                      </div>
+                    </FormSection>
+                  ) : (
+                    <FormSection legend='Medicines'>
+                      <div className='border rounded-lg overflow-hidden'>
                       <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
                         <div className='col-span-4 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                           Medicine
@@ -978,6 +993,8 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                         Add
                       </AppButton>
                     </div>
+                  </FormSection>
+                  )}
 
                     {/* Total Amount */}
                     <FormRow cols={12}>
@@ -1046,6 +1063,16 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                         
                         {watch('addReceipt') && (
                           <div className="space-y-4">
+                            <FormRow cols={1}>
+                              <TextInput
+                                control={control}
+                                name="receipt.amount"
+                                label="Receipt Amount"
+                                type="number"
+                                step="0.01"
+                                placeholder="Enter amount received"
+                              />
+                            </FormRow>
                             <FormRow cols={3}>
                               <TextInput
                                 control={control}
@@ -1068,11 +1095,6 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                               />
                             </FormRow>
                             
-                            {/* Payer Name - Always visible */}
-                            <FormRow cols={1}>
-                             
-                            </FormRow>
-                            
                             {/* Conditional fields based on payment mode */}
                             {watch('receipt.paymentMode') === 'CASH' && (
                               <FormRow cols={1}>
@@ -1091,8 +1113,20 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                             )}
                             
                             {watch('receipt.paymentMode') === 'UPI' && (
-                              <FormRow cols={2}>
+                              <FormRow cols={3}>
                                 <TextInput
+                                  control={control}
+                                  name="receipt.upiName"
+                                  label="UPI Name"
+                                  placeholder="Enter UPI name"
+                                />
+                                <TextInput
+                                  control={control}
+                                  name="receipt.utrNumber"
+                                  label="UTR Number"
+                                  placeholder="Enter UTR number"
+                                />
+                                 <TextInput
                                   control={control}
                                   name="receipt.contactNumber"
                                   label="Contact Number"
@@ -1103,17 +1137,16 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   }}
                                   placeholder="Enter contact number"
                                 />
-                                <TextInput
-                                  control={control}
-                                  name="receipt.utrNumber"
-                                  label="UTR Number"
-                                  placeholder="Enter UTR number"
-                                />
                               </FormRow>
                             )}
-                            
                             {watch('receipt.paymentMode') === 'CHEQUE' && (
-                              <FormRow cols={2}>
+                              <FormRow cols={3}>
+                                <TextInput
+                                  control={control}
+                                  name="receipt.bankName"
+                                  label="Bank Name"
+                                  placeholder="Enter bank name"
+                                />
                                 <TextInput
                                   control={control}
                                   name="receipt.chequeNumber"
@@ -1128,23 +1161,6 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 />
                               </FormRow>
                             )}
-                            
-                            {/* Amount and Notes - Always visible */}
-                            <FormRow cols={1}>
-                              
-                            </FormRow>
-                            
-                            <FormRow cols={1}>
-                              <TextInput
-                                control={control}
-                                name="receipt.amount"
-                                label="Receipt Amount"
-                                type="number"
-                                step="0.01"
-                                placeholder="Enter amount received"
-                              />
-                            </FormRow>
-                            
                             <FormRow cols={1}>
                               <TextareaInput
                                 control={control}
@@ -1159,7 +1175,6 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                     </FormRow>
                   </FormSection>
                   )}
-                  </FormSection>
                 </AppCard.Content>
                 <AppCard.Footer className='justify-end gap-2'>
                   <AppButton

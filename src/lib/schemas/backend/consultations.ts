@@ -31,21 +31,26 @@ export const createConsultationSchema = z.object({
     .array(consultationMedicineSchema)
     .optional(),
   receipt: z.object({
+    amount: z.number().nonnegative().optional(),
     date: z.string().datetime().optional(),
     paymentMode: z.string().optional(),
     payerName: z.string().optional(),
     contactNumber: z.string().optional(),
+    upiName: z.string().optional(),
     utrNumber: z.string().optional(),
-    amount: z.number().nonnegative().optional(),
+    bankName: z.string().optional(),
     chequeNumber: z.string().optional(),
     chequeDate: z.string().datetime().optional().nullable(),
     notes: z.string().optional().nullable(),
   }).optional(),
 });
 
-export const updateConsultationSchema = createConsultationSchema.partial().extend({
-  consultationDetails: z.array(consultationDetailSchema.partial()).optional(),
-  consultationMedicines: z.array(consultationMedicineSchema.partial()).optional(),
+export const updateConsultationSchema = z.object({
+  complaint: z.string().optional().nullable(),
+  diagnosis: z.string().optional().nullable(),
+  remarks: z.string().optional().nullable(),
+  casePaperUrl: z.string().optional().nullable(),
+  nextFollowUpDate: z.string().datetime().optional().nullable(),
 });
 
 export type ConsultationDetailInput = z.infer<typeof consultationDetailSchema>;
