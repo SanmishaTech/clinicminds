@@ -11,10 +11,23 @@ type SaleApiResponse = {
   invoiceNo: string;
   invoiceDate: string;
   franchise: { name: string };
+  saleDetails?: Array<{
+    id: number;
+    batchNumber?: string | null;
+    expiryDate?: string | null;
+    quantity: number | string;
+    medicine?: {
+      name?: string | null;
+      brand?: string | null;
+    } | null;
+  }>;
   transport?: {
     transporterName?: string | null;
     companyName?: string | null;
-    dispatchedQuantity?: number | string | null;
+    transportDetails?: Array<{
+      saleDetailId: number;
+      quantity: number | string | null;
+    }>;
     transportFee?: number | string | null;
     receiptNumber?: string | null;
     vehicleNumber?: string | null;
@@ -46,17 +59,37 @@ export default function NewTransportPage() {
         const data = await apiGet<SaleApiResponse>(`/api/sales/${saleId}`);
         if (!mounted) return;
 
+        const saleDetails = data.saleDetails || [];
+
         setSale({
           saleId: data.id,
           invoiceNo: data.invoiceNo,
           invoiceDate: data.invoiceDate,
           franchiseName: data.franchise?.name,
+          saleDetails: saleDetails.map((d) => ({
+            id: d.id,
+            medicineName: d.medicine?.name ?? null,
+            brandName: d.medicine?.brand ?? null,
+            batchNumber: d.batchNumber ?? null,
+            expiryDate: d.expiryDate ?? null,
+            quantity: d.quantity,
+          })),
         });
+
+        const transportDetails = data.transport?.transportDetails || [];
+        const hasTransportDetails = transportDetails.length > 0;
 
         setInitial({
           transporterName: data.transport?.transporterName ?? '',
           companyName: data.transport?.companyName ?? '',
-          dispatchedQuantity: data.transport?.dispatchedQuantity ?? '',
+          dispatchedDetails: saleDetails.map((detail) => {
+            const matched = transportDetails.find((item) => Number(item.saleDetailId) === Number(detail.id));
+            const fallbackQty = hasTransportDetails ? 0 : Number(detail.quantity) || 0;
+            return {
+              saleDetailId: Number(detail.id),
+              quantity: matched?.quantity ?? fallbackQty,
+            };
+          }),
           transportFee: data.transport?.transportFee ?? '',
           receiptNumber: data.transport?.receiptNumber ?? '',
           vehicleNumber: data.transport?.vehicleNumber ?? '',

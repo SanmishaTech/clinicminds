@@ -82,6 +82,11 @@ export async function GET(req: NextRequest) {
             invoiceNo: true,
             invoiceDate: true,
             totalAmount: true,
+            saleDetails: {
+              select: {
+                quantity: true,
+              },
+            },
           },
         },
         franchise: {
@@ -119,6 +124,7 @@ export async function POST(req: NextRequest) {
           franchiseId: true,
           saleDetails: {
             select: {
+              id: true,
               quantity: true,
             },
           },
@@ -126,9 +132,54 @@ export async function POST(req: NextRequest) {
       });
       if (!sale) throw new Error('SALE_NOT_FOUND');
 
-      const totalSaleQty = (sale.saleDetails || []).reduce((sum: number, d: any) => sum + (Number(d.quantity) || 0), 0);
-      if ((Number(data.dispatchedQuantity) || 0) > totalSaleQty) {
-        throw new Error('DISPATCHED_QTY_EXCEEDS_SALE');
+      const saleDetails = sale.saleDetails || [];
+      const saleDetailMap = new Map<number, { quantity: number }>();
+      const totalSaleQty = saleDetails.reduce((sum: number, d: any) => {
+        const qty = Number(d.quantity) || 0;
+        saleDetailMap.set(Number(d.id), { quantity: qty });
+        return sum + qty;
+      }, 0);
+
+      let dispatchedDetails: Array<{ saleDetailId: number; quantity: number }> = [];
+
+      if (data.dispatchedDetails && data.dispatchedDetails.length > 0) {
+        const payloadMap = new Map<number, number>();
+        for (const detail of data.dispatchedDetails) {
+          const saleDetailId = Number(detail.saleDetailId);
+          if (payloadMap.has(saleDetailId)) throw new Error('DUPLICATE_SALE_DETAIL');
+          payloadMap.set(saleDetailId, Number(detail.quantity) || 0);
+        }
+
+        for (const saleDetailId of payloadMap.keys()) {
+          if (!saleDetailMap.has(saleDetailId)) throw new Error('INVALID_SALE_DETAIL');
+        }
+
+        dispatchedDetails = saleDetails.map((detail) => {
+          const saleDetailId = Number(detail.id);
+          const qty = payloadMap.get(saleDetailId) ?? 0;
+          const saleDetail = saleDetailMap.get(saleDetailId);
+          if (saleDetail && qty > saleDetail.quantity) throw new Error('DISPATCHED_QTY_EXCEEDS_SALE_DETAIL');
+          return { saleDetailId, quantity: qty };
+        });
+      } else {
+        const requestedDispatchQty = Number(data.dispatchedQuantity ?? 0) || 0;
+        if (requestedDispatchQty > totalSaleQty) {
+          throw new Error('DISPATCHED_QTY_EXCEEDS_SALE');
+        }
+
+        let remaining = requestedDispatchQty;
+        dispatchedDetails = saleDetails.map((detail) => {
+          const saleDetailId = Number(detail.id);
+          const qty = remaining > 0 ? Math.min(remaining, Number(detail.quantity) || 0) : 0;
+          remaining -= qty;
+          return { saleDetailId, quantity: qty };
+        });
+      }
+
+      const totalDispatchedQty = dispatchedDetails.reduce((sum, detail) => sum + (Number(detail.quantity) || 0), 0);
+
+      if (!dispatchedDetails || dispatchedDetails.length === 0 || totalDispatchedQty <= 0) {
+        throw new Error('DISPATCHED_DETAILS_REQUIRED');
       }
 
       const existing = await tx.transport.findUnique({
@@ -148,7 +199,7 @@ export async function POST(req: NextRequest) {
           franchiseId: sale.franchiseId,
           status: 'DISPATCHED',
           dispatchedAt: now,
-          dispatchedQuantity: data.dispatchedQuantity,
+          dispatchedQuantity: totalDispatchedQty,
           transporterName: data.transporterName || null,
           companyName: data.companyName || null,
           transportFee: data.transportFee ?? null,
@@ -161,7 +212,7 @@ export async function POST(req: NextRequest) {
           franchiseId: sale.franchiseId,
           status: 'DISPATCHED',
           dispatchedAt: now,
-          dispatchedQuantity: data.dispatchedQuantity,
+          dispatchedQuantity: totalDispatchedQty,
           transporterName: data.transporterName || null,
           companyName: data.companyName || null,
           transportFee: data.transportFee ?? null,
@@ -170,6 +221,15 @@ export async function POST(req: NextRequest) {
           trackingNumber: data.trackingNumber || null,
           notes: data.notes || null,
         },
+      });
+
+      await tx.transportDetail.deleteMany({ where: { transportId: createdOrUpdated.id } });
+      await tx.transportDetail.createMany({
+        data: dispatchedDetails.map((detail) => ({
+          transportId: createdOrUpdated.id,
+          saleDetailId: detail.saleDetailId,
+          quantity: detail.quantity,
+        })),
       });
 
       return createdOrUpdated;
@@ -182,6 +242,10 @@ export async function POST(req: NextRequest) {
     if (err.message === 'SALE_NOT_FOUND') return ApiError('Sale not found', 404);
     if (err.message === 'TRANSPORT_ALREADY_DELIVERED') return ApiError('Transport already delivered', 409);
     if (err.message === 'DISPATCHED_QTY_EXCEEDS_SALE') return ApiError('Dispatched quantity exceeds sale quantity', 400);
+    if (err.message === 'DISPATCHED_QTY_EXCEEDS_SALE_DETAIL') return ApiError('Dispatched quantity exceeds sale detail quantity', 400);
+    if (err.message === 'DISPATCHED_DETAILS_REQUIRED') return ApiError('Dispatched details are required', 400);
+    if (err.message === 'INVALID_SALE_DETAIL') return ApiError('Invalid sale detail for dispatch', 400);
+    if (err.message === 'DUPLICATE_SALE_DETAIL') return ApiError('Duplicate sale detail provided', 400);
     console.error('Create/update transport error:', e);
     return ApiError('Failed to save transport');
   }
