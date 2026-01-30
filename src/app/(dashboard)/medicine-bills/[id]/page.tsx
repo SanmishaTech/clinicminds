@@ -14,6 +14,9 @@ type MedicineBillDetail = {
   medicine: {
     id: number;
     name: string;
+    brand:{
+      name:string;
+    }
   };
   qty: number;
   mrp: number;
@@ -28,7 +31,11 @@ type MedicineBill = {
   discountPercent: number;
   patient?: {
     id: number;
-    name: string;
+    patientNo: string;
+    firstName: string;
+    middleName: string;
+    lastName: string;
+    mobile: string;
   };
   franchise?: {
     id: number;
@@ -92,13 +99,10 @@ export default function MedicineBillDetailPage() {
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
-        <div>
-          <h1 className='text-2xl font-semibold'>Medicine Bill Details</h1>
-          <p className='text-muted-foreground'>View medicine bill information</p>
-        </div>
         <AppButton
           variant='outline'
           onClick={() => router.back()}
+          iconName='ArrowLeft'
         >
           Back
         </AppButton>
@@ -111,33 +115,43 @@ export default function MedicineBillDetailPage() {
           </AppCard.Header>
           <AppCard.Content>
             <div className='space-y-4'>
-              <div className='grid grid-cols-2 gap-4'>
+               <div className='grid grid-cols-3 gap-4'>
+                  <div>
+                    <label className='text-sm font-medium'>Patient No</label>
+                    <p>{bill.patient?.patientNo || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className='text-sm font-medium'>Patient Name</label>
+                    <p>{[bill.patient?.firstName, bill.patient?.middleName, bill.patient?.lastName].filter(Boolean).join(' ') || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <label className='text-sm font-medium'>Mobile Number</label>
+                    <p>{bill.patient?.mobile || 'N/A'}</p>
+                  </div>
+                </div>
+              
+              <div className='border-t pt-4'>
+               
+                <div className='grid grid-cols-2 gap-4'>
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Bill Number</label>
+                  <label className='text-sm font-medium'>Bill Number</label>
                   <p className='text-lg font-semibold'>{bill.billNumber}</p>
                 </div>
                 <div>
-                  <label className='text-sm font-medium text-gray-500'>Bill Date</label>
+                  <label className='text-sm font-medium'>Bill Date</label>
                   <p>{new Date(bill.billDate).toLocaleDateString('en-IN')}</p>
                 </div>
-                <div>
-                  <label className='text-sm font-medium text-gray-500'>Patient</label>
-                  <p>{bill.patient?.name || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className='text-sm font-medium text-gray-500'>Franchise</label>
-                  <p>{bill.franchise?.name || 'N/A'}</p>
-                </div>
+              </div>
               </div>
               
               <div className='border-t pt-4'>
                 <div className='grid grid-cols-2 gap-4'>
                   <div>
-                    <label className='text-sm font-medium text-gray-500'>Discount</label>
+                    <label className='text-sm font-medium'>Discount</label>
                     <p>{bill.discountPercent}%</p>
                   </div>
                   <div>
-                    <label className='text-sm font-medium text-gray-500'>Total Amount</label>
+                    <label className='text-sm font-medium'>Total Amount</label>
                     <p className='text-lg font-semibold text-green-600'>
                       {formatIndianCurrency(bill.totalAmount)}
                     </p>
@@ -145,18 +159,7 @@ export default function MedicineBillDetailPage() {
                 </div>
               </div>
 
-              <div className='border-t pt-4'>
-                <div className='grid grid-cols-2 gap-4 text-sm text-gray-500'>
-                  <div>
-                    <label className='text-sm font-medium text-gray-500'>Created</label>
-                    <p>{formatRelativeTime(bill.createdAt)}</p>
-                  </div>
-                  <div>
-                    <label className='text-sm font-medium text-gray-500'>Last Updated</label>
-                    <p>{formatRelativeTime(bill.updatedAt)}</p>
-                  </div>
-                </div>
-              </div>
+            
             </div>
           </AppCard.Content>
         </AppCard>
@@ -173,7 +176,7 @@ export default function MedicineBillDetailPage() {
               </div>
               <div className='flex justify-between'>
                 <span>Discount ({bill.discountPercent}%):</span>
-                <span className='text-red-600'>
+                <span>
                   -{formatIndianCurrency((bill.totalAmount / (1 - bill.discountPercent / 100)) * (bill.discountPercent / 100))}
                 </span>
               </div>
@@ -192,39 +195,40 @@ export default function MedicineBillDetailPage() {
           <AppCard.Description>Medicines included in this bill</AppCard.Description>
         </AppCard.Header>
         <AppCard.Content>
-          <div className='overflow-x-auto'>
-            <table className='w-full border-collapse'>
-              <thead>
-                <tr className='border-b'>
-                  <th className='text-left py-2 px-4 font-medium'>Medicine</th>
-                  <th className='text-right py-2 px-4 font-medium'>Quantity</th>
-                  <th className='text-right py-2 px-4 font-medium'>MRP</th>
-                  <th className='text-right py-2 px-4 font-medium'>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bill.medicineDetails.map((detail) => (
-                  <tr key={detail.id} className='border-b'>
-                    <td className='py-3 px-4'>{detail.medicine.name}</td>
-                    <td className='text-right py-3 px-4'>{detail.qty}</td>
-                    <td className='text-right py-3 px-4'>{formatIndianCurrency(detail.mrp)}</td>
-                    <td className='text-right py-3 px-4 font-medium'>
-                      {formatIndianCurrency(detail.amount)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className='border-t-2'>
-                  <td colSpan={3} className='py-3 px-4 font-semibold text-right'>
-                    Total:
-                  </td>
-                  <td className='py-3 px-4 text-right font-semibold text-green-600'>
-                    {formatIndianCurrency(bill.totalAmount)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+          <div>
+            <h3 className="font-semibold text-base mb-3">Medicines</h3>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="grid grid-cols-4 gap-0 bg-muted border-b">
+                <div className="px-4 py-3 font-medium text-sm border-r">Medicine</div>
+                <div className="px-4 py-3 font-medium text-sm border-r">Quantity</div>
+                <div className="px-4 py-3 font-medium text-sm border-r">MRP</div>
+                <div className="px-4 py-3 font-medium text-sm">Amount</div>
+              </div>
+              {bill.medicineDetails.map((detail, index) => (
+                <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
+                  <div className="px-4 py-3 font-medium text-sm border-r">
+                    {`${detail.medicine.name} - ${detail.medicine.brand.name}`}
+                  </div>
+                  <div className="px-4 py-3 font-medium text-sm border-r">
+                    {detail.qty}
+                  </div>
+                  <div className="px-4 py-3 font-medium text-sm border-r">
+                    {formatIndianCurrency(detail.mrp)}
+                  </div>
+                  <div className="px-4 py-3 font-medium text-sm">
+                    {formatIndianCurrency(detail.amount)}
+                  </div>
+                </div>
+              ))}
+              <div className="grid grid-cols-4 gap-0 border-t-2">
+                <div className="px-4 py-3 font-semibold text-sm col-span-3 text-right">
+                  Subtotal:
+                </div>
+                <div className="px-4 py-3 font-semibold text-sm">
+                  {formatIndianCurrency(bill.totalAmount / (1 - bill.discountPercent / 100))}
+                </div>
+              </div>
+            </div>
           </div>
         </AppCard.Content>
       </AppCard>
