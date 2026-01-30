@@ -23,14 +23,14 @@ type AppointmentApiResponse = {
 };
 
 export default function NewConsultationPage() {
-  const params = useParams<{ appointmentId?: string }>();
-  const appointmentId = params?.appointmentId;
+  const params = useParams<{ id?: string }>();
+  const id = params?.id;
 
   const [loading, setLoading] = useState(true);
   const [initial, setInitial] = useState<ConsultationFormInitialData | null>(null);
 
   useEffect(() => {
-    if (!appointmentId) {
+    if (!id) {
       setLoading(false);
       return;
     }
@@ -38,11 +38,11 @@ export default function NewConsultationPage() {
     let mounted = true;
     (async () => {
       try {
-        const data = await apiGet<AppointmentApiResponse>(`/api/appointments/${appointmentId}`);
+        const data = await apiGet<AppointmentApiResponse>(`/api/appointments/${id}`);
         if (!mounted) return;
 
         setInitial({
-          appointmentId: Number(appointmentId),
+          appointmentId: Number(id),
         });
       } catch (e) {
         toast.error((e as Error).message || 'Failed to load appointment');
@@ -55,9 +55,9 @@ export default function NewConsultationPage() {
     return () => {
       mounted = false;
     };
-  }, [appointmentId]);
+  }, [id]);
 
-  if (!appointmentId) {
+  if (!id) {
     return <div className='p-6'>Invalid appointment</div>;
   }
 
