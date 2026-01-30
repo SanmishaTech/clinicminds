@@ -90,6 +90,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
               select: {
                 id: true,
                 name: true,
+                brand: {
+                  select: {
+                    name: true
+                  }
+                }
               }
             }
           }

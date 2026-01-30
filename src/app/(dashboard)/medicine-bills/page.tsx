@@ -9,6 +9,7 @@ import { NonFormTextInput } from '@/components/common/non-form-text-input';
 import { FilterBar } from '@/components/common';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
+import IconButton from '@/components/common/icon-button';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
@@ -207,11 +208,10 @@ export default function MedicineBillsPage() {
             return (
               <div className='flex items-center gap-1'>
                 <Link href={`/medicine-bills/${row.id}`}>
-                  <AppButton
-                    size='sm'
-                    variant='ghost'
+                  <IconButton
                     iconName='Eye'
-                    aria-label='View Bill Details'
+                    tooltip='View Details'
+                    aria-label='View Details'
                   />
                 </Link>
               </div>

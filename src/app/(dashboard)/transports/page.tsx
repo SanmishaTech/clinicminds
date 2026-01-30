@@ -36,6 +36,9 @@ type TransportListItem = {
     invoiceNo: string;
     invoiceDate: string;
     totalAmount: number | string;
+    saleDetails?: Array<{
+      quantity: number | string;
+    }>;
   };
   franchise?: {
     name: string;
@@ -141,21 +144,24 @@ export default function TransportsPage() {
         key: 'status',
         header: 'Status',
         sortable: false,
-        accessor: (r) => (
-          <StatusBadge
-            status={(r.status || '').toLowerCase()}
-            stylesMap={{
-              dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-              delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-            }}
-          />
-        ),
-      },
-      {
-        key: 'trackingNumber',
-        header: 'Tracking',
-        sortable: false,
-        accessor: (r) => r.trackingNumber || '—',
+        accessor: (r) => {
+          const effectiveStatus = r.deliveredAt
+            ? 'DELIVERED'
+            : r.dispatchedAt
+              ? 'DISPATCHED'
+              : ((r.status || 'PENDING') as string);
+
+          return (
+            <StatusBadge
+              status={effectiveStatus.toLowerCase()}
+              stylesMap={{
+                pending: { label: 'Pending', className: 'bg-amber-500/10 text-amber-700 dark:text-amber-400' },
+                dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+                delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+              }}
+            />
+          );
+        },
       },
       {
         key: 'transportFee',
@@ -172,11 +178,18 @@ export default function TransportsPage() {
         accessor: (r) => (r.dispatchedAt ? formatDate(r.dispatchedAt) : '—'),
       },
       {
-        key: 'deliveredAt',
-        header: 'Delivered',
+        key: 'dispatchedStock',
+        header: 'Dispatched Stock',
         sortable: false,
         className: 'whitespace-nowrap',
-        accessor: (r) => (r.deliveredAt ? formatDate(r.deliveredAt) : '—'),
+        accessor: (r) => {
+          const totalQty = (r.sale?.saleDetails || []).reduce(
+            (sum, d) => sum + (Number(d.quantity) || 0),
+            0
+          );
+          const dispatchedQty = Number(r.dispatchedQuantity) || 0;
+          return totalQty > 0 ? `${dispatchedQty}/${totalQty}` : '—';
+        },
       },
     ];
 
@@ -259,14 +272,27 @@ export default function TransportsPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(row) => {
-            const statusUpper = (row.status || '').toUpperCase();
+            const statusUpper = (row.deliveredAt
+              ? 'DELIVERED'
+              : row.dispatchedAt
+                ? 'DISPATCHED'
+                : (row.status || 'PENDING')
+            ).toUpperCase();
 
             return (
               <div className='flex items-center gap-1'>
-                {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper !== 'DELIVERED' && (
+                {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper === 'PENDING' && (
                   <Link href={`/transports/new?saleId=${row.saleId}`}>
                     <AppButton size='sm' variant='secondary' type='button'>
-                      Update
+                      Dispatch
+                    </AppButton>
+                  </Link>
+                )}
+
+                {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper === 'DISPATCHED' && (
+                  <Link href={`/transports/new?saleId=${row.saleId}`}>
+                    <AppButton size='sm' variant='secondary' type='button'>
+                      View
                     </AppButton>
                   </Link>
                 )}

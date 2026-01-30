@@ -53,6 +53,12 @@ export const NAV_ITEMS: NavItem[] = [
     permission: PERMISSIONS.VIEW_APPOINTMENTS,
   },
   {
+    title: "Patients",
+    href: "/patients",
+    icon: Users,
+    permission: PERMISSIONS.VIEW_PATIENTS,
+  },
+  {
     type: "group",
     title: "Master",
     icon: Building2,
@@ -112,12 +118,6 @@ export const NAV_ITEMS: NavItem[] = [
         permission: PERMISSIONS.VIEW_LABS,
       },
       {
-        title: "Patients",
-        href: "/patients",
-        icon: Users,
-        permission: PERMISSIONS.VIEW_PATIENTS,
-      },
-      {
         title: "Packages",
         href: "/packages",
         icon: Package,
@@ -137,6 +137,18 @@ export const NAV_ITEMS: NavItem[] = [
         permission: PERMISSIONS.VIEW_SALES,
         },
         {
+          title: "Purchases",
+          href: "/purchases",
+          icon: Receipt,
+          permission: PERMISSIONS.VIEW_PURCHASES,
+        },
+        {
+        title: "Stocks",
+        href: "/stocks",
+        icon: Package,
+        permission: PERMISSIONS.VIEW_STOCKS,
+        },
+        {
           title: "Medicine Bills",
           href: "/medicine-bills",
           icon: Receipt,
@@ -147,12 +159,6 @@ export const NAV_ITEMS: NavItem[] = [
         href: "/transports",
         icon: Truck,
         permission: PERMISSIONS.VIEW_TRANSPORTS,
-        },
-        {
-        title: "Stocks",
-        href: "/stocks",
-        icon: Package,
-        permission: PERMISSIONS.VIEW_STOCKS,
         },
         {
         title: "Recalls",

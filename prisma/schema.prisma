@@ -234,6 +234,7 @@ model Transport {
   sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   franchiseId    Int
   franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  transportDetails TransportDetail[]
   status         String   @default("PENDING")
   dispatchedQuantity Int  @default(0)
   transporterName String?
@@ -254,6 +255,22 @@ model Transport {
   @@map("transports")
 }
 
+model TransportDetail {
+  id           Int       @id @default(autoincrement())
+  transportId  Int
+  transport    Transport @relation(fields: [transportId], references: [id], onDelete: Cascade)
+  saleDetailId Int
+  saleDetail   SaleDetail @relation(fields: [saleDetailId], references: [id], onDelete: Cascade)
+  quantity     Int
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([transportId])
+  @@index([saleDetailId])
+  @@unique([transportId, saleDetailId])
+  @@map("transport_details")
+}
+
 model SaleDetail{
   id          Int      @id @default(autoincrement())
   saleId      Int
@@ -265,6 +282,7 @@ model SaleDetail{
   quantity    Int
   rate        Decimal  @db.Decimal(10, 2)
   amount      Decimal  @db.Decimal(10, 2)
+  transportDetails TransportDetail[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

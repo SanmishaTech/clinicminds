@@ -90,6 +90,8 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   
   const form = useForm<SalesFormValues>({
     resolver: zodResolver(schema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       invoiceNo: initialData?.invoiceNo || '',
       invoiceDate: initialData?.invoiceDate?.split('T')[0] || new Date().toISOString().split('T')[0],
@@ -140,19 +142,19 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
       setAdminBatchesByIndex((prev) => ({ ...prev, [index]: items }));
 
       if (!items.length) {
-        setValue(`saleDetails.${index}.batchNumber`, '');
-        setValue(`saleDetails.${index}.expiryDate`, '');
+        setValue(`saleDetails.${index}.batchNumber`, '', { shouldDirty: true, shouldValidate: true });
+        setValue(`saleDetails.${index}.expiryDate`, '', { shouldDirty: true, shouldValidate: true });
         toast.error('No sellable batch available (expiry must be more than 90 days)');
         return;
       }
 
       const first = items[0];
-      setValue(`saleDetails.${index}.batchNumber`, first.batchNumber, { shouldDirty: true });
-      setValue(`saleDetails.${index}.expiryDate`, toInputDate(first.expiryDate), { shouldDirty: true });
+      setValue(`saleDetails.${index}.batchNumber`, first.batchNumber, { shouldDirty: true, shouldValidate: true });
+      setValue(`saleDetails.${index}.expiryDate`, toInputDate(first.expiryDate), { shouldDirty: true, shouldValidate: true });
     } catch (error) {
       setAdminBatchesByIndex((prev) => ({ ...prev, [index]: [] }));
-      setValue(`saleDetails.${index}.batchNumber`, '');
-      setValue(`saleDetails.${index}.expiryDate`, '');
+      setValue(`saleDetails.${index}.batchNumber`, '', { shouldDirty: true, shouldValidate: true });
+      setValue(`saleDetails.${index}.expiryDate`, '', { shouldDirty: true, shouldValidate: true });
       toast.error('Failed to load batch details');
     }
   };
@@ -160,7 +162,10 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   const applyExpiryForBatch = (index: number, batchNumber: string) => {
     const list = adminBatchesByIndex[index] || [];
     const match = list.find((b) => b.batchNumber === batchNumber);
-    setValue(`saleDetails.${index}.expiryDate`, match ? toInputDate(match.expiryDate) : '', { shouldDirty: true });
+    setValue(`saleDetails.${index}.expiryDate`, match ? toInputDate(match.expiryDate) : '', {
+      shouldDirty: true,
+      shouldValidate: true,
+    });
   };
 
   const { fields, append, remove } = useFieldArray({
@@ -206,7 +211,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   }, [watchedSaleDetails, watchedDiscountPercent]);
 
   useEffect(() => {
-    setValue('totalAmount', totals.total.toFixed(2));
+    setValue('totalAmount', totals.total.toFixed(2), { shouldValidate: true });
   }, [setValue, totals.total]);
 
   // Update amount when quantity or rate changes
@@ -224,9 +229,9 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
     const rate = parseFloat(detail.rate) || 0;
     detail.amount = (quantity * rate).toString();
     
-    setValue(`saleDetails.${index}.quantity`, detail.quantity);
-    setValue(`saleDetails.${index}.rate`, detail.rate);
-    setValue(`saleDetails.${index}.amount`, detail.amount);
+    setValue(`saleDetails.${index}.quantity`, detail.quantity, { shouldDirty: true, shouldValidate: true });
+    setValue(`saleDetails.${index}.rate`, detail.rate, { shouldDirty: true, shouldValidate: true });
+    setValue(`saleDetails.${index}.amount`, detail.amount, { shouldDirty: true, shouldValidate: true });
   };
 
   useEffect(() => {
@@ -377,16 +382,22 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                           const medicineId = parseInt(value);
                           const medicine = medicines.find(m => m.id === medicineId);
                           if (medicine) {
-                            setValue(`saleDetails.${index}.rate`, medicine.rate.toString());
+                            setValue(`saleDetails.${index}.rate`, medicine.rate.toString(), {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                             const quantity = parseFloat(watchedSaleDetails[index]?.quantity || '1');
-                            setValue(`saleDetails.${index}.amount`, (quantity * medicine.rate).toString());
+                            setValue(`saleDetails.${index}.amount`, (quantity * medicine.rate).toString(), {
+                              shouldDirty: true,
+                              shouldValidate: true,
+                            });
                           }
-                          setValue(`saleDetails.${index}.batchNumber`, '');
-                          setValue(`saleDetails.${index}.expiryDate`, '');
+                          setValue(`saleDetails.${index}.batchNumber`, '', { shouldDirty: true, shouldValidate: true });
+                          setValue(`saleDetails.${index}.expiryDate`, '', { shouldDirty: true, shouldValidate: true });
                           void loadAdminBatchesForMedicine(index, medicineId);
                         } else {
-                          setValue(`saleDetails.${index}.batchNumber`, '');
-                          setValue(`saleDetails.${index}.expiryDate`, '');
+                          setValue(`saleDetails.${index}.batchNumber`, '', { shouldDirty: true, shouldValidate: true });
+                          setValue(`saleDetails.${index}.expiryDate`, '', { shouldDirty: true, shouldValidate: true });
                           setAdminBatchesByIndex((prev) => ({ ...prev, [index]: [] }));
                         }
                       }}

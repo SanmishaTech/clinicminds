@@ -23,14 +23,23 @@ export async function GET(
         franchise: {
           select: { id: true, name: true }
         },
-        transport: true,
+        transport: {
+          include: {
+            transportDetails: {
+              select: {
+                saleDetailId: true,
+                quantity: true,
+              },
+            },
+          },
+        },
         saleDetails: {
           include: {
             medicine: {
               select: {
                 id: true,
                 name: true,
-                brand: true
+                brand: true,
               }
             }
           }

@@ -34,6 +34,7 @@ type ConsultationListItem = {
   appointment: {
     id: number;
     appointmentDateTime: string;
+    type: string;
     patient: {
       id: number;
       patientNo: string;
@@ -131,6 +132,13 @@ export default function DayBookPage() {
       sortable: true,
       accessor: (r) => format(new Date(r.appointment.appointmentDateTime), 'dd/MM/yyyy hh:mm a'),
       cellClassName: 'whitespace-nowrap',
+    },
+    {
+      key: 'appointmentType',
+      header: 'Type',
+      sortable: true,
+      accessor: (r) => r.appointment.type.charAt(0).toUpperCase() + r.appointment.type.slice(1).toLowerCase(),
+      cellClassName: 'whitespace-nowrap font-medium',
     },
     {
       key: 'nextFollowUpDate',
