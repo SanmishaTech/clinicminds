@@ -232,6 +232,7 @@ export async function POST(req: NextRequest) {
     secondaryInsuranceId,
     balanceAmount,
     labId,
+    referredBy,
     patientReports
   } =
     (body as Partial<{
@@ -270,6 +271,7 @@ export async function POST(req: NextRequest) {
       secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
       labId?: number | string | null;
+      referredBy?: string | null;
       patientReports?: Array<{ name?: string; url?: string }> | null;
     }>) || {};
 
@@ -396,6 +398,7 @@ export async function POST(req: NextRequest) {
             }))
           } : undefined,
           balanceAmount: parsedBalance,
+          referredBy: referredBy || null,
         },
         select: {
           id: true,
@@ -507,6 +510,7 @@ export async function PATCH(req: NextRequest) {
     secondaryInsuranceId,
     balanceAmount,
     labId,
+    referredBy,
     patientReports
   } =
     (body as Partial<{
@@ -547,6 +551,7 @@ export async function PATCH(req: NextRequest) {
       secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
       labId?: number | string | null;
+      referredBy?: string | null;
       patientReports?: Array<{ name?: string; url?: string }> | null;
     }>) || {} as {
       id?: number | string;
@@ -585,6 +590,7 @@ export async function PATCH(req: NextRequest) {
       secondaryInsuranceId?: string | null;
       balanceAmount?: number | string | null;
       labId?: number | string | null;
+      referredBy?: string | null;
       patientReports?: Array<{ name?: string; url?: string }> | null;
     };
 
@@ -720,6 +726,7 @@ export async function PATCH(req: NextRequest) {
     }
     // Note: patientReports updates will be handled separately after patient update
   }
+  if (typeof referredBy === "string" || referredBy === null) data.referredBy = referredBy || null;
 
   const nextStateId = stateId !== undefined ? Number(stateId) : undefined;
   const nextCityId = cityId !== undefined ? Number(cityId) : undefined;

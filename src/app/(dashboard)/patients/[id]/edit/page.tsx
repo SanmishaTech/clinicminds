@@ -39,6 +39,7 @@ export default function EditPatientPage() {
           height: string | null;
           weight: string | null;
           bmi: string | null;
+          referredBy: string | null;
           address: string;
           stateId: number | null;
           cityId: number | null;
@@ -86,6 +87,7 @@ export default function EditPatientPage() {
           height: data.height,
           weight: data.weight,
           bmi: data.bmi,
+          referredBy: data.referredBy,
           address: data.address,
           stateId: data.stateId,
           cityId: data.cityId,
