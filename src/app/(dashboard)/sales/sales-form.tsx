@@ -605,6 +605,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
             type="button"
             variant="outline"
             onClick={() => router.push('/sales')}
+            iconName="X"
           >
             Cancel
           </AppButton>
