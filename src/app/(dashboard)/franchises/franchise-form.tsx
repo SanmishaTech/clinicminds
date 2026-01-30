@@ -277,7 +277,7 @@ export function FranchiseForm({
                 <TextInput control={control} name='addressLine1' label='Address Line 1' required placeholder='Address line 1' />
                 <TextInput control={control} name='addressLine2' label='Address Line 2' placeholder='Address line 2' />
               </FormRow>
-              <FormRow cols={2}>
+              <FormRow cols={3}>
                 <ComboboxInput
                   control={control}
                   name='stateId'
@@ -298,8 +298,6 @@ export function FranchiseForm({
                   emptyText={stateIdValue ? 'No city found.' : 'Select state first'}
                   required
                 />
-              </FormRow>
-              <FormRow>
                 <TextInput
                   control={control}
                   name='pincode'
