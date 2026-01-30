@@ -54,6 +54,8 @@ export async function GET(req: NextRequest) {
   const order = (searchParams.get('order') === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc';
   const appointmentId = searchParams.get('appointmentId');
   const patientId = searchParams.get('patientId');
+  const startDate = searchParams.get('startDate');
+  const endDate = searchParams.get('endDate');
 
   const sortable = new Set(['createdAt', 'updatedAt', 'totalAmount', 'nextFollowUpDate']);
   const orderBy: Record<string, 'asc' | 'desc'> = sortable.has(sort)
@@ -90,6 +92,22 @@ export async function GET(req: NextRequest) {
     };
   }
 
+  // Date filtering based on appointment date
+  if (startDate || endDate) {
+    where.appointment = {
+      ...where.appointment,
+      appointmentDateTime: {},
+    };
+    
+    if (startDate) {
+      where.appointment.appointmentDateTime.gte = new Date(startDate + 'T00:00:00.000Z');
+    }
+    
+    if (endDate) {
+      where.appointment.appointmentDateTime.lte = new Date(endDate + 'T23:59:59.999Z');
+    }
+  }
+
   try {
     const result = await paginate({
       model: prisma.consultation,
@@ -120,8 +138,10 @@ export async function GET(req: NextRequest) {
                 id: true,
                 patientNo: true,
                 firstName: true,
+                middleName: true,
                 lastName: true,
                 mobile: true,
+                gender: true,
               },
             },
             team: {

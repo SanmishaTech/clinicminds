@@ -74,6 +74,8 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/day-book", permissions: [PERMISSIONS.READ_DAY_BOOK] },
 
   { prefix: "/purchases", permissions: [PERMISSIONS.READ_PURCHASES] },
+
+  { prefix: "/reports/day-book", permissions: [PERMISSIONS.READ_DAY_BOOK_REPORT] },
   
 ];
 
