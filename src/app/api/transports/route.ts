@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
         saleId: true,
         franchiseId: true,
         status: true,
+        dispatchedQuantity: true,
         transporterName: true,
         companyName: true,
         transportFee: true,
@@ -113,9 +114,22 @@ export async function POST(req: NextRequest) {
     const result = await prisma.$transaction(async (tx: any) => {
       const sale = await tx.sale.findUnique({
         where: { id: data.saleId },
-        select: { id: true, franchiseId: true },
+        select: {
+          id: true,
+          franchiseId: true,
+          saleDetails: {
+            select: {
+              quantity: true,
+            },
+          },
+        },
       });
       if (!sale) throw new Error('SALE_NOT_FOUND');
+
+      const totalSaleQty = (sale.saleDetails || []).reduce((sum: number, d: any) => sum + (Number(d.quantity) || 0), 0);
+      if ((Number(data.dispatchedQuantity) || 0) > totalSaleQty) {
+        throw new Error('DISPATCHED_QTY_EXCEEDS_SALE');
+      }
 
       const existing = await tx.transport.findUnique({
         where: { saleId: sale.id },
@@ -134,6 +148,7 @@ export async function POST(req: NextRequest) {
           franchiseId: sale.franchiseId,
           status: 'DISPATCHED',
           dispatchedAt: now,
+          dispatchedQuantity: data.dispatchedQuantity,
           transporterName: data.transporterName || null,
           companyName: data.companyName || null,
           transportFee: data.transportFee ?? null,
@@ -146,6 +161,7 @@ export async function POST(req: NextRequest) {
           franchiseId: sale.franchiseId,
           status: 'DISPATCHED',
           dispatchedAt: now,
+          dispatchedQuantity: data.dispatchedQuantity,
           transporterName: data.transporterName || null,
           companyName: data.companyName || null,
           transportFee: data.transportFee ?? null,
@@ -165,6 +181,7 @@ export async function POST(req: NextRequest) {
     const err = e as Error;
     if (err.message === 'SALE_NOT_FOUND') return ApiError('Sale not found', 404);
     if (err.message === 'TRANSPORT_ALREADY_DELIVERED') return ApiError('Transport already delivered', 409);
+    if (err.message === 'DISPATCHED_QTY_EXCEEDS_SALE') return ApiError('Dispatched quantity exceeds sale quantity', 400);
     console.error('Create/update transport error:', e);
     return ApiError('Failed to save transport');
   }

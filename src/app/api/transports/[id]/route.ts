@@ -40,6 +40,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         saleId: true,
         franchiseId: true,
         status: true,
+        dispatchedQuantity: true,
         transporterName: true,
         companyName: true,
         transportFee: true,
@@ -111,7 +112,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
         const transport = await tx.transport.findUnique({
           where: { id: idNum },
-          select: { id: true, saleId: true, franchiseId: true, status: true, stockPostedAt: true },
+          select: { id: true, saleId: true, franchiseId: true, status: true, stockPostedAt: true, dispatchedQuantity: true },
         });
         if (!transport) return { error: 'NOT_FOUND' } as const;
         if (transport.franchiseId !== franchiseId) return { error: 'FORBIDDEN' } as const;
@@ -129,6 +130,36 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         });
         if (!sale) return { error: 'SALE_NOT_FOUND' } as const;
 
+        const totalSaleQty = (sale.saleDetails || []).reduce((sum: number, d: any) => sum + (Number(d.quantity) || 0), 0);
+        const requestedDispatchQtyRaw = Number(transport.dispatchedQuantity ?? 0) || 0;
+        const requestedDispatchQty = requestedDispatchQtyRaw > 0 ? requestedDispatchQtyRaw : totalSaleQty;
+
+        const dispatchedDetails: Array<{
+          medicineId: number;
+          batchNumber: string | null;
+          expiryDate: Date | null;
+          quantity: number;
+          rate: number;
+          amount: number;
+        }> = [];
+
+        let remaining = requestedDispatchQty;
+        for (const d of sale.saleDetails || []) {
+          if (remaining <= 0) break;
+          const q = Math.min(remaining, Number(d.quantity) || 0);
+          if (q <= 0) continue;
+          const rate = Number(d.rate) || 0;
+          dispatchedDetails.push({
+            medicineId: Number(d.medicineId),
+            batchNumber: d.batchNumber ?? null,
+            expiryDate: d.expiryDate ? new Date(d.expiryDate) : null,
+            quantity: q,
+            rate,
+            amount: rate * q,
+          });
+          remaining -= q;
+        }
+
         const now = new Date();
 
         const updatedTransport = await tx.transport.update({
@@ -143,7 +174,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           });
 
           const adminQtyByMedicineId = new Map<number, number>();
-          for (const d of sale.saleDetails || []) {
+          for (const d of dispatchedDetails) {
             adminQtyByMedicineId.set(d.medicineId, (adminQtyByMedicineId.get(d.medicineId) ?? 0) + d.quantity);
           }
 
@@ -240,7 +271,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           await tx.stockLedger.deleteMany({ where: { transactionId: stockTxn.id } });
 
           await tx.stockLedger.createMany({
-            data: (sale.saleDetails || []).map((detail: any) => ({
+            data: dispatchedDetails.map((detail: any) => ({
               transactionId: stockTxn.id,
               franchiseId: sale.franchiseId,
               medicineId: detail.medicineId,
@@ -255,7 +286,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           const qtyByMedicineId = new Map<number, number>();
           const qtyByBatchKey = new Map<string, { franchiseId: number; medicineId: number; batchNumber: string; expiryDate: Date; qty: number }>();
 
-          for (const d of sale.saleDetails || []) {
+          for (const d of dispatchedDetails) {
             qtyByMedicineId.set(d.medicineId, (qtyByMedicineId.get(d.medicineId) ?? 0) + d.quantity);
             if (d.batchNumber && d.expiryDate) {
               const key = `${sale.franchiseId}:${d.medicineId}:${d.batchNumber}:${new Date(d.expiryDate).toISOString()}`;
@@ -365,12 +396,27 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         throw new Error('TRANSPORT_ALREADY_DELIVERED');
       }
 
-      const sale = await tx.sale.findUnique({ where: { id: existing.saleId }, select: { id: true, franchiseId: true } });
+      const sale = await tx.sale.findUnique({
+        where: { id: existing.saleId },
+        select: {
+          id: true,
+          franchiseId: true,
+          saleDetails: { select: { quantity: true } },
+        },
+      });
       if (!sale) throw new Error('SALE_NOT_FOUND');
+
+      if (data.dispatchedQuantity !== undefined) {
+        const totalSaleQty = (sale.saleDetails || []).reduce((sum: number, d: any) => sum + (Number(d.quantity) || 0), 0);
+        if ((Number(data.dispatchedQuantity) || 0) > totalSaleQty) {
+          throw new Error('DISPATCHED_QTY_EXCEEDS_SALE');
+        }
+      }
 
       const patch: any = {
         transporterName: data.transporterName ?? undefined,
         companyName: data.companyName ?? undefined,
+        dispatchedQuantity: data.dispatchedQuantity ?? undefined,
         transportFee: data.transportFee ?? undefined,
         receiptNumber: data.receiptNumber ?? undefined,
         vehicleNumber: data.vehicleNumber ?? undefined,
@@ -394,6 +440,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     const err = e as Error;
     if (err.message === 'TRANSPORT_ALREADY_DELIVERED') return ApiError('Transport already delivered', 409);
     if (err.message === 'SALE_NOT_FOUND') return ApiError('Sale not found', 404);
+    if (err.message === 'DISPATCHED_QTY_EXCEEDS_SALE') return ApiError('Dispatched quantity exceeds sale quantity', 400);
     console.error('Update transport error:', e);
     return ApiError('Failed to update transport');
   }

@@ -8,7 +8,8 @@ export const salesFormSchema = z.object({
   ).refine((v) => v && v.trim().length > 0, "Franchise is required"),
   discountPercent: z
     .string()
-    .trim()
+    .optional()
+    .transform((v) => (v ?? '').trim())
     .refine(
       (v) => v === '' || (!isNaN(parseFloat(v)) && parseFloat(v) >= 0 && parseFloat(v) <= 100),
       'Discount must be 0 to 100'

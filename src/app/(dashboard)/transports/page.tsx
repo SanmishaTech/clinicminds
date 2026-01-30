@@ -12,7 +12,7 @@ import { Pagination } from '@/components/common/pagination';
 import { DataTable, type Column, type SortState } from '@/components/common/data-table';
 import { StatusBadge } from '@/components/common/status-badge';
 import { usePermissions } from '@/hooks/use-permissions';
-import { PERMISSIONS } from '@/config/roles';
+import { PERMISSIONS, ROLES } from '@/config/roles';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { AppButton } from '@/components/common/app-button';
 import { AppSelect } from '@/components/common/app-select';
@@ -23,6 +23,7 @@ type TransportListItem = {
   id: number;
   saleId: number;
   status: string;
+  dispatchedQuantity?: number | null;
   transporterName?: string | null;
   companyName?: string | null;
   transportFee?: number | string | null;
@@ -101,7 +102,9 @@ export default function TransportsPage() {
 
   const { data, error, isLoading, mutate } = useSWR<TransportsResponse>(query, apiGet);
 
-  const { can } = usePermissions();
+  const { can, role } = usePermissions();
+
+  const showFranchiseColumn = role === ROLES.ADMIN;
 
   const isFranchiseLike = can(PERMISSIONS.EDIT_TRANSPORTS) && !can(PERMISSIONS.CREATE_TRANSPORTS);
 
@@ -117,70 +120,77 @@ export default function TransportsPage() {
     }
   }
 
-  const columns: Column<TransportListItem>[] = [
-    {
-      key: 'sale',
-      header: 'Invoice No',
-      sortable: false,
-      cellClassName: 'font-medium whitespace-nowrap',
-      accessor: (r) => r.sale?.invoiceNo || `#${r.saleId}`,
-    },
-    {
-      key: 'invoiceDate',
-      header: 'Invoice Date',
-      sortable: false,
-      className: 'whitespace-nowrap',
-      cellClassName: 'whitespace-nowrap',
-      accessor: (r) => formatDate(r.sale?.invoiceDate || ''),
-    },
-    {
-      key: 'franchise',
-      header: 'Franchise',
-      sortable: false,
-      accessor: (r) => r.franchise?.name || '—',
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      sortable: false,
-      accessor: (r) => (
-        <StatusBadge
-          status={(r.status || '').toLowerCase()}
-          stylesMap={{
-            dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
-            delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
-          }}
-        />
-      ),
-    },
-    {
-      key: 'trackingNumber',
-      header: 'Tracking',
-      sortable: false,
-      accessor: (r) => r.trackingNumber || '—',
-    },
-    {
-      key: 'transportFee',
-      header: 'Transport Fee',
-      sortable: false,
-      className: 'whitespace-nowrap',
-      accessor: (r) => formatIndianCurrency(Number(r.transportFee) || 0),
-    },
-    {
-      key: 'dispatchedAt',
-      header: 'Dispatched',
-      sortable: false,
-      className: 'whitespace-nowrap',
-      accessor: (r) => (r.dispatchedAt ? formatDate(r.dispatchedAt) : '—'),
-    },
-    {
-      key: 'deliveredAt',
-      header: 'Delivered',
-      sortable: false,
-      className: 'whitespace-nowrap',
-      accessor: (r) => (r.deliveredAt ? formatDate(r.deliveredAt) : '—'),
-    },
-  ];
+  const columns: Column<TransportListItem>[] = useMemo(() => {
+    const base: Column<TransportListItem>[] = [
+      {
+        key: 'sale',
+        header: 'Invoice No',
+        sortable: false,
+        cellClassName: 'font-medium whitespace-nowrap',
+        accessor: (r) => r.sale?.invoiceNo || `#${r.saleId}`,
+      },
+      {
+        key: 'invoiceDate',
+        header: 'Invoice Date',
+        sortable: false,
+        className: 'whitespace-nowrap',
+        cellClassName: 'whitespace-nowrap',
+        accessor: (r) => formatDate(r.sale?.invoiceDate || ''),
+      },
+      {
+        key: 'status',
+        header: 'Status',
+        sortable: false,
+        accessor: (r) => (
+          <StatusBadge
+            status={(r.status || '').toLowerCase()}
+            stylesMap={{
+              dispatched: { label: 'Dispatched', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400' },
+              delivered: { label: 'Delivered', className: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+            }}
+          />
+        ),
+      },
+      {
+        key: 'trackingNumber',
+        header: 'Tracking',
+        sortable: false,
+        accessor: (r) => r.trackingNumber || '—',
+      },
+      {
+        key: 'transportFee',
+        header: 'Transport Fee',
+        sortable: false,
+        className: 'whitespace-nowrap',
+        accessor: (r) => formatIndianCurrency(Number(r.transportFee) || 0),
+      },
+      {
+        key: 'dispatchedAt',
+        header: 'Dispatched',
+        sortable: false,
+        className: 'whitespace-nowrap',
+        accessor: (r) => (r.dispatchedAt ? formatDate(r.dispatchedAt) : '—'),
+      },
+      {
+        key: 'deliveredAt',
+        header: 'Delivered',
+        sortable: false,
+        className: 'whitespace-nowrap',
+        accessor: (r) => (r.deliveredAt ? formatDate(r.deliveredAt) : '—'),
+      },
+    ];
+
+    if (showFranchiseColumn) {
+      base.splice(2, 0, {
+        key: 'franchise',
+        header: 'Franchise',
+        sortable: false,
+        accessor: (r) => r.franchise?.name || '—',
+      });
+    }
+
+    return base;
+  }, [showFranchiseColumn]);
 
   const sortState: SortState = { field: sort, order };
 

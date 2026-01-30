@@ -18,6 +18,7 @@ import { StatusBadge } from '@/components/common/status-badge';
 export type TransportFormInitial = {
   transporterName?: string | null;
   companyName?: string | null;
+  dispatchedQuantity?: number | string | null;
   transportFee?: number | string | null;
   receiptNumber?: string | null;
   vehicleNumber?: string | null;
@@ -47,6 +48,7 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
     () => ({
       transporterName: initial?.transporterName || '',
       companyName: initial?.companyName || '',
+      dispatchedQuantity: initial?.dispatchedQuantity != null ? String(initial.dispatchedQuantity) : '',
       transportFee: initial?.transportFee != null ? String(initial.transportFee) : '',
       receiptNumber: initial?.receiptNumber || '',
       vehicleNumber: initial?.vehicleNumber || '',
@@ -73,6 +75,7 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
       const payload = {
         saleId: sale.saleId,
         companyName: values.companyName.trim(),
+        dispatchedQuantity: Number(values.dispatchedQuantity),
         transporterName: values.transporterName?.trim() || undefined,
         transportFee: Number(values.transportFee),
         receiptNumber: values.receiptNumber?.trim() || undefined,
@@ -119,8 +122,20 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
                 <TextInput control={control} name='transportFee' label='Transport Fee' placeholder='0' type='number' step='0.01' required />
               </FormRow>
 
-              <FormRow cols={3}>
+              <FormRow cols={2}>
+                <TextInput
+                  control={control}
+                  name='dispatchedQuantity'
+                  label='Dispatched Quantity'
+                  placeholder='0'
+                  type='number'
+                  step='1'
+                  required
+                />
                 <TextInput control={control} name='receiptNumber' label='Receipt Number' placeholder='Enter receipt number' />
+              </FormRow>
+
+              <FormRow cols={2}>
                 <TextInput control={control} name='vehicleNumber' label='Vehicle Number' placeholder='Enter vehicle number' />
                 <TextInput control={control} name='trackingNumber' label='Tracking Number' placeholder='Enter tracking number' />
               </FormRow>

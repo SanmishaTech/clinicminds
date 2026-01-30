@@ -54,7 +54,7 @@ export default function EditSalePage() {
           invoiceNo: sale.invoiceNo,
           invoiceDate: sale.invoiceDate,
           franchiseId: sale.franchiseId?.toString(),
-          discountPercent: String(sale.discountPercent ?? 0),
+          discountPercent: sale.discountPercent != null ? String(sale.discountPercent) : '',
           totalAmount: sale.totalAmount.toString(),
           saleDetails: sale.saleDetails?.map((detail: any) => ({
             medicineId: detail.medicineId.toString(),

@@ -235,6 +235,7 @@ model Transport {
   franchiseId    Int
   franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   status         String   @default("PENDING")
+  dispatchedQuantity Int  @default(0)
   transporterName String?
   companyName    String?
   transportFee   Decimal? @db.Decimal(10, 2)

@@ -14,6 +14,7 @@ type SaleApiResponse = {
   transport?: {
     transporterName?: string | null;
     companyName?: string | null;
+    dispatchedQuantity?: number | string | null;
     transportFee?: number | string | null;
     receiptNumber?: string | null;
     vehicleNumber?: string | null;
@@ -26,7 +27,7 @@ type SaleApiResponse = {
 export default function NewTransportPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const saleIdParam = searchParams.get('saleId');
+  const saleIdParam = searchParams?.get('saleId');
   const saleId = saleIdParam ? Number(saleIdParam) : NaN;
 
   const [loading, setLoading] = useState(true);
@@ -55,6 +56,7 @@ export default function NewTransportPage() {
         setInitial({
           transporterName: data.transport?.transporterName ?? '',
           companyName: data.transport?.companyName ?? '',
+          dispatchedQuantity: data.transport?.dispatchedQuantity ?? '',
           transportFee: data.transport?.transportFee ?? '',
           receiptNumber: data.transport?.receiptNumber ?? '',
           vehicleNumber: data.transport?.vehicleNumber ?? '',

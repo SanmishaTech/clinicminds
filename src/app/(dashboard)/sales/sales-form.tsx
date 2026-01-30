@@ -94,7 +94,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
       invoiceNo: initialData?.invoiceNo || '',
       invoiceDate: initialData?.invoiceDate?.split('T')[0] || new Date().toISOString().split('T')[0],
       franchiseId: initialData?.franchiseId?.toString() || '',
-      discountPercent: (initialData as any)?.discountPercent?.toString?.() ?? (initialData as any)?.discountPercent ?? '0',
+      discountPercent: (initialData as any)?.discountPercent?.toString?.() ?? (initialData as any)?.discountPercent ?? '',
       totalAmount: (initialData?.totalAmount ?? 0).toString(),
       saleDetails: initialData?.saleDetails?.map(detail => ({
         medicineId: detail.medicineId.toString(),
