@@ -76,6 +76,7 @@ export async function GET(
         height: true,
         weight: true,
         bmi: true,
+        referredBy: true,
         address: true,
         stateId: true,
         cityId: true,

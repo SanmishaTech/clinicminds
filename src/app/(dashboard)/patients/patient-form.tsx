@@ -95,6 +95,7 @@ export interface PatientFormInitialData {
   secondaryInsuranceId?: string | null;
   balanceAmount?: number | null;
   labId?: number | null;
+  referredBy?: string | null;
   patientReports?: {
     id?: number;
     name?: string | null;
@@ -256,6 +257,7 @@ export function PatientForm({
 
     balanceAmount: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     labId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    referredBy: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     patientReports: z
       .array(
         z.object({
@@ -309,6 +311,7 @@ export function PatientForm({
       secondaryInsuranceId: initial?.secondaryInsuranceId || '',
       balanceAmount: initial?.balanceAmount != null ? String(initial.balanceAmount) : '',
       labId: initial?.labId != null ? String(initial.labId) : '',
+      referredBy: initial?.referredBy || '',
       patientReports: initial?.patientReports?.map((report) => ({
         name: report.name || '',
         url: report.url || '',
@@ -421,6 +424,7 @@ export function PatientForm({
         height: values.height || null,
         weight: values.weight || null,
         bmi: values.bmi || null,
+        referredBy: values.referredBy || null,
         address: values.address,
         stateId: values.stateId ? Number(values.stateId) : undefined,
         cityId: values.cityId ? Number(values.cityId) : undefined,
@@ -567,6 +571,14 @@ export function PatientForm({
                       <FormMessage />
                     </FormItem>
                   )}
+                />
+              </FormRow>
+               <FormRow cols={1}>
+                <TextInput
+                  control={control}
+                  name='referredBy'
+                  label='Referred By'
+                  placeholder='Name of person who referred'
                 />
               </FormRow>
             </FormSection>
