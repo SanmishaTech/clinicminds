@@ -4,10 +4,10 @@ export const teamSchema = z.object({
   name: z.string().min(1, "Team name is required").max(255, "Team name must be less than 255 characters"),
   email: z.string().email("Invalid email format").max(255, "Email must be less than 255 characters"),
   password: z.string().min(8, "Password must be at least 8 characters").max(255, "Password must be less than 255 characters"),
-  role: z.enum(["FRANCHISE", "DOCTOR"], {
+  role: z.enum(["FRANCHISE", "DOCTOR", "STAFF", "TECHNICIAN", "ACCOUNT", "SALES"], {
     errorMap: (issue, ctx) => {
       if (issue.code === 'invalid_enum_value') {
-        return { message: 'Role must be one of: Franchise Admin, Doctor' };
+        return { message: 'Role must be one of: Franchise Admin, Doctor, Staff, Technician, Account, Sales' };
       }
       return { message: ctx.defaultError };
     }

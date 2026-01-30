@@ -145,7 +145,11 @@ export default function TeamsPage() {
     {
       key: 'userRole',
       header: 'Role',
-      accessor: (r) => r.user?.role || '—',
+      accessor: (r) => {
+        const role = r.user?.role || '—';
+        if (role === 'FRANCHISE') return 'Franchise Admin';
+        return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+      },
       cellClassName: 'whitespace-nowrap',
     },
     {
