@@ -454,7 +454,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
       setIsLoading(true);
       try {
         const [servicesRes, medicinesRes] = await Promise.all([
-          apiGet('/api/services?perPage=1000'),
+          apiGet('/api/services?perPage=1000&isProcedure=false'),
           apiGet('/api/medicines?perPage=1000'),
         ]);
 
