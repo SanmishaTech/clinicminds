@@ -292,7 +292,7 @@ export function PackageForm({
       setIsLoading(true);
       try {
         const [servicesRes, medicinesRes] = await Promise.all([
-          apiGet('/api/services?perPage=1000'),
+          apiGet('/api/services?perPage=1000&isProcedure=false'),
           apiGet('/api/medicines?perPage=1000'),
         ]);
 

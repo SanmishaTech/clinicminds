@@ -74,6 +74,7 @@ type Appointment = {
   id: number;
   appointmentDateTime: string;
   visitPurpose: string | null;
+  type: 'CONSULTATION' | 'PROCEDURE';
   patient: {
     id: number;
     patientNo: string;
@@ -453,24 +454,28 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
     const fetchData = async () => {
       setIsLoading(true);
       try {
+        // First, fetch the appointment to get its type if we have an appointmentId
+        let appointmentType: 'CONSULTATION' | 'PROCEDURE' = 'CONSULTATION';
+        
+        if (initial?.appointmentId) {
+          try {
+            const appointmentRes = await apiGet(`/api/appointments/${initial.appointmentId}`);
+            const appointment = appointmentRes as Appointment;
+            appointmentType = appointment.type;
+            setPatientInfo(appointment.patient);
+          } catch (error) {
+            console.error('Failed to fetch appointment info:', error);
+          }
+        }
+
+        // Now fetch services based on the appointment type
         const [servicesRes, medicinesRes] = await Promise.all([
-          apiGet('/api/services?perPage=1000'),
+          apiGet(`/api/services?perPage=1000&isProcedure=${appointmentType === 'PROCEDURE'}`),
           apiGet('/api/medicines?perPage=1000'),
         ]);
 
         setServices((servicesRes as any).data || []);
         setMedicines((medicinesRes as any).data || []);
-
-        // Fetch patient info if we have an appointmentId
-        if (initial?.appointmentId) {
-          try {
-            const appointmentRes = await apiGet(`/api/appointments/${initial.appointmentId}`);
-            const appointment = appointmentRes as Appointment;
-            setPatientInfo(appointment.patient);
-          } catch (error) {
-            console.error('Failed to fetch patient info:', error);
-          }
-        }
       } catch (e) {
         toast.error('Failed to load data');
       } finally {

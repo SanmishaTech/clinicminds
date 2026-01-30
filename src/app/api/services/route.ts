@@ -28,6 +28,7 @@ export async function GET(req: NextRequest) {
   if (auth.ok === false) return auth.response;
   const { searchParams } = new URL(req.url);
   const search = searchParams.get("search")?.trim() || "";
+  const isProcedure = searchParams.get("isProcedure");
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const perPage = Math.min(100, Math.max(1, Number(searchParams.get('perPage')) || 10));
   const sort = searchParams.get('sort') || 'name';
@@ -36,12 +37,22 @@ export async function GET(req: NextRequest) {
   const orderBy: Record<string, "asc" | "desc"> = sortable.has(sort) 
   ? { [sort]: order } 
   : { name: "asc" };
-  const where = {
+  
+  // Build where clause
+  const baseWhere = {
     OR: [
       { name: { contains: search } },
       { description: { contains: search } },
     ],
   };
+  
+  // Add isProcedure filter if specified
+  const where = isProcedure !== null 
+    ? { 
+        ...baseWhere,
+        isProcedure: isProcedure === 'true' 
+      }
+    : baseWhere;
   try {
     const result = await paginate({
       model: prisma.service as any,

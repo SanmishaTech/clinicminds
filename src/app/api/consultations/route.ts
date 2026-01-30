@@ -114,6 +114,7 @@ export async function GET(req: NextRequest) {
             id: true,
             appointmentDateTime: true,
             visitPurpose: true,
+            type: true,
             patient: {
               select: {
                 id: true,
