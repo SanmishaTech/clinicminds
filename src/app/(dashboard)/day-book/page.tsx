@@ -58,31 +58,42 @@ export default function DayBookPage() {
     page: 1,
     perPage: 10,
     search: '',
+    startDate: new Date().toISOString().split('T')[0], // Default to today
+    endDate: new Date().toISOString().split('T')[0], // Default to today
     sort: 'createdAt',
     order: 'desc',
   });
 
-  const { page, perPage, search, sort, order } = qp as unknown as {
+  const { page, perPage, search, startDate, endDate, sort, order } = qp as unknown as {
     page: number;
     perPage: number;
     search: string;
+    startDate: string;
+    endDate: string;
     sort: string;
     order: 'asc' | 'desc';
   };
 
   const [searchDraft, setSearchDraft] = useState(search);
+  const [startDateDraft, setStartDateDraft] = useState(startDate);
+  const [endDateDraft, setEndDateDraft] = useState(endDate);
 
   useEffect(() => { setSearchDraft(search); }, [search]);
+  useEffect(() => { setStartDateDraft(startDate); }, [startDate]);
+  useEffect(() => { setEndDateDraft(endDate); }, [endDate]);
 
-  const filtersDirty = searchDraft !== search;
+  const filtersDirty = searchDraft !== search || startDateDraft !== startDate || endDateDraft !== endDate;
 
   function applyFilters() {
-    setQp({ page: 1, search: searchDraft.trim() });
+    setQp({ page: 1, search: searchDraft.trim(), startDate: startDateDraft, endDate: endDateDraft });
   }
 
   function resetFilters() {
     setSearchDraft('');
-    setQp({ page: 1, search: '' });
+    const today = new Date().toISOString().split('T')[0];
+    setStartDateDraft(today);
+    setEndDateDraft(today);
+    setQp({ page: 1, search: '', startDate: today, endDate: today });
   }
 
   const query = useMemo(() => {
@@ -90,10 +101,12 @@ export default function DayBookPage() {
     sp.set('page', String(page));
     sp.set('perPage', String(perPage));
     if (search) sp.set('search', search);
+    if (startDate) sp.set('startDate', startDate);
+    if (endDate) sp.set('endDate', endDate);
     if (sort) sp.set('sort', sort);
     if (order) sp.set('order', order);
     return `/api/consultations?${sp.toString()}`;
-  }, [page, perPage, search, sort, order]);
+  }, [page, perPage, search, startDate, endDate, sort, order]);
 
   const { data, error, isLoading, mutate } = useSWR<ConsultationsResponse>(query, apiGet);
   const { can } = usePermissions();
@@ -210,6 +223,22 @@ export default function DayBookPage() {
             onChange={(e) => setSearchDraft(e.target.value)}
             containerClassName='w-full'
           />
+          <NonFormTextInput
+            type='date'
+            aria-label='Start date'
+            placeholder='Start date…'
+            value={startDateDraft}
+            onChange={(e) => setStartDateDraft(e.target.value)}
+            containerClassName='w-full'
+          />
+          <NonFormTextInput
+            type='date'
+            aria-label='End date'
+            placeholder='End date…'
+            value={endDateDraft}
+            onChange={(e) => setEndDateDraft(e.target.value)}
+            containerClassName='w-full'
+          />
           <AppButton
             size='sm'
             onClick={applyFilters}
@@ -218,7 +247,7 @@ export default function DayBookPage() {
           >
             Filter
           </AppButton>
-          {search && (
+          {(search || startDate || endDate) && (
             <AppButton
               variant='secondary'
               size='sm'
