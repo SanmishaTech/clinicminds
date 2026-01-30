@@ -11,6 +11,7 @@ import { apiGet, apiPost } from '@/lib/api-client';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
 import { TextInput } from '@/components/common/text-input';
+import TextareaInput from '@/components/common/textarea-input';
 import { ComboboxInput } from '@/components/common/combobox-input';
 import { FormSection, FormRow } from '@/components/common/app-form';
 import { DataTable, Column } from '@/components/common/data-table';
@@ -29,7 +30,9 @@ const receiptSchema = z.object({
   payerName: z.string().optional(),
   contactNumber: z.string().optional(),
   utrNumber: z.string().optional(),
-  amount: z.string().min(1),
+  upiName: z.string().optional(),
+  bankName: z.string().optional(),
+  amount: z.string().min(1, "Amount is required"),
   chequeNumber: z.string().optional(),
   chequeDate: z.string().optional(),
   notes: z.string().optional(),
@@ -51,6 +54,30 @@ type ConsultationData = {
       mobile: string;
     };
   };
+  consultationDetails?: Array<{
+    id: number;
+    serviceId: number;
+    description: string | null;
+    qty: number;
+    rate: number;
+    amount: number;
+    service: {
+      id: number;
+      name: string;
+    } | null;
+  }>;
+  consultationMedicines?: Array<{
+    id: number;
+    medicineId: number;
+    qty: number;
+    mrp: number;
+    amount: number;
+    doses: string | null;
+    medicine: {
+      id: number;
+      name: string;
+    } | null;
+  }>;
 };
 
 type ReceiptItem = {
@@ -81,20 +108,28 @@ export default function ReceiptPage() {
 
   const form = useForm<ReceiptFormData>({
     resolver: zodResolver(receiptSchema),
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
     },
   });
 
-  const { control, handleSubmit, watch, reset } = form;
+  const { control, handleSubmit, watch, reset, setValue } = form;
 
   const selectedPaymentMode = watch('paymentMode');
-  const payerNameLabel =
-    selectedPaymentMode === 'UPI'
-      ? 'UPI App Name'
-      : selectedPaymentMode === 'CHEQUE'
-        ? 'Cheque Bank Name'
-        : 'Name';
+  const receiptAmount = watch('amount');
+
+  // Check if receipt amount exceeds balance
+  useEffect(() => {
+    if (receiptAmount && currentBalance > 0) {
+      const amount = parseFloat(receiptAmount);
+      if (amount > currentBalance) {
+        toast.error('Receipt amount cannot exceed balance amount');
+        setValue('amount', currentBalance.toString());
+      }
+    }
+  }, [receiptAmount, setValue]);
 
   // Fetch consultation data
   const fetchConsultationData = async () => {
@@ -115,7 +150,7 @@ export default function ReceiptPage() {
   const fetchReceipts = async () => {
     try {
       setLoading(true);
-      const response = await apiGet(`/api/consultation-receipts?consultationId=${consultationId}`) as { data: ReceiptItem[] };
+      const response = await apiGet(`/api/consultation-receipts?consultationId=${consultationId}&sort=date&order=desc`) as { data: ReceiptItem[] };
       setReceipts(response.data || []);
     } catch (error) {
       toast.error('Failed to fetch receipts');
@@ -135,6 +170,14 @@ export default function ReceiptPage() {
     try {
       setSubmitting(true);
       
+      const receiptAmount = parseFloat(values.amount || '0');
+      
+      // Forceful check: Ensure receipt amount doesn't exceed balance amount
+      if (receiptAmount > currentBalance) {
+        toast.error('Receipt amount cannot exceed balance amount');
+        return;
+      }
+      
       const receiptData = {
         consultationId,
         date: values.date ? new Date(values.date).toISOString() : new Date().toISOString(),
@@ -142,7 +185,9 @@ export default function ReceiptPage() {
         payerName: values.payerName || '',
         contactNumber: values.contactNumber || '',
         utrNumber: values.utrNumber || '',
-        amount: parseFloat(values.amount || '0'),
+        upiName: values.upiName || '',
+        bankName: values.bankName || '',
+        amount: receiptAmount,
         chequeNumber: values.chequeNumber || '',
         chequeDate: values.chequeDate ? new Date(values.chequeDate).toISOString() : null,
         notes: values.notes || '',
@@ -162,35 +207,35 @@ export default function ReceiptPage() {
     {
       key: 'receiptNumber',
       header: 'Receipt No',
-      sortable: true,
+      sortable: false,
       accessor: (r) => r.receiptNumber,
       cellClassName: 'font-medium whitespace-nowrap',
     },
     {
       key: 'date',
       header: 'Date',
-      sortable: true,
+      sortable: false,
       accessor: (r) => formatDate(r.date),
       cellClassName: 'whitespace-nowrap',
     },
     {
       key: 'paymentMode',
       header: 'Payment Mode',
-      sortable: true,
+      sortable: false,
       accessor: (r) => r.paymentMode,
       cellClassName: 'whitespace-nowrap',
     },
     {
       key: 'payerName',
       header: 'Payer Name',
-      sortable: true,
+      sortable: false,
       accessor: (r) => r.payerName,
       cellClassName: 'whitespace-nowrap',
     },
     {
       key: 'amount',
       header: 'Amount',
-      sortable: true,
+      sortable: false,
       accessor: (r) => formatIndianCurrency(parseFloat(r.amount)),
       cellClassName: 'whitespace-nowrap font-medium',
     },
@@ -218,10 +263,10 @@ export default function ReceiptPage() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       
-      {/* Patient Information */}
+      {/* Consultation Information */}
       <AppCard>
         <AppCard.Header>
-          <AppCard.Title>Patient Information</AppCard.Title>
+          <AppCard.Title>Consultation Information</AppCard.Title>
         </AppCard.Header>
         <AppCard.Content>
           <FormRow cols={4}>
@@ -242,7 +287,7 @@ export default function ReceiptPage() {
               <p className="text-sm">{consultationData.appointment.patient.mobile}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium">Appointment Date</label>
+              <label className="block text-sm font-medium">Appointment Date and Time</label>
               <p className="text-sm">
                 {format(new Date(consultationData.appointment.appointmentDateTime), 'dd/MM/yyyy hh:mm a')}
               </p>
@@ -276,6 +321,51 @@ export default function ReceiptPage() {
               Download Invoice
             </AppButton>
           </FormRow>
+
+          {/* Services and Medicines Details */}
+          {consultationData.consultationDetails && consultationData.consultationDetails.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-semibold text-base mb-2">Services</h4>
+              <div className="border rounded">
+                <div className="grid grid-cols-4 gap-0 bg-muted border-b">
+                  <div className="px-4 py-2 font-medium text-sm border-r">Service</div>
+                  <div className="px-4 py-2 font-medium text-sm border-r">Description</div>
+                  <div className="px-4 py-2 font-medium text-sm border-r">Rate</div>
+                  <div className="px-4 py-2 font-medium text-sm">Amount</div>
+                </div>
+                {consultationData.consultationDetails.map((detail, index) => (
+                  <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
+                    <div className="px-4 py-2 font-medium text-sm border-r">{detail.service?.name || '—'}</div>
+                    <div className="px-4 py-2 font-medium text-sm border-r">{detail.description || '—'}</div>
+                    <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(detail.rate)}</div>
+                    <div className="px-4 py-2 font-medium text-sm">{formatIndianCurrency(detail.amount)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {consultationData.consultationMedicines && consultationData.consultationMedicines.length > 0 && (
+            <div className="mt-4">
+              <h4 className="font-semibold text-base mb-2">Medicines</h4>
+              <div className="border rounded">
+                <div className="grid grid-cols-4 gap-0 bg-muted border-b">
+                  <div className="px-4 py-2 font-medium text-sm border-r">Medicine</div>
+                  <div className="px-4 py-2 font-medium text-sm border-r">Qty</div>
+                  <div className="px-4 py-2 font-medium text-sm border-r">MRP</div>
+                  <div className="px-4 py-2 font-medium text-sm">Amount</div>
+                </div>
+                {consultationData.consultationMedicines.map((medicine, index) => (
+                  <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
+                    <div className="px-4 py-2 font-medium text-sm border-r">{medicine.medicine?.name || '—'}</div>
+                    <div className="px-4 py-2 font-medium text-sm border-r">{medicine.qty}</div>
+                    <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(medicine.mrp)}</div>
+                    <div className="px-4 py-2 font-medium text-sm">{formatIndianCurrency(medicine.amount)}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </AppCard.Content>
       </AppCard>
 
@@ -287,6 +377,21 @@ export default function ReceiptPage() {
         <AppCard.Content>
           <Form {...form}>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+              {/* Receipt Amount - Move to top */}
+              <FormRow cols={1}>
+                <TextInput
+                  control={control}
+                  name="amount"
+                  label="Receipt Amount"
+                  type="number"
+                  step="0.01"
+                  required
+                  placeholder="Enter amount"
+                  disabled={currentBalance === 0}
+                  max={currentBalance}
+                />
+              </FormRow>
+
               <FormRow cols={3}>
                 <TextInput
                   control={control}
@@ -294,6 +399,7 @@ export default function ReceiptPage() {
                   label="Receipt Date"
                   type="date"
                   required
+                  disabled={currentBalance === 0}
                 />
                 <ComboboxInput
                   control={control}
@@ -302,12 +408,14 @@ export default function ReceiptPage() {
                   options={paymentModeOptions}
                   required
                   placeholder="Select payment mode"
+                  disabled={currentBalance === 0}
                 />
                 <TextInput
                   control={control}
                   name="payerName"
-                  label={payerNameLabel}
+                  label="Payer Name"
                   placeholder="Enter payer name"
+                  disabled={currentBalance === 0}
                 />
               </FormRow>
 
@@ -324,12 +432,27 @@ export default function ReceiptPage() {
                       e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
                     }}
                     placeholder="Enter contact number"
+                    disabled={currentBalance === 0}
                   />
                 </FormRow>
               )}
 
               {selectedPaymentMode === 'UPI' && (
-                <FormRow cols={2}>
+                <FormRow cols={3}>
+                  <TextInput
+                    control={control}
+                    name="upiName"
+                    label="UPI Name"
+                    placeholder="Enter UPI name"
+                    disabled={currentBalance === 0}
+                  />
+                  <TextInput
+                    control={control}
+                    name="utrNumber"
+                    label="UTR Number"
+                    placeholder="Enter UTR number"
+                    disabled={currentBalance === 0}
+                  />
                   <TextInput
                     control={control}
                     name="contactNumber"
@@ -340,48 +463,44 @@ export default function ReceiptPage() {
                       e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
                     }}
                     placeholder="Enter contact number"
-                  />
-                  <TextInput
-                    control={control}
-                    name="utrNumber"
-                    label="UTR Number"
-                    placeholder="Enter UTR number"
+                    disabled={currentBalance === 0}
                   />
                 </FormRow>
               )}
 
               {selectedPaymentMode === 'CHEQUE' && (
-                <FormRow cols={2}>
+                <FormRow cols={3}>
+                  <TextInput
+                    control={control}
+                    name="bankName"
+                    label="Bank Name"
+                    placeholder="Enter bank name"
+                    disabled={currentBalance === 0}
+                  />
                   <TextInput
                     control={control}
                     name="chequeNumber"
                     label="Cheque Number"
                     placeholder="Enter cheque number"
+                    disabled={currentBalance === 0}
                   />
                   <TextInput
                     control={control}
                     name="chequeDate"
                     label="Cheque Date"
                     type="date"
+                    disabled={currentBalance === 0}
                   />
                 </FormRow>
               )}
 
-              <FormRow cols={2}>
-                <TextInput
-                  control={control}
-                  name="amount"
-                  label="Receipt Amount"
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="Enter amount"
-                />
-                <TextInput
+              <FormRow cols={1}>
+                <TextareaInput
                   control={control}
                   name="notes"
                   label="Notes"
                   placeholder="Enter notes (optional)"
+                  disabled={currentBalance === 0}
                 />
               </FormRow>
 
@@ -397,6 +516,7 @@ export default function ReceiptPage() {
                 <AppButton
                   type="submit"
                   isLoading={submitting}
+                  disabled={submitting || currentBalance === 0 || !form.formState.isValid}
                 >
                   Create Receipt
                 </AppButton>
