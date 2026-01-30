@@ -317,6 +317,11 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
 
   const watchedDetails = useWatch({ control, name: 'consultationDetails' });
   const watchedMedicines = useWatch({ control, name: 'consultationMedicines' });
+  const watchedReceiptAmount = useWatch({ control, name: 'receipt.amount' });
+  const currentTotalAmount = useWatch({ control, name: 'totalAmount' });
+
+  // Check if total amount is 0 to disable receipt fields
+  const isTotalAmountZero = parseFloat(currentTotalAmount || '0') === 0;
 
   // Trigger validation only when qty/rate/amount fields change to fix submit button state
   useEffect(() => {
@@ -329,8 +334,21 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
     // Only watch specific fields that affect validation
     watchedDetails?.map(d => `${d.serviceId}-${d.rate}-${d.amount}`).join('|'),
     watchedMedicines?.map(m => `${m.medicineId}-${m.qty}-${m.mrp}-${m.amount}`).join('|'),
+    watchedReceiptAmount,
     trigger
   ]);
+
+  // Check if receipt amount exceeds total amount
+  useEffect(() => {
+    if (watchedReceiptAmount && currentTotalAmount) {
+      const receiptAmount = parseFloat(watchedReceiptAmount);
+      const totalAmount = parseFloat(currentTotalAmount);
+      if (receiptAmount > totalAmount) {
+        toast.error('Receipt amount cannot exceed total amount');
+        setValue('receipt.amount', totalAmount.toString());
+      }
+    }
+  }, [watchedReceiptAmount, currentTotalAmount, setValue]);
 
   useEffect(() => {
     const calculateTotal = () => {
@@ -1058,6 +1076,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                             label="Add payment receipt for this consultation"
                             checked={watch('addReceipt')}
                             onCheckedChange={(checked) => setValue('addReceipt', checked)}
+                            disabled={isTotalAmountZero}
                           />
                         </div>
                         
@@ -1071,6 +1090,9 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 type="number"
                                 step="0.01"
                                 placeholder="Enter amount received"
+                                required
+                                max={parseFloat(form.getValues('totalAmount')) || 0}
+                                disabled={isTotalAmountZero}
                               />
                             </FormRow>
                             <FormRow cols={3}>
@@ -1079,6 +1101,8 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 name="receipt.date"
                                 label="Receipt Date"
                                 type="date"
+                                required
+                                disabled={isTotalAmountZero}
                               />
                               <ComboboxInput
                                 control={control as any}
@@ -1086,12 +1110,15 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 label="Payment Mode"
                                 options={paymentModeOptions}
                                 placeholder="Select payment mode"
+                                required
+                                disabled={isTotalAmountZero}
                               />
                                <TextInput
                                 control={control}
                                 name="receipt.payerName"
                                 label="Payer Name"
                                 placeholder="Enter payer name"
+                                disabled={isTotalAmountZero}
                               />
                             </FormRow>
                             
@@ -1108,6 +1135,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
                                   }}
                                   placeholder="Enter contact number"
+                                  disabled={isTotalAmountZero}
                                 />
                               </FormRow>
                             )}
@@ -1119,12 +1147,14 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   name="receipt.upiName"
                                   label="UPI Name"
                                   placeholder="Enter UPI name"
+                                  disabled={isTotalAmountZero}
                                 />
                                 <TextInput
                                   control={control}
                                   name="receipt.utrNumber"
                                   label="UTR Number"
                                   placeholder="Enter UTR number"
+                                  disabled={isTotalAmountZero}
                                 />
                                  <TextInput
                                   control={control}
@@ -1136,6 +1166,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
                                   }}
                                   placeholder="Enter contact number"
+                                  disabled={isTotalAmountZero}
                                 />
                               </FormRow>
                             )}
@@ -1146,18 +1177,21 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   name="receipt.bankName"
                                   label="Bank Name"
                                   placeholder="Enter bank name"
+                                  disabled={isTotalAmountZero}
                                 />
                                 <TextInput
                                   control={control}
                                   name="receipt.chequeNumber"
                                   label="Cheque Number"
                                   placeholder="Enter cheque number"
+                                  disabled={isTotalAmountZero}
                                 />
                                 <TextInput
                                   control={control}
                                   name="receipt.chequeDate"
                                   label="Cheque Date"
                                   type="date"
+                                  disabled={isTotalAmountZero}
                                 />
                               </FormRow>
                             )}
@@ -1167,6 +1201,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 name="receipt.notes"
                                 label="Notes"
                                 placeholder="Any additional notes about the payment"
+                                disabled={isTotalAmountZero}
                               />
                             </FormRow>
                           </div>
