@@ -210,6 +210,18 @@ export async function POST(req: NextRequest) {
             franchiseId: franchiseId
           }
         }
+      },
+      include: {
+        appointment: {
+          select: {
+            patient: {
+              select: {
+                id: true,
+                balanceAmount: true
+              }
+            }
+          }
+        }
       }
     });
 
@@ -282,6 +294,18 @@ export async function POST(req: NextRequest) {
             totalReceivedAmount: currentReceivedAmount + validatedData.amount
           }
         });
+
+        // Update patient's balanceAmount (reduce by the receipt amount only)
+        const patientId = consultation.appointment?.patient?.id;
+        if (patientId) {
+          const currentBalanceAmount = Number(consultation.appointment.patient.balanceAmount || 0);
+          await tx.patient.update({
+            where: { id: patientId },
+            data: {
+              balanceAmount: Math.max(0, currentBalanceAmount - validatedData.amount)
+            }
+          });
+        }
       }
 
       return receipt;
