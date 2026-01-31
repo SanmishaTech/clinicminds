@@ -10,6 +10,7 @@ const dispatchedDetailSchema = z.object({
 export const createTransportSchema = z
   .object({
     saleId: z.number().int().positive(),
+    transportId: z.number().int().positive().optional(),
     companyName: z.string().trim().min(1),
     dispatchedDetails: z.array(dispatchedDetailSchema).min(1).optional(),
     dispatchedQuantity: z.number().int().positive().optional(),

@@ -6,6 +6,23 @@ import { apiGet } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import TransportForm, { type TransportFormInitial, type TransportSaleInfo } from '../transports-form';
 
+type TransportApiResponse = {
+  id: number;
+  saleId: number;
+  status?: string | null;
+  transporterName?: string | null;
+  companyName?: string | null;
+  transportFee?: number | string | null;
+  receiptNumber?: string | null;
+  vehicleNumber?: string | null;
+  trackingNumber?: string | null;
+  notes?: string | null;
+  transportDetails?: Array<{
+    saleDetailId: number;
+    quantity: number | string | null;
+  }>;
+};
+
 type SaleApiResponse = {
   id: number;
   invoiceNo: string;
@@ -16,6 +33,7 @@ type SaleApiResponse = {
     batchNumber?: string | null;
     expiryDate?: string | null;
     quantity: number | string;
+    remainingQuantity?: number | string;
     medicine?: {
       name?: string | null;
       brand?: string | null;
@@ -40,23 +58,39 @@ type SaleApiResponse = {
 export default function NewTransportPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const transportIdParam = searchParams?.get('transportId');
+  const transportId = transportIdParam ? Number(transportIdParam) : NaN;
   const saleIdParam = searchParams?.get('saleId');
   const saleId = saleIdParam ? Number(saleIdParam) : NaN;
 
   const [loading, setLoading] = useState(true);
   const [sale, setSale] = useState<TransportSaleInfo | null>(null);
   const [initial, setInitial] = useState<TransportFormInitial | null>(null);
+  const [resolvedTransportId, setResolvedTransportId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (Number.isNaN(saleId) || saleId <= 0) {
-      setLoading(false);
-      return;
-    }
-
     let mounted = true;
     (async () => {
       try {
-        const data = await apiGet<SaleApiResponse>(`/api/sales/${saleId}`);
+        if (!mounted) return;
+
+        let resolvedSaleId = saleId;
+        let transport: TransportApiResponse | null = null;
+
+        if (!Number.isNaN(transportId) && transportId > 0) {
+          transport = await apiGet<TransportApiResponse>(`/api/transports/${transportId}`);
+          resolvedSaleId = Number(transport.saleId);
+          setResolvedTransportId(Number(transport.id));
+        }
+
+        if (Number.isNaN(resolvedSaleId) || resolvedSaleId <= 0) {
+          throw new Error('Invalid sale');
+        }
+
+        const saleUrl = !Number.isNaN(transportId) && transportId > 0
+          ? `/api/sales/${resolvedSaleId}?transportId=${transportId}`
+          : `/api/sales/${resolvedSaleId}`;
+        const data = await apiGet<SaleApiResponse>(saleUrl);
         if (!mounted) return;
 
         const saleDetails = data.saleDetails || [];
@@ -73,29 +107,45 @@ export default function NewTransportPage() {
             batchNumber: d.batchNumber ?? null,
             expiryDate: d.expiryDate ?? null,
             quantity: d.quantity,
+            remainingQuantity: d.remainingQuantity ?? d.quantity,
           })),
         });
 
         const transportDetails = data.transport?.transportDetails || [];
-        const hasTransportDetails = transportDetails.length > 0;
+        if (resolvedTransportId == null && data.transport && (data.transport as any).id) {
+          setResolvedTransportId(Number((data.transport as any).id));
+        }
+
+        const effectiveTransportDetails = transport?.transportDetails || transportDetails;
+        const effectiveHasTransportDetails = effectiveTransportDetails.length > 0;
+        const effectiveStatus = transport?.status ?? data.transport?.status ?? 'PENDING';
+        const effectiveCompanyName = transport?.companyName ?? data.transport?.companyName ?? '';
+        const effectiveTransporterName = transport?.transporterName ?? data.transport?.transporterName ?? '';
+        const effectiveTransportFee = transport?.transportFee ?? data.transport?.transportFee ?? '';
+        const effectiveReceiptNumber = transport?.receiptNumber ?? data.transport?.receiptNumber ?? '';
+        const effectiveVehicleNumber = transport?.vehicleNumber ?? data.transport?.vehicleNumber ?? '';
+        const effectiveTrackingNumber = transport?.trackingNumber ?? data.transport?.trackingNumber ?? '';
+        const effectiveNotes = transport?.notes ?? data.transport?.notes ?? '';
 
         setInitial({
-          transporterName: data.transport?.transporterName ?? '',
-          companyName: data.transport?.companyName ?? '',
+          transporterName: effectiveTransporterName,
+          companyName: effectiveCompanyName,
           dispatchedDetails: saleDetails.map((detail) => {
-            const matched = transportDetails.find((item) => Number(item.saleDetailId) === Number(detail.id));
-            const fallbackQty = hasTransportDetails ? 0 : Number(detail.quantity) || 0;
+            const matched = effectiveTransportDetails.find((item) => Number(item.saleDetailId) === Number(detail.id));
+            const fallbackQty = effectiveHasTransportDetails
+              ? 0
+              : Number(detail.remainingQuantity ?? detail.quantity) || 0;
             return {
               saleDetailId: Number(detail.id),
               quantity: matched?.quantity ?? fallbackQty,
             };
           }),
-          transportFee: data.transport?.transportFee ?? '',
-          receiptNumber: data.transport?.receiptNumber ?? '',
-          vehicleNumber: data.transport?.vehicleNumber ?? '',
-          trackingNumber: data.transport?.trackingNumber ?? '',
-          notes: data.transport?.notes ?? '',
-          status: data.transport?.status ?? 'PENDING',
+          transportFee: effectiveTransportFee,
+          receiptNumber: effectiveReceiptNumber,
+          vehicleNumber: effectiveVehicleNumber,
+          trackingNumber: effectiveTrackingNumber,
+          notes: effectiveNotes,
+          status: effectiveStatus,
         });
       } catch (e) {
         toast.error((e as Error).message || 'Failed to load sale');
@@ -108,11 +158,7 @@ export default function NewTransportPage() {
     return () => {
       mounted = false;
     };
-  }, [saleId, router]);
-
-  if (Number.isNaN(saleId) || saleId <= 0) {
-    return <div className='p-6'>Invalid sale</div>;
-  }
+  }, [saleId, transportId, router]);
 
   if (loading) {
     return <div className='p-6'>Loading...</div>;
@@ -122,5 +168,12 @@ export default function NewTransportPage() {
     return <div className='p-6'>Sale not found</div>;
   }
 
-  return <TransportForm sale={sale} initial={initial} redirectOnSuccess='/sales' />;
+  return (
+    <TransportForm
+      sale={sale}
+      initial={initial}
+      transportId={resolvedTransportId}
+      redirectOnSuccess='/sales'
+    />
+  );
 }

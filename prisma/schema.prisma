@@ -214,7 +214,7 @@ model Sale{
   franchise   Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
   saleDetails SaleDetail[]
   stockTransaction StockTransaction?
-  transport   Transport?
+  transports Transport[]
   totalAmount Decimal  @db.Decimal(10, 2)
   discountPercent Decimal @default(0) @db.Decimal(5, 2)
   createdAt   DateTime @default(now())
@@ -230,7 +230,7 @@ model Sale{
 
 model Transport {
   id             Int      @id @default(autoincrement())
-  saleId         Int      @unique
+  saleId         Int
   sale           Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   franchiseId    Int
   franchise      Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
@@ -250,6 +250,7 @@ model Transport {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  @@index([saleId])
   @@index([franchiseId])
   @@index([status])
   @@map("transports")

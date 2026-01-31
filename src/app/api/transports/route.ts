@@ -140,6 +140,38 @@ export async function POST(req: NextRequest) {
         return sum + qty;
       }, 0);
 
+      const alreadyDispatched = await tx.transportDetail.findMany({
+        where: {
+          transport: {
+            saleId: sale.id,
+            status: { in: ['DISPATCHED', 'DELIVERED'] },
+          },
+        },
+        select: { saleDetailId: true, quantity: true },
+      });
+
+      const alreadyDispatchedBySaleDetailId = new Map<number, number>();
+      for (const row of alreadyDispatched) {
+        const sid = Number(row.saleDetailId);
+        const q = Number(row.quantity) || 0;
+        alreadyDispatchedBySaleDetailId.set(sid, (alreadyDispatchedBySaleDetailId.get(sid) ?? 0) + q);
+      }
+
+      const remainingBySaleDetailId = new Map<number, number>();
+      let totalRemainingQty = 0;
+      for (const d of saleDetails) {
+        const saleDetailId = Number(d.id);
+        const saleQty = Number(d.quantity) || 0;
+        const alreadyQty = alreadyDispatchedBySaleDetailId.get(saleDetailId) ?? 0;
+        const remaining = Math.max(0, saleQty - alreadyQty);
+        remainingBySaleDetailId.set(saleDetailId, remaining);
+        totalRemainingQty += remaining;
+      }
+
+      if (totalSaleQty > 0 && totalRemainingQty <= 0) {
+        throw new Error('ALREADY_FULLY_DISPATCHED');
+      }
+
       let dispatchedDetails: Array<{ saleDetailId: number; quantity: number }> = [];
 
       if (data.dispatchedDetails && data.dispatchedDetails.length > 0) {
@@ -157,20 +189,19 @@ export async function POST(req: NextRequest) {
         dispatchedDetails = saleDetails.map((detail) => {
           const saleDetailId = Number(detail.id);
           const qty = payloadMap.get(saleDetailId) ?? 0;
-          const saleDetail = saleDetailMap.get(saleDetailId);
-          if (saleDetail && qty > saleDetail.quantity) throw new Error('DISPATCHED_QTY_EXCEEDS_SALE_DETAIL');
+          const remaining = remainingBySaleDetailId.get(saleDetailId) ?? 0;
+          if (qty > remaining) throw new Error('DISPATCHED_QTY_EXCEEDS_REMAINING');
           return { saleDetailId, quantity: qty };
         });
       } else {
         const requestedDispatchQty = Number(data.dispatchedQuantity ?? 0) || 0;
-        if (requestedDispatchQty > totalSaleQty) {
-          throw new Error('DISPATCHED_QTY_EXCEEDS_SALE');
-        }
+        if (requestedDispatchQty > totalRemainingQty) throw new Error('DISPATCHED_QTY_EXCEEDS_REMAINING');
 
         let remaining = requestedDispatchQty;
         dispatchedDetails = saleDetails.map((detail) => {
           const saleDetailId = Number(detail.id);
-          const qty = remaining > 0 ? Math.min(remaining, Number(detail.quantity) || 0) : 0;
+          const maxQty = remainingBySaleDetailId.get(saleDetailId) ?? 0;
+          const qty = remaining > 0 ? Math.min(remaining, maxQty) : 0;
           remaining -= qty;
           return { saleDetailId, quantity: qty };
         });
@@ -182,33 +213,32 @@ export async function POST(req: NextRequest) {
         throw new Error('DISPATCHED_DETAILS_REQUIRED');
       }
 
-      const existing = await tx.transport.findUnique({
-        where: { saleId: sale.id },
-        select: { id: true, status: true },
-      });
-      if (existing?.status === 'DELIVERED') {
-        throw new Error('TRANSPORT_ALREADY_DELIVERED');
-      }
-
       const now = new Date();
 
-      const createdOrUpdated = await tx.transport.upsert({
-        where: { saleId: sale.id },
-        create: {
+      const pendingToDispatch = data.transportId
+        ? await tx.transport.findFirst({
+            where: { id: data.transportId, saleId: sale.id, status: 'PENDING' },
+            select: { id: true },
+          })
+        : await tx.transport.findFirst({
+            where: { saleId: sale.id, status: 'PENDING' },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true },
+          });
+
+      const pendingId = pendingToDispatch
+        ? pendingToDispatch.id
+        : (
+            await tx.transport.create({
+              data: { saleId: sale.id, franchiseId: sale.franchiseId, status: 'PENDING' },
+              select: { id: true },
+            })
+          ).id;
+
+      const createdOrUpdated = await tx.transport.update({
+        where: { id: pendingId },
+        data: {
           saleId: sale.id,
-          franchiseId: sale.franchiseId,
-          status: 'DISPATCHED',
-          dispatchedAt: now,
-          dispatchedQuantity: totalDispatchedQty,
-          transporterName: data.transporterName || null,
-          companyName: data.companyName || null,
-          transportFee: data.transportFee ?? null,
-          receiptNumber: data.receiptNumber || null,
-          vehicleNumber: data.vehicleNumber || null,
-          trackingNumber: data.trackingNumber || null,
-          notes: data.notes || null,
-        },
-        update: {
           franchiseId: sale.franchiseId,
           status: 'DISPATCHED',
           dispatchedAt: now,
@@ -225,12 +255,57 @@ export async function POST(req: NextRequest) {
 
       await tx.transportDetail.deleteMany({ where: { transportId: createdOrUpdated.id } });
       await tx.transportDetail.createMany({
-        data: dispatchedDetails.map((detail) => ({
-          transportId: createdOrUpdated.id,
-          saleDetailId: detail.saleDetailId,
-          quantity: detail.quantity,
-        })),
+        data: dispatchedDetails
+          .filter((d) => (Number(d.quantity) || 0) > 0)
+          .map((detail) => ({
+            transportId: createdOrUpdated.id,
+            saleDetailId: detail.saleDetailId,
+            quantity: detail.quantity,
+          })),
       });
+
+      for (const d of dispatchedDetails) {
+        const saleDetailId = Number(d.saleDetailId);
+        const prev = remainingBySaleDetailId.get(saleDetailId) ?? 0;
+        remainingBySaleDetailId.set(saleDetailId, Math.max(0, prev - (Number(d.quantity) || 0)));
+      }
+
+      const remainderDetails = saleDetails
+        .map((detail) => ({
+          saleDetailId: Number(detail.id),
+          quantity: remainingBySaleDetailId.get(Number(detail.id)) ?? 0,
+        }))
+        .filter((d) => (Number(d.quantity) || 0) > 0);
+
+      const remainderTotal = remainderDetails.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0);
+
+      if (remainderTotal > 0) {
+        const otherPending = await tx.transport.findFirst({
+          where: { saleId: sale.id, status: 'PENDING' },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true },
+        });
+
+        const pendingRemainderId = otherPending
+          ? otherPending.id
+          : (
+              await tx.transport.create({
+                data: { saleId: sale.id, franchiseId: sale.franchiseId, status: 'PENDING' },
+                select: { id: true },
+              })
+            ).id;
+
+        await tx.transportDetail.deleteMany({ where: { transportId: pendingRemainderId } });
+        await tx.transportDetail.createMany({
+          data: remainderDetails.map((detail) => ({
+            transportId: pendingRemainderId,
+            saleDetailId: detail.saleDetailId,
+            quantity: detail.quantity,
+          })),
+        });
+      } else {
+        await tx.transport.deleteMany({ where: { saleId: sale.id, status: 'PENDING' } });
+      }
 
       return createdOrUpdated;
     });
@@ -240,9 +315,8 @@ export async function POST(req: NextRequest) {
     if (e instanceof z.ZodError) return BadRequest(e.errors);
     const err = e as Error;
     if (err.message === 'SALE_NOT_FOUND') return ApiError('Sale not found', 404);
-    if (err.message === 'TRANSPORT_ALREADY_DELIVERED') return ApiError('Transport already delivered', 409);
-    if (err.message === 'DISPATCHED_QTY_EXCEEDS_SALE') return ApiError('Dispatched quantity exceeds sale quantity', 400);
-    if (err.message === 'DISPATCHED_QTY_EXCEEDS_SALE_DETAIL') return ApiError('Dispatched quantity exceeds sale detail quantity', 400);
+    if (err.message === 'ALREADY_FULLY_DISPATCHED') return ApiError('Sale is already fully dispatched', 409);
+    if (err.message === 'DISPATCHED_QTY_EXCEEDS_REMAINING') return ApiError('Dispatched quantity exceeds remaining quantity', 400);
     if (err.message === 'DISPATCHED_DETAILS_REQUIRED') return ApiError('Dispatched details are required', 400);
     if (err.message === 'INVALID_SALE_DETAIL') return ApiError('Invalid sale detail for dispatch', 400);
     if (err.message === 'DUPLICATE_SALE_DETAIL') return ApiError('Duplicate sale detail provided', 400);

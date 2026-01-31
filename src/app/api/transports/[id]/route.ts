@@ -270,56 +270,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
                 select: { id: true },
               });
 
-          const existingLedgerLines = await tx.stockLedger.findMany({
-            where: { transactionId: stockTxn.id },
-            select: { franchiseId: true, medicineId: true, batchNumber: true, expiryDate: true, qtyChange: true },
-          });
-
-          // reverse any existing ledger impact (safety)
-          for (const line of existingLedgerLines) {
-            await tx.stockBalance.upsert({
-              where: {
-                franchiseId_medicineId: {
-                  franchiseId: line.franchiseId,
-                  medicineId: line.medicineId,
-                },
-              },
-              create: {
-                franchiseId: line.franchiseId,
-                medicineId: line.medicineId,
-                quantity: -(line.qtyChange || 0),
-              },
-              update: {
-                quantity: { decrement: line.qtyChange || 0 },
-              },
-            });
-
-            if (line.batchNumber && line.expiryDate) {
-              await tx.stockBatchBalance.upsert({
-                where: {
-                  franchiseId_medicineId_batchNumber_expiryDate: {
-                    franchiseId: line.franchiseId,
-                    medicineId: line.medicineId,
-                    batchNumber: line.batchNumber,
-                    expiryDate: line.expiryDate,
-                  },
-                },
-                create: {
-                  franchiseId: line.franchiseId,
-                  medicineId: line.medicineId,
-                  batchNumber: line.batchNumber,
-                  expiryDate: line.expiryDate,
-                  quantity: -(line.qtyChange || 0),
-                },
-                update: {
-                  quantity: { decrement: line.qtyChange || 0 },
-                },
-              });
-            }
-          }
-
-          await tx.stockLedger.deleteMany({ where: { transactionId: stockTxn.id } });
-
           await tx.stockLedger.createMany({
             data: dispatchedDetails.map((detail: any) => ({
               transactionId: stockTxn.id,
@@ -452,6 +402,10 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         throw new Error('TRANSPORT_ALREADY_DELIVERED');
       }
 
+      if (String(existing.status || '').toUpperCase() !== 'PENDING') {
+        throw new Error('ONLY_PENDING_CAN_BE_UPDATED');
+      }
+
       const sale = await tx.sale.findUnique({
         where: { id: existing.saleId },
         select: {
@@ -461,6 +415,24 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         },
       });
       if (!sale) throw new Error('SALE_NOT_FOUND');
+
+      const alreadyDispatched = await tx.transportDetail.findMany({
+        where: {
+          transport: {
+            saleId: sale.id,
+            status: { in: ['DISPATCHED', 'DELIVERED'] },
+          },
+        },
+        select: { saleDetailId: true, quantity: true },
+      });
+
+      const alreadyDispatchedBySaleDetailId = new Map<number, number>();
+      for (const row of alreadyDispatched) {
+        const sid = Number(row.saleDetailId);
+        const q = Number(row.quantity) || 0;
+        alreadyDispatchedBySaleDetailId.set(sid, (alreadyDispatchedBySaleDetailId.get(sid) ?? 0) + q);
+      }
+
       let dispatchedDetailsToSave: Array<{ saleDetailId: number; quantity: number }> | null = null;
       let computedDispatchedQty: number | undefined;
 
@@ -472,6 +444,17 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           saleDetailMap.set(Number(d.id), { quantity: qty });
           return sum + qty;
         }, 0);
+
+        const remainingBySaleDetailId = new Map<number, number>();
+        let totalRemainingQty = 0;
+        for (const d of saleDetails) {
+          const saleDetailId = Number(d.id);
+          const saleQty = Number(d.quantity) || 0;
+          const alreadyQty = alreadyDispatchedBySaleDetailId.get(saleDetailId) ?? 0;
+          const remaining = Math.max(0, saleQty - alreadyQty);
+          remainingBySaleDetailId.set(saleDetailId, remaining);
+          totalRemainingQty += remaining;
+        }
 
         if (data.dispatchedDetails && data.dispatchedDetails.length > 0) {
           const payloadMap = new Map<number, number>();
@@ -488,8 +471,8 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           const computedDetails = saleDetails.map((detail) => {
             const saleDetailId = Number(detail.id);
             const qty = payloadMap.get(saleDetailId) ?? 0;
-            const saleDetail = saleDetailMap.get(saleDetailId);
-            if (saleDetail && qty > saleDetail.quantity) throw new Error('DISPATCHED_QTY_EXCEEDS_SALE_DETAIL');
+            const remaining = remainingBySaleDetailId.get(saleDetailId) ?? 0;
+            if (qty > remaining) throw new Error('DISPATCHED_QTY_EXCEEDS_REMAINING');
             return { saleDetailId, quantity: qty };
           });
 
@@ -500,14 +483,13 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           computedDispatchedQty = totalDispatchedQty;
         } else if (data.dispatchedQuantity !== undefined) {
           const requestedDispatchQty = Number(data.dispatchedQuantity) || 0;
-          if (requestedDispatchQty > totalSaleQty) {
-            throw new Error('DISPATCHED_QTY_EXCEEDS_SALE');
-          }
+          if (requestedDispatchQty > totalRemainingQty) throw new Error('DISPATCHED_QTY_EXCEEDS_REMAINING');
 
           let remaining = requestedDispatchQty;
           dispatchedDetailsToSave = saleDetails.map((detail) => {
             const saleDetailId = Number(detail.id);
-            const qty = remaining > 0 ? Math.min(remaining, Number(detail.quantity) || 0) : 0;
+            const maxQty = remainingBySaleDetailId.get(saleDetailId) ?? 0;
+            const qty = remaining > 0 ? Math.min(remaining, maxQty) : 0;
             remaining -= qty;
             return { saleDetailId, quantity: qty };
           });
@@ -548,6 +530,62 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         });
       }
 
+      if (statusUpper === 'DISPATCHED') {
+        const saleDetails = sale.saleDetails || [];
+        const dispatchedSumBySaleDetailId = new Map<number, number>();
+        for (const [k, v] of alreadyDispatchedBySaleDetailId.entries()) {
+          dispatchedSumBySaleDetailId.set(k, v);
+        }
+
+        for (const row of dispatchedDetailsToSave || []) {
+          const sid = Number(row.saleDetailId);
+          const q = Number(row.quantity) || 0;
+          dispatchedSumBySaleDetailId.set(sid, (dispatchedSumBySaleDetailId.get(sid) ?? 0) + q);
+        }
+
+        const remainderDetails = saleDetails
+          .map((detail) => {
+            const saleDetailId = Number(detail.id);
+            const saleQty = Number(detail.quantity) || 0;
+            const dispatchedQty = dispatchedSumBySaleDetailId.get(saleDetailId) ?? 0;
+            return {
+              saleDetailId,
+              quantity: Math.max(0, saleQty - dispatchedQty),
+            };
+          })
+          .filter((d) => (Number(d.quantity) || 0) > 0);
+
+        const remainderTotal = remainderDetails.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0);
+
+        if (remainderTotal > 0) {
+          const pendingRemainder = await tx.transport.findFirst({
+            where: { saleId: sale.id, status: 'PENDING' },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true },
+          });
+
+          const pendingRemainderId = pendingRemainder
+            ? pendingRemainder.id
+            : (
+                await tx.transport.create({
+                  data: { saleId: sale.id, franchiseId: sale.franchiseId, status: 'PENDING' },
+                  select: { id: true },
+                })
+              ).id;
+
+          await tx.transportDetail.deleteMany({ where: { transportId: pendingRemainderId } });
+          await tx.transportDetail.createMany({
+            data: remainderDetails.map((detail) => ({
+              transportId: pendingRemainderId,
+              saleDetailId: detail.saleDetailId,
+              quantity: detail.quantity,
+            })),
+          });
+        } else {
+          await tx.transport.deleteMany({ where: { saleId: sale.id, status: 'PENDING' } });
+        }
+      }
+
       return updatedTransport;
     });
 
@@ -557,11 +595,9 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     if (e instanceof z.ZodError) return BadRequest(e.errors);
     const err = e as Error;
     if (err.message === 'TRANSPORT_ALREADY_DELIVERED') return ApiError('Transport already delivered', 409);
+    if (err.message === 'ONLY_PENDING_CAN_BE_UPDATED') return ApiError('Only PENDING transports can be updated', 409);
     if (err.message === 'SALE_NOT_FOUND') return ApiError('Sale not found', 404);
-    if (err.message === 'DISPATCHED_QTY_EXCEEDS_SALE') return ApiError('Dispatched quantity exceeds sale quantity', 400);
-    if (err.message === 'DISPATCHED_QTY_EXCEEDS_SALE_DETAIL') {
-      return ApiError('Dispatched quantity exceeds sale detail quantity', 400);
-    }
+    if (err.message === 'DISPATCHED_QTY_EXCEEDS_REMAINING') return ApiError('Dispatched quantity exceeds remaining quantity', 400);
     if (err.message === 'DISPATCHED_DETAILS_REQUIRED') return ApiError('Dispatched details are required', 400);
     if (err.message === 'INVALID_SALE_DETAIL') return ApiError('Invalid sale detail for dispatch', 400);
     if (err.message === 'DUPLICATE_SALE_DETAIL') return ApiError('Duplicate sale detail provided', 400);

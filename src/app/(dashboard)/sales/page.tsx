@@ -268,26 +268,34 @@ export default function SalesPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(row) => {
-            const canTransport = can(PERMISSIONS.CREATE_TRANSPORTS);
-            if (!can(PERMISSIONS.EDIT_SALES) && !can(PERMISSIONS.DELETE_SALES) && !canTransport) return null;
-            const transportStatus = (row.transport?.status || '').toUpperCase();
             return (
               <div className='flex items-center gap-1'>
-                {canTransport && transportStatus !== 'DELIVERED' && (
-                  <Link href={`/transports/new?saleId=${row.id}`}>
-                    <IconButton
-                      iconName='Truck'
-                      tooltip='Transport'
-                      aria-label='Transport'
-                    />
+                {can(PERMISSIONS.CREATE_TRANSPORTS) && (
+                  <Link
+                    href={
+                      row.transport?.id
+                        ? `/transports/new?transportId=${row.transport.id}`
+                        : `/transports/new?saleId=${row.id}`
+                    }
+                  >
+                    <IconButton iconName='Truck' tooltip='Transport' aria-label='Transport' />
                   </Link>
                 )}
-                <DeleteButton
-                  onDelete={() => handleDelete(row.id)}
-                  itemLabel='Sale'
-                  title='Delete Sale?'
-                  description={`This will permanently remove sale "${row.invoiceNo}". This action cannot be undone.`}
-                />
+
+                {can(PERMISSIONS.EDIT_SALES) && (
+                  <Link href={`/sales/${row.id}/edit`}>
+                    <IconButton iconName='Pencil' tooltip='Edit' aria-label='Edit' />
+                  </Link>
+                )}
+
+                {can(PERMISSIONS.DELETE_SALES) && (
+                  <DeleteButton
+                    onDelete={() => handleDelete(row.id)}
+                    itemLabel='Sale'
+                    title='Delete Sale?'
+                    description={`This will permanently remove sale "${row.invoiceNo}". This action cannot be undone.`}
+                  />
+                )}
               </div>
             );
           }}

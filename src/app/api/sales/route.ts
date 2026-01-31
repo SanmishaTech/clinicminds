@@ -87,7 +87,9 @@ export async function GET(req: NextRequest) {
         invoiceNo: true,
         invoiceDate: true,
         totalAmount: true,
-        transport: {
+        transports: {
+          orderBy: { createdAt: 'desc' },
+          take: 5,
           select: {
             id: true,
             status: true,
@@ -102,7 +104,17 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    return Success(result);
+    const data = result.data.map((row: any) => {
+      const transportRows = row.transports || [];
+      const pendingTransport = transportRows.find(
+        (transport: any) => String(transport.status || '').toUpperCase() === 'PENDING'
+      );
+      const [latestTransport] = transportRows;
+      const { transports: _ignoredTransports, ...rest } = row;
+      return { ...rest, transport: pendingTransport ?? latestTransport ?? null };
+    });
+
+    return Success({ ...result, data });
   } catch (error) {
     console.error('Error fetching sales:', error);
     return Error('Failed to fetch sales');

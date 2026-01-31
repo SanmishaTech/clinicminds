@@ -16,6 +16,13 @@ export async function GET(
   const { id } = await context.params;
   const idNum = Number(id);
   if (Number.isNaN(idNum)) return BadRequest('Invalid sale ID');
+
+  const { searchParams } = new URL(req.url);
+  const transportIdParam = searchParams.get('transportId');
+  const transportIdFilter = transportIdParam ? Number(transportIdParam) : null;
+  if (transportIdParam && (Number.isNaN(transportIdFilter) || transportIdFilter <= 0)) {
+    return BadRequest('Invalid transport ID');
+  }
   try {
     const sale = await prisma.sale.findUnique({
       where: { id: idNum },
@@ -23,7 +30,9 @@ export async function GET(
         franchise: {
           select: { id: true, name: true }
         },
-        transport: {
+        transports: {
+          ...(transportIdFilter ? { where: { id: transportIdFilter } } : {}),
+          orderBy: { createdAt: 'desc' },
           include: {
             transportDetails: {
               select: {
@@ -39,7 +48,7 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
-                brand: true,
+                brand: { select: { name: true } },
               }
             }
           }
@@ -49,7 +58,34 @@ export async function GET(
     if (!sale) {
       return NotFound('Sale not found');
     }
-    return Success(sale);
+
+    const transports = sale.transports || [];
+    const pendingTransport = transports.find(
+      (transport) => String(transport.status || '').toUpperCase() === 'PENDING'
+    );
+    const transport = transportIdFilter ? (transports[0] ?? null) : (pendingTransport ?? transports[0] ?? null);
+
+    const remainingBySaleDetailId = new Map<number, number>();
+    for (const td of transport?.transportDetails || []) {
+      remainingBySaleDetailId.set(Number(td.saleDetailId), Number(td.quantity) || 0);
+    }
+
+    const saleDetailsWithRemaining = (sale.saleDetails || []).map((d: any) => {
+      const remainingQuantity = remainingBySaleDetailId.get(Number(d.id)) ?? d.quantity;
+      const brandName = d.medicine?.brand?.name ?? null;
+      return {
+        ...d,
+        remainingQuantity,
+        medicine: d.medicine
+          ? {
+              ...d.medicine,
+              brand: brandName,
+            }
+          : d.medicine,
+      };
+    });
+
+    return Success({ ...sale, saleDetails: saleDetailsWithRemaining, transport });
   } catch (error) {
     console.error('Error fetching sale:', error);
     return Error('Failed to fetch sale');
@@ -102,13 +138,18 @@ export async function PATCH(
     // Start a transaction
     const result = await prisma.$transaction(async (tx: any) => {
 
-      const transport = await tx.transport.findUnique({
-        where: { saleId: idNum },
-        select: { id: true, status: true },
+      const deliveredTransport = await tx.transport.findFirst({
+        where: { saleId: idNum, status: 'DELIVERED' },
+        select: { id: true },
       });
-      if (transport && String(transport.status || '').toUpperCase() === 'DELIVERED') {
+      if (deliveredTransport) {
         throw new globalThis.Error('SALE_DELIVERED');
       }
+
+      const pendingTransport = await tx.transport.findFirst({
+        where: { saleId: idNum, status: 'PENDING' },
+        select: { id: true },
+      });
 
       if (data.saleDetails && data.saleDetails.length > 0) {
         const requiredByMedicineId = new Map<number, number>();
@@ -203,7 +244,7 @@ export async function PATCH(
         });
       }
 
-      if (!transport) {
+      if (!pendingTransport) {
         await tx.transport.create({
           data: {
             saleId: idNum,
@@ -212,18 +253,29 @@ export async function PATCH(
           },
           select: { id: true },
         });
-      } else if (data.franchiseId !== undefined) {
-        await tx.transport.update({
+      }
+
+      if (data.franchiseId !== undefined) {
+        await tx.transport.updateMany({
           where: { saleId: idNum },
           data: { franchiseId: sale.franchiseId },
-          select: { id: true },
         });
       }
 
       return tx.sale.findUnique({
         where: { id: idNum },
         include: {
-          transport: true,
+          transports: {
+            orderBy: { createdAt: 'desc' },
+            include: {
+              transportDetails: {
+                select: {
+                  saleDetailId: true,
+                  quantity: true,
+                },
+              },
+            },
+          },
           saleDetails: {
             include: {
               medicine: {

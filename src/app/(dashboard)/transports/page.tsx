@@ -282,7 +282,7 @@ export default function TransportsPage() {
             return (
               <div className='flex items-center gap-1'>
                 {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper === 'PENDING' && (
-                  <Link href={`/transports/new?saleId=${row.saleId}`}>
+                  <Link href={`/transports/new?transportId=${row.id}`}>
                     <AppButton size='sm' variant='secondary' type='button'>
                       Dispatch
                     </AppButton>
@@ -290,7 +290,7 @@ export default function TransportsPage() {
                 )}
 
                 {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper === 'DISPATCHED' && (
-                  <Link href={`/transports/new?saleId=${row.saleId}`}>
+                  <Link href={`/transports/new?transportId=${row.id}`}>
                     <AppButton size='sm' variant='secondary' type='button'>
                       View
                     </AppButton>

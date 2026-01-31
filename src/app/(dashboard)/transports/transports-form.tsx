@@ -40,16 +40,18 @@ export type TransportSaleInfo = {
     batchNumber?: string | null;
     expiryDate?: string | null;
     quantity: number | string;
+    remainingQuantity?: number | string;
   }>;
 };
 
 export interface TransportFormProps {
   sale: TransportSaleInfo;
   initial?: TransportFormInitial | null;
+  transportId?: number | null;
   redirectOnSuccess?: string;
 }
 
-export default function TransportForm({ sale, initial, redirectOnSuccess = '/transports' }: TransportFormProps) {
+export default function TransportForm({ sale, initial, transportId, redirectOnSuccess = '/transports' }: TransportFormProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
@@ -59,7 +61,9 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
 
     const dispatchedDetails = (sale.saleDetails || []).map((detail) => {
       const matched = initialDetails.find((item) => Number(item.saleDetailId) === Number(detail.id));
-      const fallbackQty = hasInitialDetails ? 0 : Number(detail.quantity) || 0;
+      const fallbackQty = hasInitialDetails
+        ? 0
+        : Number(detail.remainingQuantity ?? detail.quantity) || 0;
       const quantity = matched?.quantity ?? fallbackQty;
       return {
         saleDetailId: Number(detail.id),
@@ -91,12 +95,15 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
   const statusLower = (initial?.status || 'PENDING').toString().toLowerCase();
   const isAlreadyDispatched = statusLower === 'dispatched';
   const isDelivered = statusLower === 'delivered';
+  const isPending = !isAlreadyDispatched && !isDelivered;
 
   async function onSubmit(values: TransportFormValues) {
+    if (!isPending) return;
     setSubmitting(true);
     try {
       const payload = {
         saleId: sale.saleId,
+        transportId: transportId ?? undefined,
         companyName: values.companyName.trim(),
         dispatchedDetails: values.dispatchedDetails.map((detail) => ({
           saleDetailId: Number(detail.saleDetailId),
@@ -150,13 +157,17 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
                         <th className='px-3 py-2 text-left font-medium'>Medicine</th>
                         <th className='px-3 py-2 text-left font-medium'>Batch</th>
                         <th className='px-3 py-2 text-left font-medium'>Expiry</th>
-                        <th className='px-3 py-2 text-right font-medium'>Qty</th>
+                        <th className='px-3 py-2 text-right font-medium'>
+                          {isPending ? 'Remaining Qty' : 'Qty'}
+                        </th>
                         <th className='px-3 py-2 text-right font-medium'>Dispatched Qty</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sale.saleDetails.map((d, idx) => {
                         const saleQty = Number(d.quantity) || 0;
+                        const remainingQty = Number(d.remainingQuantity ?? saleQty) || 0;
+                        const displayQty = isPending ? remainingQty : saleQty;
                         return (
                           <tr key={d.id ?? idx} className='border-t'>
                             <td className='px-3 py-2'>
@@ -166,7 +177,7 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
                             <td className='px-3 py-2'>
                               {d.expiryDate ? d.expiryDate.toString().split('T')[0] : '—'}
                             </td>
-                            <td className='px-3 py-2 text-right'>{saleQty}</td>
+                            <td className='px-3 py-2 text-right'>{displayQty}</td>
                             <td className='px-3 py-2 text-right'>
                               <FormField
                                 control={control}
@@ -185,9 +196,10 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
                                         type='number'
                                         inputMode='numeric'
                                         min={0}
-                                        max={saleQty}
+                                        max={isPending ? remainingQty : saleQty}
                                         step={1}
                                         className='h-9 w-24 text-right'
+                                        disabled={!isPending || submitting}
                                         {...field}
                                         value={field.value ?? ''}
                                       />
@@ -217,19 +229,65 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
 
             <FormSection legend='Transport Details'>
               <FormRow cols={3}>
-                <TextInput control={control} name='companyName' label='Company Name' placeholder='Enter company name' required />
-                <TextInput control={control} name='transporterName' label='Transporter Name' placeholder='Enter transporter name' />
-                <TextInput control={control} name='transportFee' label='Transport Fee' placeholder='0' type='number' step='0.01' required />
+                <TextInput
+                  control={control}
+                  name='companyName'
+                  label='Company Name'
+                  placeholder='Enter company name'
+                  required
+                  disabled={!isPending || submitting}
+                />
+                <TextInput
+                  control={control}
+                  name='transporterName'
+                  label='Transporter Name'
+                  placeholder='Enter transporter name'
+                  disabled={!isPending || submitting}
+                />
+                <TextInput
+                  control={control}
+                  name='transportFee'
+                  label='Transport Fee'
+                  placeholder='0'
+                  type='number'
+                  step='0.01'
+                  required
+                  disabled={!isPending || submitting}
+                />
               </FormRow>
 
               <FormRow cols={3}>
-                <TextInput control={control} name='receiptNumber' label='Receipt Number' placeholder='Enter receipt number' />
-                <TextInput control={control} name='vehicleNumber' label='Vehicle Number' placeholder='Enter vehicle number' />
-                <TextInput control={control} name='trackingNumber' label='Tracking Number' placeholder='Enter tracking number' />
+                <TextInput
+                  control={control}
+                  name='receiptNumber'
+                  label='Receipt Number'
+                  placeholder='Enter receipt number'
+                  disabled={!isPending || submitting}
+                />
+                <TextInput
+                  control={control}
+                  name='vehicleNumber'
+                  label='Vehicle Number'
+                  placeholder='Enter vehicle number'
+                  disabled={!isPending || submitting}
+                />
+                <TextInput
+                  control={control}
+                  name='trackingNumber'
+                  label='Tracking Number'
+                  placeholder='Enter tracking number'
+                  disabled={!isPending || submitting}
+                />
               </FormRow>
 
               <FormRow>
-                <TextareaInput control={control} name='notes' label='Notes' placeholder='Any notes' />
+                <TextareaInput
+                  control={control}
+                  name='notes'
+                  label='Notes'
+                  placeholder='Any notes'
+                  disabled={!isPending || submitting}
+                />
               </FormRow>
             </FormSection>
           </AppCard.Content>
@@ -240,7 +298,7 @@ export default function TransportForm({ sale, initial, redirectOnSuccess = '/tra
                 Cancel
               </AppButton>
 
-              <AppButton type='submit' disabled={submitting} isLoading={submitting}>
+              <AppButton type='submit' disabled={!isPending || submitting} isLoading={submitting}>
                 {isDelivered ? 'Delivered' : isAlreadyDispatched ? 'Update' : 'Dispatch'}
               </AppButton>
             </div>
