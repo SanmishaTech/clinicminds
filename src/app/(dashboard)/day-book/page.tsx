@@ -39,6 +39,7 @@ type ConsultationListItem = {
       id: number;
       patientNo: string;
       firstName: string;
+      middleName: string;
       lastName: string;
       mobile: string;
     };
@@ -136,7 +137,7 @@ export default function DayBookPage() {
       key: 'patientName',
       header: 'Patient Name',
       sortable: false,
-      accessor: (r) => `${r.appointment.patient.firstName} ${r.appointment.patient.lastName}`.trim(),
+      accessor: (r) => `${r.appointment.patient.firstName} ${r.appointment.patient.middleName} ${r.appointment.patient.lastName}`.trim(),
       cellClassName: 'whitespace-nowrap',
     },
     {
