@@ -151,8 +151,21 @@ export async function GET(req: NextRequest) {
 
     const [total, data] = result;
 
+    const normalizedData = (data || []).map((bill: any) => ({
+      ...bill,
+      medicineDetails: (bill.medicineDetails || []).map((d: any) => ({
+        ...d,
+        medicine: d.medicine
+          ? {
+              ...d.medicine,
+              brand: d.medicine?.brand?.name ?? null,
+            }
+          : d.medicine,
+      })),
+    }));
+
     return Success({
-      data,
+      data: normalizedData,
       page,
       perPage,
       total,

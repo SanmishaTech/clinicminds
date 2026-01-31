@@ -12,7 +12,7 @@ import { toast } from '@/lib/toast';
 type Medicine = {
   id: number;
   name: string;
-  brand: { name: string };
+  brand: string | null;
 };
 
 type Line = {
@@ -54,7 +54,7 @@ export function AdminStockRefillDialog({ open, onOpenChange, onSuccess }: AdminS
     () =>
       medicines.map((m) => ({
         value: String(m.id),
-        label: m.brand?.name ? `${m.name} - ${m.brand.name}` : m.name,
+        label: `${m.name} - ${m.brand || 'Unknown Brand'}`,
       })),
     [medicines]
   );

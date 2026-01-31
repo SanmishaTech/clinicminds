@@ -55,7 +55,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     });
     
     if (!record) return Error('Medicine not found', 404);
-    return Success(record);
+
+    return Success({
+      ...(record as any),
+      brand: (record as any).brand?.name ?? null,
+    });
   } catch {
     return Error('Failed to fetch Medicine');
   }

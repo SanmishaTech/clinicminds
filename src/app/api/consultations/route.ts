@@ -235,7 +235,21 @@ export async function GET(req: NextRequest) {
         },
       },
     });
-    return Success(result);
+
+    const data = (result as any).data.map((row: any) => ({
+      ...row,
+      consultationMedicines: (row.consultationMedicines || []).map((cm: any) => ({
+        ...cm,
+        medicine: cm.medicine
+          ? {
+              ...cm.medicine,
+              brand: cm.medicine?.brand?.name ?? null,
+            }
+          : cm.medicine,
+      })),
+    }));
+
+    return Success({ ...(result as any), data });
   } catch (e) {
     console.error('Error fetching consultations:', e);
     return Error('Failed to fetch consultations');

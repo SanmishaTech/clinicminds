@@ -21,9 +21,7 @@ import Link from 'next/link';
 type MedicineListItem = {
   id: number;
   name: string;
-  brand: {
-    name: string;
-  };
+  brand: string | null;
   baseRate: string;
   gstPercent: string;
   rate: string;
@@ -100,7 +98,7 @@ export default function MedicinesPage() {
 
   const columns: Column<MedicineListItem>[] = [
     { key: 'name', header: 'Medicine', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
-    { key: 'brand', header: 'Brand', sortable: true, accessor: (r) => r.brand?.name || '-' },
+    { key: 'brand', header: 'Brand', sortable: true, accessor: (r) => r.brand || 'Unknown Brand' },
     { key: 'baseRate', header: 'Base Rate', sortable: true, className: 'whitespace-nowrap' },
     { key: 'gstPercent', header: 'GST %', sortable: true, className: 'whitespace-nowrap', accessor: (r) => `${r.gstPercent}%` },
     { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },

@@ -65,9 +65,7 @@ type Medicine = {
   id: number;
   name: string;
   rate: number;
-  brand: {
-    name: string;
-  };
+  brand: string | null;
 };
 
 type Appointment = {
@@ -294,7 +292,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
   const medicineOptions = useMemo(() => {
     return medicines.map((m) => ({
       value: String(m.id),
-      label: `${m.name} - ${m.brand.name}`,
+      label: `${m.name} - ${m.brand || 'Unknown Brand'}`,
     }));
   }, [medicines]);
 

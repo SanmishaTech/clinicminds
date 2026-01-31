@@ -56,9 +56,7 @@ type Medicine = {
   name: string;
   rate: number;
   mrp: number;
-  brand?: {
-    name: string;
-  } | null;
+  brand?: string | null;
 };
 
 const packagesFormSchema = z.object({
@@ -208,7 +206,7 @@ export function PackageForm({
   const medicineOptions = useMemo(() => {
     return medicines.map((m) => ({
       value: String(m.id),
-      label: `${m.name} - ${m.brand?.name || ''}`,
+      label: `${m.name} - ${m.brand || 'Unknown Brand'}`,
     }));
   }, [medicines]);
 

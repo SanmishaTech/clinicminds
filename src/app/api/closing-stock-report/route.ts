@@ -80,12 +80,27 @@ export async function GET(req: NextRequest) {
         medicineId: medicineIdNum,
         quantity: 0,
         franchise: basicInfo,
-        medicine: medicineInfo,
+        medicine: medicineInfo
+          ? {
+              ...(medicineInfo as any),
+              brand: (medicineInfo as any).brand?.name ?? null,
+            }
+          : medicineInfo,
         message: 'No stock balance found for this franchise and medicine combination'
       });
     }
 
-    return Success(stockBalance);
+    const normalized = {
+      ...(stockBalance as any),
+      medicine: (stockBalance as any).medicine
+        ? {
+            ...((stockBalance as any).medicine || {}),
+            brand: (stockBalance as any).medicine?.brand?.name ?? null,
+          }
+        : (stockBalance as any).medicine,
+    };
+
+    return Success(normalized);
 
   } catch (error) {
     console.error('Error fetching closing stock report:', error);

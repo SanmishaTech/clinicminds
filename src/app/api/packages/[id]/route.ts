@@ -32,7 +32,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                 name: true,
                 rate: true,
                 mrp: true,
-                brand: { select: { id: true, name: true } },
+                brand: { select: { name: true } },
               },
             },
           },
@@ -41,7 +41,21 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     });
 
     if (!record) return Error('Package not found', 404);
-    return Success(record);
+
+    const normalized = {
+      ...(record as any),
+      packageMedicines: ((record as any).packageMedicines || []).map((pm: any) => ({
+        ...pm,
+        medicine: pm.medicine
+          ? {
+              ...pm.medicine,
+              brand: pm.medicine?.brand?.name ?? null,
+            }
+          : pm.medicine,
+      })),
+    };
+
+    return Success(normalized);
   } catch (e) {
     console.error('Error fetching package:', e);
     return Error('Failed to fetch package');

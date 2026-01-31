@@ -282,7 +282,7 @@ export async function PATCH(
                 select: {
                   id: true,
                   name: true,
-                  brand: true
+                  brand: { select: { name: true } },
                 }
               }
             }
@@ -299,7 +299,25 @@ export async function PATCH(
       );
     }
 
-    return Success(result);
+    const normalized = (result as any)?.saleDetails
+      ? {
+          ...(result as any),
+          saleDetails: ((result as any).saleDetails || []).map((d: any) => {
+            const brandName = d.medicine?.brand?.name ?? null;
+            return {
+              ...d,
+              medicine: d.medicine
+                ? {
+                    ...d.medicine,
+                    brand: brandName,
+                  }
+                : d.medicine,
+            };
+          }),
+        }
+      : result;
+
+    return Success(normalized);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return BadRequest(error.errors);

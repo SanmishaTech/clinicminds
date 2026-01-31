@@ -14,9 +14,7 @@ type MedicineBillDetail = {
   medicine: {
     id: number;
     name: string;
-    brand:{
-      name:string;
-    }
+    brand: string | null;
   };
   qty: number;
   mrp: number;
@@ -49,7 +47,21 @@ type MedicineBill = {
 export default function MedicineBillDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = params.id as string;
+  const id = (params as any)?.id as string | undefined;
+
+  if (!id) {
+    return (
+      <div className='space-y-6'>
+        <div className='text-center py-12'>
+          <h2 className='text-2xl font-semibold text-gray-900'>Medicine Bill Not Found</h2>
+          <p className='text-gray-600 mt-2'>The medicine bill you're looking for doesn't exist.</p>
+          <AppButton className='mt-4' onClick={() => router.push('/medicine-bills')}>
+            Back to Medicine Bills
+          </AppButton>
+        </div>
+      </div>
+    );
+  }
 
   const { data: bill, error, isLoading } = useSWR<MedicineBill>(
     `/api/medicine-bills/${id}`,
@@ -207,7 +219,7 @@ export default function MedicineBillDetailPage() {
               {bill.medicineDetails.map((detail, index) => (
                 <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
                   <div className="px-4 py-3 font-medium text-sm border-r">
-                    {`${detail.medicine.name} - ${detail.medicine.brand.name}`}
+                    {`${detail.medicine.name} - ${detail.medicine.brand || 'Unknown Brand'}`}
                   </div>
                   <div className="px-4 py-3 font-medium text-sm border-r">
                     {detail.qty}

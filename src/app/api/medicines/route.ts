@@ -68,7 +68,12 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    return Success(result);
+    const data = (result as any).data.map((row: any) => ({
+      ...row,
+      brand: row.brand?.name ?? null,
+    }));
+
+    return Success({ ...(result as any), data });
   } catch (error) {
     console.error('Error fetching medicines:', error);
     return Error('Failed to fetch medicines');

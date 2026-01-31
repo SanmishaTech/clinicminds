@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { apiGet, apiPost } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
@@ -91,6 +91,14 @@ export default function FranchiseFeesPage() {
 
   const [submitting, setSubmitting] = useState(false);
 
+  const isFullyPaid = (data?.balance ?? 0) <= 0;
+  const remainingBalance = Math.max(0, Number(data?.balance ?? 0));
+  const [activeTab, setActiveTab] = useState<'add' | 'history'>('add');
+
+  useEffect(() => {
+    setActiveTab(isFullyPaid ? 'history' : 'add');
+  }, [isFullyPaid]);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     mode: 'onChange',
@@ -119,6 +127,7 @@ export default function FranchiseFeesPage() {
   );
 
   const paymentMode = form.watch('paymentMode');
+  const amountDraft = form.watch('amount');
   const payerNameLabel =
     paymentMode === 'UPI'
       ? 'UPI App Name'
@@ -163,6 +172,16 @@ export default function FranchiseFeesPage() {
     { key: 'notes', header: 'Notes' },
   ];
 
+  useEffect(() => {
+    if (isFullyPaid) return;
+    if (!remainingBalance || remainingBalance <= 0) return;
+    const n = Number(amountDraft);
+    if (!Number.isFinite(n) || n <= 0) return;
+    if (n > remainingBalance) {
+      form.setValue('amount', String(remainingBalance), { shouldDirty: true, shouldValidate: true });
+    }
+  }, [amountDraft, form, isFullyPaid, remainingBalance]);
+
   async function onSubmit(values: FormValues) {
     if (!franchiseId) return;
     setSubmitting(true);
@@ -170,6 +189,17 @@ export default function FranchiseFeesPage() {
       const amt = Number(values.amount);
       if (Number.isNaN(amt) || amt <= 0) {
         toast.error('Amount must be a positive number');
+        return;
+      }
+
+      const remaining = Number(data?.balance ?? 0);
+      if (remaining <= 0) {
+        toast.error('Franchise fee already fully paid');
+        return;
+      }
+      if (amt > remaining) {
+        const formatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(remaining);
+        toast.error(`Amount exceeds remaining balance (${formatted})`);
         return;
       }
 
@@ -246,19 +276,30 @@ export default function FranchiseFeesPage() {
           </div>
         </div>
 
-        <Tabs defaultValue='add'>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
           <TabsList>
-            <TabsTrigger value='add'>Add Transaction</TabsTrigger>
+            {!isFullyPaid && <TabsTrigger value='add'>Add Transaction</TabsTrigger>}
             <TabsTrigger value='history'>Transaction History</TabsTrigger>
           </TabsList>
 
-          <TabsContent value='add'>
+          {!isFullyPaid && (
+            <TabsContent value='add'>
             <Form {...form}>
               <form onSubmit={handleSubmit(onSubmit)}>
                 <FormSection legend='Add Payment'>
                   <FormRow cols={2}>
                     <TextInput control={control} name='paymentDate' label='Payment Date' type='date' required />
-                    <TextInput control={control} name='amount' label='Amount' type='number' required placeholder='0' />
+                    <TextInput
+                      control={control}
+                      name='amount'
+                      label='Amount'
+                      type='number'
+                      required
+                      placeholder='0'
+                      min={0}
+                      max={remainingBalance || undefined}
+                      step='0.01'
+                    />
                   </FormRow>
                   <FormRow>
                     <div className='col-span-12 md:col-span-4'>
@@ -327,7 +368,8 @@ export default function FranchiseFeesPage() {
                 </FormSection>
               </form>
             </Form>
-          </TabsContent>
+            </TabsContent>
+          )}
 
           <TabsContent value='history'>
             <div>

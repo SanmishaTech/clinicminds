@@ -336,6 +336,17 @@ export async function PATCH(req: NextRequest) {
       if (existingFranchiseByName) return Error("Franchise name already exists", 409);
     }
 
+    if (typeof franchiseFeeAmount === 'number') {
+      const agg = await (prisma as any).franchiseFeePayment.aggregate({
+        where: { franchiseId: Number(id) },
+        _sum: { amount: true },
+      });
+      const totalReceived = Number(agg?._sum?.amount ?? 0);
+      if (franchiseFeeAmount < totalReceived) {
+        return Error('Due to the fee amount the balance will go below zero', 409);
+      }
+    }
+
     const updated = await prisma.franchise.update({
       where: { id: Number(id) },
       data,

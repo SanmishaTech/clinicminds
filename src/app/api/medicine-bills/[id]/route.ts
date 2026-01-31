@@ -113,7 +113,20 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
       return NotFound('Medicine bill not found');
     }
 
-    return Success(medicineBill);
+    const normalized = {
+      ...(medicineBill as any),
+      medicineDetails: ((medicineBill as any).medicineDetails || []).map((d: any) => ({
+        ...d,
+        medicine: d.medicine
+          ? {
+              ...d.medicine,
+              brand: d.medicine?.brand?.name ?? null,
+            }
+          : d.medicine,
+      })),
+    };
+
+    return Success(normalized);
   } catch (error) {
     console.error('Error fetching medicine bill:', error);
     return Error('Internal server error', 500);

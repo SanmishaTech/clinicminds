@@ -132,6 +132,11 @@ export function FranchiseForm({
     apiGet
   );
 
+  const { data: feesResp } = useSWR<{ totalReceived: number }>(
+    mode === 'edit' && initial?.id ? `/api/franchises/${initial.id}/fees` : null,
+    apiGet
+  );
+
   const stateOptions = useMemo(() => {
     return (statesResp?.data || []).map((s) => ({ value: String(s.id), label: s.state }));
   }, [statesResp]);
@@ -184,6 +189,20 @@ export function FranchiseForm({
     try {
       const stateLabel = stateOptions.find((s) => s.value === values.stateId)?.label || '';
       const cityLabel = cityOptions.find((c) => c.value === values.cityId)?.label || '';
+
+      if (mode === 'edit' && values.franchiseFeeAmount !== undefined) {
+        const fee = Number(values.franchiseFeeAmount);
+        const totalReceived = Number((feesResp as any)?.totalReceived ?? 0);
+        if (Number.isFinite(fee) && fee < totalReceived) {
+          toast.error('Due to the fee amount the balance will go below zero');
+          setError(
+            'franchiseFeeAmount',
+            { type: 'manual', message: 'Fee amount cannot be less than total received' },
+            { shouldFocus: true }
+          );
+          return;
+        }
+      }
 
       if (mode === 'create') {
         const res = await apiPost('/api/franchises', {
@@ -269,7 +288,6 @@ export function FranchiseForm({
                   label='Franchise Fee Amount'
                   placeholder='0'
                   type='number'
-                  disabled={!isCreate}
                   itemClassName='col-span-12 md:col-span-6'
                 />
               </FormRow>

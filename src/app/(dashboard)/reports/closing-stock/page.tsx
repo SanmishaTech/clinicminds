@@ -24,9 +24,7 @@ type Franchise = {
 type Medicine = {
   id: number;
   name: string;
-  brand: {
-    name: string;
-  };
+  brand: string | null;
 };
 
 type StockReportData = {
@@ -73,7 +71,7 @@ export default function ClosingStockReportPage() {
 
   const medicineOptions = medicines.map(medicine => ({
     value: medicine.id.toString(),
-    label: `${medicine.name} (${medicine.brand.name})`
+    label: `${medicine.name} (${medicine.brand || 'Unknown Brand'})`
   }));
 
   // Fetch franchises and medicines on mount
@@ -102,7 +100,7 @@ export default function ClosingStockReportPage() {
       const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
       const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS format
       const franchiseName = data.franchise.name.replace(/\s+/g, '-').toLowerCase();
-      const medicineFullName = `${data.medicine.brand.name}-${data.medicine.name}`.replace(/\s+/g, '-').toLowerCase();
+      const medicineFullName = `${data.medicine.brand || 'unknown-brand'}-${data.medicine.name}`.replace(/\s+/g, '-').toLowerCase();
 
       // Create workbook and worksheet
       const wb = XLSX.utils.book_new();
@@ -121,7 +119,7 @@ export default function ClosingStockReportPage() {
         [`Report Date: ${now.toLocaleDateString()} ${time12hr}`],
         [],
         ['Franchise', 'Medicine', 'Stock Quantity', 'Status'],
-        [data.franchise.name, `${data.medicine.brand.name} ${data.medicine.name}`, data.quantity, data.quantity > 0 ? 'In Stock' : 'Out of Stock']
+        [data.franchise.name, `${data.medicine.brand || 'Unknown Brand'} ${data.medicine.name}`.trim(), data.quantity, data.quantity > 0 ? 'In Stock' : 'Out of Stock']
       ]);
 
       // Apply bold formatting to header cells using xlsx-js-style syntax
@@ -257,7 +255,7 @@ export default function ClosingStockReportPage() {
       doc.setFontSize(10);
       doc.setTextColor(50, 50, 50);
       doc.text(data.franchise.name, 25, contentY + 7);
-      doc.text(`${data.medicine.brand.name} ${data.medicine.name}`, 25 + columnWidth, contentY + 7);
+      doc.text(`${data.medicine.brand || 'Unknown Brand'} ${data.medicine.name}`.trim(), 25 + columnWidth, contentY + 7);
       
       // Stock quantity with color
       if (data.quantity > 0) {
@@ -286,7 +284,7 @@ export default function ClosingStockReportPage() {
       const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD format
       const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-'); // HH-MM-SS format
       const franchiseName = data.franchise.name.replace(/\s+/g, '-').toLowerCase();
-      const medicineFullName = `${data.medicine.brand.name}-${data.medicine.name}`.replace(/\s+/g, '-').toLowerCase();
+      const medicineFullName = `${data.medicine.brand || 'unknown-brand'}-${data.medicine.name}`.replace(/\s+/g, '-').toLowerCase();
       doc.save(`stock-report-${franchiseName}-${medicineFullName}-${dateStr}-${timeStr}.pdf`);
       
     } catch (error) {
@@ -413,7 +411,7 @@ export default function ClosingStockReportPage() {
                       {stockData.franchise.name}
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap text-xs">
-                      {stockData.medicine.brand.name} {stockData.medicine.name}
+                      {`${stockData.medicine.brand || 'Unknown Brand'} ${stockData.medicine.name}`.trim()}
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap">
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${

@@ -86,7 +86,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
     const totalReceived = payments.reduce((sum: number, p: any) => sum + Number(p.amount ?? 0), 0);
     const totalFeeAmount = Number(franchise.franchiseFeeAmount ?? 0);
-    const balance = totalFeeAmount - totalReceived;
+    const balance = Math.max(0, totalFeeAmount - totalReceived);
 
     return Success({
       franchiseId: franchise.id,
@@ -126,41 +126,70 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   }
 
   try {
-    const franchise = await prisma.franchise.findUnique({ where: { id: idNum }, select: { id: true } });
-    if (!franchise) return NotFound('Franchise not found');
+    const result = await prisma.$transaction(async (tx: any) => {
+      const franchise = await tx.franchise.findUnique({
+        where: { id: idNum },
+        select: { id: true, franchiseFeeAmount: true },
+      });
+      if (!franchise) return { error: 'NOT_FOUND' } as const;
 
-    const paymentModel = (prisma as any).franchiseFeePayment;
-    const created = await paymentModel.create({
-      data: {
-        franchiseId: idNum,
-        paymentDate: new Date(data.paymentDate),
-        amount: data.amount,
-        paymentMode: data.paymentMode,
-        payerName: data.payerName?.trim() || null,
-        contactNumber: data.paymentMode === 'CASH' ? (data.contactNumber?.trim() || null) : null,
-        utrNumber: data.paymentMode === 'UPI' ? (data.utrNumber?.trim() || null) : null,
-        chequeDate: data.paymentMode === 'CHEQUE' ? new Date(data.chequeDate || '') : null,
-        chequeNumber: data.paymentMode === 'CHEQUE' ? (data.chequeNumber?.trim() || null) : null,
-        notes: data.notes ?? null,
-        createdByUserId: auth.user.id,
-      },
-      select: {
-        id: true,
-        franchiseId: true,
-        paymentDate: true,
-        amount: true,
-        paymentMode: true,
-        payerName: true,
-        contactNumber: true,
-        utrNumber: true,
-        chequeDate: true,
-        chequeNumber: true,
-        notes: true,
-        createdAt: true,
-      },
+      const totalFeeAmount = Number(franchise.franchiseFeeAmount ?? 0);
+
+      const agg = await (tx as any).franchiseFeePayment.aggregate({
+        where: { franchiseId: idNum },
+        _sum: { amount: true },
+      });
+
+      const totalReceived = Number(agg?._sum?.amount ?? 0);
+      const remaining = Math.max(0, totalFeeAmount - totalReceived);
+
+      if (remaining <= 0) return { error: 'ALREADY_PAID' } as const;
+      if (Number(data.amount) > remaining) {
+        return { error: 'OVERPAY', remaining } as const;
+      }
+
+      const paymentModel = (tx as any).franchiseFeePayment;
+      const created = await paymentModel.create({
+        data: {
+          franchiseId: idNum,
+          paymentDate: new Date(data.paymentDate),
+          amount: data.amount,
+          paymentMode: data.paymentMode,
+          payerName: data.payerName?.trim() || null,
+          contactNumber: data.paymentMode === 'CASH' ? (data.contactNumber?.trim() || null) : null,
+          utrNumber: data.paymentMode === 'UPI' ? (data.utrNumber?.trim() || null) : null,
+          chequeDate: data.paymentMode === 'CHEQUE' ? new Date(data.chequeDate || '') : null,
+          chequeNumber: data.paymentMode === 'CHEQUE' ? (data.chequeNumber?.trim() || null) : null,
+          notes: data.notes ?? null,
+          createdByUserId: auth.user.id,
+        },
+        select: {
+          id: true,
+          franchiseId: true,
+          paymentDate: true,
+          amount: true,
+          paymentMode: true,
+          payerName: true,
+          contactNumber: true,
+          utrNumber: true,
+          chequeDate: true,
+          chequeNumber: true,
+          notes: true,
+          createdAt: true,
+        },
+      });
+
+      return { ok: true, created } as const;
     });
 
-    return Success(created, 201);
+    if ((result as any)?.error === 'NOT_FOUND') return NotFound('Franchise not found');
+    if ((result as any)?.error === 'ALREADY_PAID') return Error('Franchise fee already fully paid', 409);
+    if ((result as any)?.error === 'OVERPAY') {
+      const remaining = Number((result as any).remaining ?? 0);
+      return Error(`Payment exceeds remaining balance (${remaining})`, 409);
+    }
+
+    return Success((result as any).created, 201);
   } catch (e) {
     console.error('Failed to create franchise fee payment:', e);
     return Error('Failed to create payment');

@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
       }) as Array<{
         id: number;
         name: string;
-        brand: { name: string };
+        brand?: { name: string } | null;
       }>;
 
       const medicineMap = new Map(medicines.map(m => [m.id, m]));
@@ -198,7 +198,9 @@ export async function POST(req: NextRequest) {
             medicineId, 
             available, 
             required,
-            medicineName: medicine ? `${medicine.name} - ${medicine.brand.name}` : `Medicine ${medicineId}`
+            medicineName: medicine
+              ? `${medicine.name} - ${medicine.brand?.name ?? 'Unknown Brand'}`
+              : `Medicine ${medicineId}`
           } as const;
         }
       }

@@ -54,9 +54,7 @@ export type SaleFormInitialData = {
 type Medicine = {
   id: number;
   name: string;
-  brand: {
-    name: string
-  };
+  brand: string | null;
   rate: number;
   mrp: number;
 };
@@ -187,7 +185,7 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
   const medicineOptions = useMemo(() => {
     return medicines.map((medicine) => ({
       value: String(medicine.id),
-      label: `${medicine.name} - ${medicine.brand?.name || ''}`
+      label: `${medicine.name} - ${medicine.brand || 'Unknown Brand'}`
     }));
   }, [medicines]);
 

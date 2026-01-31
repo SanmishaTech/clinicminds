@@ -28,9 +28,7 @@ type StockLine = {
 type Medicine = {
   id: number;
   name: string;
-  brand: {
-    name: string;
-  };
+  brand: string | null;
   rate: number;
   mrp: number;
 };
@@ -92,7 +90,7 @@ export function StocksForm({ mode }: StocksFormProps) {
   const medicineOptions = useMemo(() => {
     return medicines.map((medicine) => ({
       value: String(medicine.id),
-      label: `${medicine.brand.name} ${medicine.name}`,
+      label: `${medicine.brand || 'Unknown Brand'} ${medicine.name}`.trim(),
     }));
   }, [medicines]);
 

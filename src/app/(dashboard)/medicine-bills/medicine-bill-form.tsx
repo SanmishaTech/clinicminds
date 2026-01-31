@@ -40,9 +40,7 @@ export interface MedicineBillFormProps {
 type Medicine = {
   id: number;
   name: string;
-  brand: {
-    name: true
-  },
+  brand: string | null;
   mrp: number;
   rate: number;
 };
@@ -179,7 +177,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
   const medicineOptions = useMemo(() => 
     medicines.map(med => ({
       value: String(med.id),
-      label: med.brand?.name ? `${med.name} - ${med.brand.name}` : med.name,
+      label: `${med.name} - ${med.brand || 'Unknown Brand'}`,
     }))
   , [medicines]);
 

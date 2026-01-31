@@ -33,7 +33,7 @@ type ConsultationHistory = {
     qty: number;
   }>;
   consultationMedicines: Array<{
-    medicine: { id: number; name: string; brand: { name: string } } | null;
+    medicine: { id: number; name: string; brand: string | null } | null;
     qty: number;
     doses: string | null;
   }>;
@@ -186,7 +186,7 @@ export function ConsultationHistory({ appointmentId }: ConsultationHistoryProps)
                           {consultation.consultationMedicines.map((medicine, index) => (
                             <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
                               <div className="px-4 py-2 border-r">{medicine.medicine?.name || '—'}</div>
-                              <div className="px-4 py-2 border-r">{medicine.medicine?.brand?.name || '—'}</div>
+                              <div className="px-4 py-2 border-r">{medicine.medicine?.brand || 'Unknown Brand'}</div>
                               <div className="px-4 py-2 border-r">{medicine.qty}</div>
                               <div className="px-4 py-2 text-center">{medicine.doses || '—'}</div>
                             </div>
