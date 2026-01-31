@@ -20,32 +20,30 @@ import { format } from 'date-fns';
 import { useCurrentUser } from '@/hooks/use-current-user';
 
 type DayBookReportItem = {
-  id: number;
-  complaint?: string;
-  diagnosis?: string;
-  remarks?: string;
-  nextFollowUpDate?: string;
+  id: string;
+  originalId: number;
+  transactionType: 'CONSULTATION' | 'MEDICINE_BILL';
+  date: string;
+  patientNo: string;
+  patientName: string;
+  mobile: string;
+  gender: string;
+  teamName: string;
+  referenceNumber: string;
   totalAmount: string;
-  totalReceivedAmount?: string | null;
-  createdAt: string;
-  appointment: {
-    id: number;
-    appointmentDateTime: string;
+  receivedAmount: string;
+  balanceAmount: string;
+  remarks?: string;
+  consultationData?: {
+    appointmentId: number;
     type: string;
-    team: {
-      name: string;
-    };
-    franchise: {
-      id: number;
-      name: string;
-    };
-    patient: {
-      firstName: string;
-      middleName: string;
-      lastName: string;
-      mobile: string;
-      gender: string;
-    };
+    nextFollowUpDate?: string;
+    complaint?: string;
+    diagnosis?: string;
+  };
+  medicineBillData?: {
+    billNumber: string;
+    discountPercent?: number;
   };
 };
 
@@ -121,7 +119,7 @@ export default function DayBookReportPage() {
     if (franchiseId) sp.set('franchiseId', franchiseId);
     sp.set('sort', sort);
     sp.set('order', order);
-    return `/api/consultations?${sp.toString()}`;
+    return `/api/day-book?${sp.toString()}`;
   }, [page, perPage, startDate, endDate, franchiseId, sort, order]);
 
   const { data, error, isLoading } = useSWR<DayBookReportResponse>(query, apiGet);
@@ -156,7 +154,7 @@ export default function DayBookReportPage() {
     if (!data?.data) return {};
     
     return data.data.reduce((groups, item) => {
-      const date = format(new Date(item.appointment.appointmentDateTime), 'dd-MM-yyyy');
+      const date = format(new Date(item.date), 'dd-MM-yyyy');
       if (!groups[date]) {
         groups[date] = [];
       }
@@ -171,8 +169,8 @@ export default function DayBookReportPage() {
     
     return data.data.reduce((acc, item) => {
       const amount = parseFloat(item.totalAmount) || 0;
-      const received = parseFloat(item.totalReceivedAmount || '0') || 0;
-      const balance = amount - received;
+      const received = parseFloat(item.receivedAmount || '0') || 0;
+      const balance = parseFloat(item.balanceAmount) || 0;
       
       acc.totalAmount += amount;
       acc.totalReceived += received;
@@ -351,7 +349,7 @@ export default function DayBookReportPage() {
         // Date subtotal
         const dateTotal = items.reduce((acc, item) => {
           const amount = parseFloat(item.totalAmount) || 0;
-          const received = parseFloat(item.totalReceivedAmount || '0') || 0;
+          const received = parseFloat(item.receivedAmount || '0') || 0;
           const balance = amount - received;
           return { amount: acc.amount + amount, received: acc.received + received, balance: acc.balance + balance };
         }, { amount: 0, received: 0, balance: 0 });
@@ -375,19 +373,26 @@ export default function DayBookReportPage() {
             y += drawRow(headers, true);
           }
 
-          const patientName = `${item.appointment.patient.firstName} ${item.appointment.patient.middleName || ''} ${item.appointment.patient.lastName}`.trim();
+          const patientName = item.patientName;
           const amount = parseFloat(item.totalAmount) || 0;
-          const received = parseFloat(item.totalReceivedAmount || '0') || 0;
-          const balance = amount - received;
+          const received = parseFloat(item.receivedAmount || '0') || 0;
+          const balance = parseFloat(item.balanceAmount) || 0;
+
+          // Get the display type based on transaction type
+          const displayType = item.transactionType === 'CONSULTATION' 
+            ? (item.consultationData?.type 
+                ? item.consultationData.type.charAt(0).toUpperCase() + item.consultationData.type.slice(1).toLowerCase()
+                : 'Consultation')
+            : 'Medicine';
 
           y += drawRow(
             [
-              format(new Date(item.appointment.appointmentDateTime), 'dd-MM-yyyy'),
-              item.appointment.team.name,
+              format(new Date(item.date), 'dd-MM-yyyy'),
+              item.transactionType === 'MEDICINE_BILL' ? '-' : (item.teamName || '-'),
               patientName,
-              item.appointment.patient.mobile,
-              item.appointment.patient.gender.charAt(0).toUpperCase() + item.appointment.patient.gender.slice(1).toLowerCase(),
-              item.appointment.type.charAt(0).toUpperCase() + item.appointment.type.slice(1).toLowerCase(),
+              item.mobile,
+              item.gender.charAt(0).toUpperCase() + item.gender.slice(1).toLowerCase(),
+              displayType,
               formatPdfCurrency(amount),
               formatPdfCurrency(received),
               formatPdfCurrency(balance),
@@ -471,18 +476,25 @@ export default function DayBookReportPage() {
         
         // Items
         items.forEach((item) => {
-          const patientName = `${item.appointment.patient.firstName} ${item.appointment.patient.middleName || ''} ${item.appointment.patient.lastName}`.trim();
+          const patientName = item.patientName;
           const amount = parseFloat(item.totalAmount) || 0;
-          const received = parseFloat(item.totalReceivedAmount || '0') || 0;
-          const balance = amount - received;
+          const received = parseFloat(item.receivedAmount || '0') || 0;
+          const balance = parseFloat(item.balanceAmount) || 0;
+
+          // Get the display type based on transaction type
+          const displayType = item.transactionType === 'CONSULTATION' 
+            ? (item.consultationData?.type 
+                ? item.consultationData.type.charAt(0).toUpperCase() + item.consultationData.type.slice(1).toLowerCase()
+                : 'Consultation')
+            : 'Medicine';
 
           wsData.push([
-            format(new Date(item.appointment.appointmentDateTime), 'dd-MM-yyyy'),
-            item.appointment.team.name,
+            format(new Date(item.date), 'dd-MM-yyyy'),
+            item.transactionType === 'MEDICINE' ? '-' : (item.teamName || '-'),
             patientName,
-            item.appointment.patient.mobile,
-            item.appointment.patient.gender.charAt(0).toUpperCase() + item.appointment.patient.gender.slice(1).toLowerCase(),
-            item.appointment.type.charAt(0).toUpperCase() + item.appointment.type.slice(1).toLowerCase(),
+            item.mobile,
+            item.gender.charAt(0).toUpperCase() + item.gender.slice(1).toLowerCase(),
+            displayType,
             amount,
             received,
             balance,
@@ -492,8 +504,8 @@ export default function DayBookReportPage() {
         // Date subtotal
         const dateTotal = items.reduce((acc, item) => {
           const amount = parseFloat(item.totalAmount) || 0;
-          const received = parseFloat(item.totalReceivedAmount || '0') || 0;
-          const balance = amount - received;
+          const received = parseFloat(item.receivedAmount || '0') || 0;
+          const balance = parseFloat(item.balanceAmount) || 0;
           return { amount: acc.amount + amount, received: acc.received + received, balance: acc.balance + balance };
         }, { amount: 0, received: 0, balance: 0 });
 
