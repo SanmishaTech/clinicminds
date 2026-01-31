@@ -12,9 +12,7 @@ type SaleDetail = {
   medicine: {
     id: number;
     name: string;
-    brand: {
-      name: string;
-    } | null;
+    brand: string;
   } | null;
   quantity: number;
   mrp: number;
@@ -136,7 +134,7 @@ export default function PurchaseDetailsPage() {
                           {detail.medicine?.name || '—'}
                         </div>
                         <div className="px-4 py-3 font-medium text-sm border-r">
-                          {detail.medicine?.brand?.name || '—'}
+                          {detail.medicine?.brand || '—'}
                         </div>
                         <div className="px-4 py-3 font-medium text-sm border-r">
                           {detail.quantity}
