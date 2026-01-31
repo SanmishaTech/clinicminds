@@ -240,7 +240,7 @@ export function TeamForm({
           <AppCard.Content>
             <FormSection legend='Team Details'>
               <FormRow>
-                <TextInput control={control} name='name' label='Name' required placeholder='Team name' />
+                <TextInput control={control} name='name' label='Name' required placeholder='Name' />
                
               </FormRow>
               <FormRow cols={2}>

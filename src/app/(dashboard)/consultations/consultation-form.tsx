@@ -966,7 +966,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                     onChange={(e) =>
                                       updateMedicineAmount(index, 'mrp', e.target.value)
                                     }
-                                    disabled={!watchedMedicines?.[index]?.medicineId}
+                                    disabled={true}
                                   />
                                 </div>
                               )}
