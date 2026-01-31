@@ -15,37 +15,6 @@ export async function GET(req: NextRequest) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
-  // Get current user's franchise ID, role, and team
-  const currentUser = await prisma.user.findUnique({
-    where: { id: auth.user.id },
-    select: { 
-      id: true,
-      role: true,
-      franchise: {
-        select: { id: true }
-      },
-      team: {
-        select: { 
-          id: true,
-          franchise: {
-            select: { id: true }
-          }
-        }
-      }
-    }
-  });
-
-  if (!currentUser) {
-    return Error("Current user not found", 404);
-  }
-
-  // Get franchise ID from either direct assignment or through team
-  const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
-  
-  if (!franchiseId) {
-    return Error("Current user is not associated with any franchise", 400);
-  }
-
   const { searchParams } = new URL(req.url);
   const search = searchParams.get('search')?.trim() || '';
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
@@ -56,20 +25,70 @@ export async function GET(req: NextRequest) {
   const patientId = searchParams.get('patientId');
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
+  const franchiseIdParam = searchParams.get('franchiseId');
+
+  // Check if user is admin first to avoid unnecessary database queries
+  let franchiseId: number | undefined;
+  let currentUser: any = null;
+  
+  if (auth.user.role === 'Admin') {
+    // Admin can optionally filter by specific franchise
+    if (franchiseIdParam) {
+      franchiseId = parseInt(franchiseIdParam);
+      if (isNaN(franchiseId)) {
+        return Error("Invalid franchiseId parameter", 400);
+      }
+    }
+    // Admin without franchise filter - franchiseId remains undefined (all franchises)
+  } else {
+    // For non-admin users, get their franchise info and filter accordingly
+    // Get current user's franchise ID, role, and team
+    currentUser = await prisma.user.findUnique({
+      where: { id: auth.user.id },
+      select: { 
+        id: true,
+        role: true,
+        franchise: {
+          select: { id: true }
+        },
+        team: {
+          select: { 
+            id: true,
+            franchise: {
+              select: { id: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!currentUser) {
+      return Error("Current user not found", 404);
+    }
+
+    franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
+    
+    if (!franchiseId) {
+      return Error("Current user is not associated with any franchise", 400);
+    }
+  }
 
   const sortable = new Set(['createdAt', 'updatedAt', 'totalAmount', 'nextFollowUpDate']);
   const orderBy: Record<string, 'asc' | 'desc'> = sortable.has(sort)
     ? { [sort]: order }
     : { createdAt: 'desc' };
 
-  const where: any = {
-    appointment: {
+  const where: any = {};
+  
+  // Only add franchise filter if we have a specific franchiseId (for non-admin or admin with filter)
+  if (franchiseId !== undefined) {
+    where.appointment = {
       franchiseId,
-    },
-  };
+    };
+  }
   
   // Role-based filtering: DOCTOR can only see consultations from their team
-  if (currentUser.role === 'DOCTOR' && currentUser.team) {
+  if (currentUser && currentUser.role === 'DOCTOR' && currentUser.team) {
     where.appointment.teamId = currentUser.team.id;
   }
   
@@ -145,6 +164,12 @@ export async function GET(req: NextRequest) {
               },
             },
             team: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            franchise: {
               select: {
                 id: true,
                 name: true,
