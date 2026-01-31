@@ -31,6 +31,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                 id: true,
                 name: true,
                 rate: true,
+                franchiseRate: true,
                 mrp: true,
                 brand: { select: { name: true } },
               },

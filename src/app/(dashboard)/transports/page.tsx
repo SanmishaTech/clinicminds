@@ -126,16 +126,16 @@ export default function TransportsPage() {
   const columns: Column<TransportListItem>[] = useMemo(() => {
     const base: Column<TransportListItem>[] = [
       {
-        key: 'sale',
+        key: 'invoiceNo',
         header: 'Invoice No',
-        sortable: false,
+        sortable: true,
         cellClassName: 'font-medium whitespace-nowrap',
         accessor: (r) => r.sale?.invoiceNo || `#${r.saleId}`,
       },
       {
         key: 'invoiceDate',
         header: 'Invoice Date',
-        sortable: false,
+        sortable: true,
         className: 'whitespace-nowrap',
         cellClassName: 'whitespace-nowrap',
         accessor: (r) => formatDate(r.sale?.invoiceDate || ''),
@@ -143,7 +143,7 @@ export default function TransportsPage() {
       {
         key: 'status',
         header: 'Status',
-        sortable: false,
+        sortable: true,
         accessor: (r) => {
           const effectiveStatus = r.deliveredAt
             ? 'DELIVERED'
@@ -166,21 +166,21 @@ export default function TransportsPage() {
       {
         key: 'transportFee',
         header: 'Transport Fee',
-        sortable: false,
+        sortable: true,
         className: 'whitespace-nowrap',
         accessor: (r) => formatIndianCurrency(Number(r.transportFee) || 0),
       },
       {
         key: 'dispatchedAt',
         header: 'Dispatched',
-        sortable: false,
+        sortable: true,
         className: 'whitespace-nowrap',
         accessor: (r) => (r.dispatchedAt ? formatDate(r.dispatchedAt) : '—'),
       },
       {
         key: 'dispatchedStock',
         header: 'Dispatched Stock',
-        sortable: false,
+        sortable: true,
         className: 'whitespace-nowrap',
         accessor: (r) => {
           const totalQty = (r.sale?.saleDetails || []).reduce(
@@ -197,7 +197,7 @@ export default function TransportsPage() {
       base.splice(2, 0, {
         key: 'franchise',
         header: 'Franchise',
-        sortable: false,
+        sortable: true,
         accessor: (r) => r.franchise?.name || '—',
       });
     }

@@ -12,11 +12,11 @@ function toDecimal2(n: number) {
 function computeInclusiveRate(baseRate: number, gstPercent: number) {
   const gst = Number.isFinite(gstPercent) ? gstPercent : 0;
   const base = Number.isFinite(baseRate) ? baseRate : 0;
-  const rate = base + (base * gst) / 100;
+  const franchiseRate = base + (base * gst) / 100;
   return {
     baseRate: toDecimal2(base),
     gstPercent: toDecimal2(gst),
-    rate: toDecimal2(rate),
+    franchiseRate: toDecimal2(franchiseRate),
   };
 }
 
@@ -44,6 +44,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         rate: true,
         baseRate: true,
         gstPercent: true,
+        franchiseRate: true,
         mrp: true,
         createdAt: true,
         updatedAt: true,
@@ -90,7 +91,7 @@ export async function PATCH(
 
     const existingMedicine = await prisma.medicine.findUnique({
       where: { id: medicineId },
-      select: { id: true, rate: true, baseRate: true, gstPercent: true }
+      select: { id: true, rate: true, gstPercent: true }
     });
 
     if (!existingMedicine) {
@@ -102,18 +103,16 @@ export async function PATCH(
     const hasRate = Object.prototype.hasOwnProperty.call(data, 'rate');
     const hasGst = Object.prototype.hasOwnProperty.call(data, 'gstPercent');
     if (hasRate || hasGst) {
-      const existingRate = Number((existingMedicine as any).rate ?? 0);
-      const existingBase = Number((existingMedicine as any).baseRate ?? 0);
+      const existingBase = Number((existingMedicine as any).rate ?? 0);
       const existingGst = Number((existingMedicine as any).gstPercent ?? 0);
 
-      const baseForCalc = hasRate
-        ? Number((data as any).rate)
-        : (existingBase === 0 && existingRate !== 0 && existingGst === 0 ? existingRate : existingBase);
+      const baseForCalc = hasRate ? Number((data as any).rate) : existingBase;
       const gstForCalc = hasGst ? Number((data as any).gstPercent) : existingGst;
       const computed = computeInclusiveRate(baseForCalc, gstForCalc);
-      updateData.rate = computed.rate;
+      updateData.rate = computed.baseRate;
       updateData.baseRate = computed.baseRate;
       updateData.gstPercent = computed.gstPercent;
+      updateData.franchiseRate = computed.franchiseRate;
     }
 
     const updatedMedicine = await prisma.medicine.update({

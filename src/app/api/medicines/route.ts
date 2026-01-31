@@ -14,11 +14,11 @@ function toDecimal2(n: number) {
 function computeInclusiveRate(baseRate: number, gstPercent: number) {
   const gst = Number.isFinite(gstPercent) ? gstPercent : 0;
   const base = Number.isFinite(baseRate) ? baseRate : 0;
-  const rate = base + (base * gst) / 100;
+  const franchiseRate = base + (base * gst) / 100;
   return {
     baseRate: toDecimal2(base),
     gstPercent: toDecimal2(gst),
-    rate: toDecimal2(rate),
+    franchiseRate: toDecimal2(franchiseRate),
   };
 }
 
@@ -32,7 +32,17 @@ export async function GET(req: NextRequest) {
   const perPage = Math.min(100, Math.max(1, Number(searchParams.get('perPage')) || 10));
   const sort = searchParams.get('sort') || 'name';
   const order = (searchParams.get('order') === 'desc' ? 'desc' : 'asc') as "asc" | "desc";
-  const sortable = new Set(["name", "brandId", "rate", "baseRate", "gstPercent", "mrp", "createdAt", "updatedAt"]);
+  const sortable = new Set([
+    "name",
+    "brandId",
+    "rate",
+    "baseRate",
+    "gstPercent",
+    "franchiseRate",
+    "mrp",
+    "createdAt",
+    "updatedAt",
+  ]);
   const orderBy: Record<string, "asc" | "desc"> = sortable.has(sort) 
   ? { [sort]: order } 
   : { name: "asc" };
@@ -62,6 +72,7 @@ export async function GET(req: NextRequest) {
         rate: true,
         baseRate: true,
         gstPercent: true,
+        franchiseRate: true,
         mrp: true,
         createdAt: true,
         updatedAt: true,
@@ -87,16 +98,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const data = medicineSchema.parse(body);
 
-    const computed = computeInclusiveRate(Number((data as any).rate), Number((data as any).gstPercent ?? 0));
+    const baseRate = Number((data as any).rate);
+    const computed = computeInclusiveRate(baseRate, Number((data as any).gstPercent ?? 0));
 
     const medicine = await prisma.medicine.create({
       data: {
         name: data.name,
         brandId: data.brandId,
         mrp: data.mrp as any,
-        rate: computed.rate as any,
+        rate: computed.baseRate as any,
         baseRate: computed.baseRate as any,
         gstPercent: computed.gstPercent as any,
+        franchiseRate: computed.franchiseRate as any,
       } as any
     });
     return Success(medicine, 201);

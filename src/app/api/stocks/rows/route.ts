@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
         case "expiryDate":
           return { expiryDate: order };
         case "rate":
-          return { medicine: { rate: order } };
+          return [{ medicine: { franchiseRate: order } }, { medicine: { rate: order } }];
         case "stock":
           return { quantity: order };
         case "franchiseName":
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest) {
         expiryDate: true,
         quantity: true,
         franchise: { select: { name: true } },
-        medicine: { select: { name: true, rate: true } },
+        medicine: { select: { name: true, franchiseRate: true, rate: true } },
       },
     });
 
@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
       medicineName: b.medicine?.name || `Medicine ${b.medicineId}`,
       batchNumber: String(b.batchNumber ?? ''),
       expiryDate: b.expiryDate ? new Date(b.expiryDate).toISOString() : '',
-      rate: String(b.medicine?.rate ?? 0),
+      rate: String((b.medicine as any)?.franchiseRate ?? (b.medicine as any)?.rate ?? 0),
       stock: b.quantity,
     }));
 

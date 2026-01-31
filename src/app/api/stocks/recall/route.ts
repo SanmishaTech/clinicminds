@@ -55,9 +55,9 @@ export async function POST(req: NextRequest) {
 
       const medicine = await tx.medicine.findUnique({
         where: { id: medicineId },
-        select: { rate: true },
+        select: { franchiseRate: true },
       });
-      const rate = Number(medicine?.rate ?? 0);
+      const rate = Number((medicine as any)?.franchiseRate ?? 0);
 
       const stockTxn = await tx.stockTransaction.create({
         data: {

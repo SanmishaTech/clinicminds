@@ -55,8 +55,9 @@ type Medicine = {
   id: number;
   name: string;
   brand: string | null;
-  rate: number;
-  mrp: number;
+  rate?: number | string;
+  franchiseRate?: number | string;
+  mrp: number | string;
 };
 
 type Franchise = {
@@ -380,12 +381,13 @@ export function SalesForm({ mode, saleId, initialData }: SalesFormProps) {
                           const medicineId = parseInt(value);
                           const medicine = medicines.find(m => m.id === medicineId);
                           if (medicine) {
-                            setValue(`saleDetails.${index}.rate`, medicine.rate.toString(), {
+                            const unitRate = Number((medicine as any).franchiseRate ?? (medicine as any).rate ?? 0);
+                            setValue(`saleDetails.${index}.rate`, unitRate.toString(), {
                               shouldDirty: true,
                               shouldValidate: true,
                             });
                             const quantity = parseFloat(watchedSaleDetails[index]?.quantity || '1');
-                            setValue(`saleDetails.${index}.amount`, (quantity * medicine.rate).toString(), {
+                            setValue(`saleDetails.${index}.amount`, (quantity * unitRate).toString(), {
                               shouldDirty: true,
                               shouldValidate: true,
                             });

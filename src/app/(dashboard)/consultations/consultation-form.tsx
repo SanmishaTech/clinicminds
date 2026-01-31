@@ -905,12 +905,12 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 if (!medicine) return;
                                 setValue(
                                   `consultationMedicines.${index}.mrp`,
-                                  String(medicine.rate)
+                                  String((medicine as any).mrp ?? 0)
                                 );
                                 const qty = parseFloat(watchedMedicines?.[index]?.qty || '') || 0;
                                 setValue(
                                   `consultationMedicines.${index}.amount`,
-                                  (qty * Number(medicine.rate)).toFixed(2)
+                                  (qty * Number((medicine as any).mrp ?? 0)).toFixed(2)
                                 );
                               }}
                             />

@@ -282,12 +282,6 @@ export default function SalesPage() {
                   </Link>
                 )}
 
-                {can(PERMISSIONS.EDIT_SALES) && (
-                  <Link href={`/sales/${row.id}/edit`}>
-                    <IconButton iconName='Pencil' tooltip='Edit' aria-label='Edit' />
-                  </Link>
-                )}
-
                 {can(PERMISSIONS.DELETE_SALES) && (
                   <DeleteButton
                     onDelete={() => handleDelete(row.id)}

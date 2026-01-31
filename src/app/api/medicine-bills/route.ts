@@ -384,8 +384,8 @@ export async function POST(req: NextRequest) {
             batchNumber: allocation.batchNumber,
             expiryDate: allocation.expiryDate,
             qtyChange: -allocation.quantity, // Negative for stock out
-            rate: item.medicine.rate,
-            amount: item.medicine.rate * allocation.quantity,
+            rate: item.mrp,
+            amount: item.mrp * allocation.quantity,
           });
 
           batchBalanceUpdates.push({

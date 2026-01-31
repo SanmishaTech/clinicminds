@@ -48,6 +48,7 @@ type Service = {
   id: number;
   name: string;
   rate: number;
+  gstPercent?: number | string | null;
   description?: string | null;
 };
 
@@ -56,6 +57,7 @@ type Medicine = {
   name: string;
   rate: number;
   mrp: number;
+  gstPercent?: number | string | null;
   brand?: string | null;
 };
 
@@ -407,11 +409,14 @@ export function PackageForm({
                   <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                     Service
                   </div>
-                  <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                  <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                     Description
                   </div>
                   <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                     Qty
+                  </div>
+                  <div className='col-span-1 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    GST %
                   </div>
                   <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                     Rate
@@ -454,7 +459,7 @@ export function PackageForm({
                         }}
                       />
                     </div>
-                    <div className='col-span-3 p-3 border-r'>
+                    <div className='col-span-2 p-3 border-r'>
                       <Controller
                         control={control}
                         name={`packageDetails.${index}.description`}
@@ -483,6 +488,23 @@ export function PackageForm({
                             onChange={(e) => updateDetailAmount(index, 'qty', e.target.value)}
                           />
                         )}
+                      />
+                    </div>
+                    <div className='col-span-1 p-3 border-r'>
+                      <Input
+                        value={(() => {
+                          const serviceIdStr = watchedDetails?.[index]?.serviceId;
+                          const serviceId = serviceIdStr ? parseInt(serviceIdStr) : NaN;
+                          const service = services.find((s) => s.id === serviceId);
+                          const gst = Number(service?.gstPercent ?? 0);
+                          return Number.isFinite(gst) ? String(gst) : '0';
+                        })()}
+                        type='number'
+                        step='0.01'
+                        min='0'
+                        className='w-full h-10 border'
+                        disabled
+                        readOnly
                       />
                     </div>
                     <div className='col-span-2 p-3 border-r'>
@@ -566,7 +588,10 @@ export function PackageForm({
                   <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                     Qty
                   </div>
-                  <div className='col-span-3 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                  <div className='col-span-1 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
+                    GST %
+                  </div>
+                  <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground border-r'>
                     MRP
                   </div>
                   <div className='col-span-2 px-4 py-3 font-medium text-sm text-muted-foreground text-center'>
@@ -617,7 +642,24 @@ export function PackageForm({
                         )}
                       />
                     </div>
-                    <div className='col-span-3 p-3 border-r'>
+                    <div className='col-span-1 p-3 border-r'>
+                      <Input
+                        value={(() => {
+                          const medicineIdStr = watchedMedicines?.[index]?.medicineId;
+                          const medicineId = medicineIdStr ? parseInt(medicineIdStr) : NaN;
+                          const medicine = medicines.find((m) => m.id === medicineId);
+                          const gst = Number(medicine?.gstPercent ?? 0);
+                          return Number.isFinite(gst) ? String(gst) : '0';
+                        })()}
+                        type='number'
+                        step='0.01'
+                        min='0'
+                        className='w-full h-10 border'
+                        disabled
+                        readOnly
+                      />
+                    </div>
+                    <div className='col-span-2 p-3 border-r'>
                       <div className='relative w-full'>
                         <span className='absolute left-3 top-1/2 transform -translate-y-1/2 text-sm text-muted-foreground'>₹</span>
                         <Input

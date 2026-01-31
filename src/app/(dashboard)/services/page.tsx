@@ -14,7 +14,6 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
 import { formatRelativeTime } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
-import { EditButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
 import Link from 'next/link';
 
@@ -165,20 +164,17 @@ export default function ServicesPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(row) => {
-            if (!can(PERMISSIONS.EDIT_SERVICES) && !can(PERMISSIONS.DELETE_SERVICES)) return null;
+            if (!can(PERMISSIONS.DELETE_SERVICES)) return null;
             return (
               <div className='flex'>
-                {can(PERMISSIONS.EDIT_SERVICES) && (
-                  <Link href={`/services/${row.id}/edit`}>
-                    <EditButton tooltip='Edit Service' aria-label='Edit Service' />
-                  </Link>
+                {can(PERMISSIONS.DELETE_SERVICES) && (
+                  <DeleteButton
+                    onDelete={() => handleDelete(row.id)}
+                    itemLabel='Service'
+                    title='Delete Service?'
+                    description={`This will permanently remove service "${row.name}". This action cannot be undone.`}
+                  />
                 )}
-                <DeleteButton
-                  onDelete={() => handleDelete(row.id)}
-                  itemLabel='Service'
-                  title='Delete Service?'
-                  description={`This will permanently remove service "${row.name}". This action cannot be undone.`}
-                />
               </div>
             );
           }}

@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
         medicine: {
           select: {
             name: true,
+            franchiseRate: true,
             rate: true,
             mrp: true,
             brand: { select: { name: true } },
@@ -75,7 +76,7 @@ export async function GET(req: NextRequest) {
       brandName: b.medicine?.brand?.name ?? null,
       batchNumber: b.batchNumber,
       expiryDate: b.expiryDate,
-      rate: b.medicine?.rate,
+      rate: b.medicine?.franchiseRate ?? b.medicine?.rate,
       mrp: b.medicine?.mrp,
       quantity: b.quantity,
     }));

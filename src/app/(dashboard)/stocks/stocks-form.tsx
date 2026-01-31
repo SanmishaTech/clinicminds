@@ -29,8 +29,9 @@ type Medicine = {
   id: number;
   name: string;
   brand: string | null;
-  rate: number;
-  mrp: number;
+  rate?: number | string;
+  franchiseRate?: number | string;
+  mrp: number | string;
 };
 
 type Franchise = {
@@ -90,7 +91,7 @@ export function StocksForm({ mode }: StocksFormProps) {
   const medicineOptions = useMemo(() => {
     return medicines.map((medicine) => ({
       value: String(medicine.id),
-      label: `${medicine.brand || 'Unknown Brand'} ${medicine.name}`.trim(),
+      label: `${medicine.name} - ${medicine.brand || 'Unknown Brand'}`,
     }));
   }, [medicines]);
 
@@ -252,9 +253,10 @@ export function StocksForm({ mode }: StocksFormProps) {
                             const medicineId = parseInt(value);
                             const medicine = medicines.find((m) => m.id === medicineId);
                             if (medicine) {
-                              setValue(`items.${index}.rate`, medicine.rate.toString());
+                              const unitRate = Number((medicine as any).franchiseRate ?? (medicine as any).rate ?? 0);
+                              setValue(`items.${index}.rate`, unitRate.toString());
                               const quantity = parseFloat(watchedItems?.[index]?.quantity || '1');
-                              setValue(`items.${index}.amount`, (quantity * medicine.rate).toString());
+                              setValue(`items.${index}.amount`, (quantity * unitRate).toString());
                             }
                           }
                         }}

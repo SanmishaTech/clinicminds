@@ -71,7 +71,7 @@ export default function ClosingStockReportPage() {
 
   const medicineOptions = medicines.map(medicine => ({
     value: medicine.id.toString(),
-    label: `${medicine.name} (${medicine.brand || 'Unknown Brand'})`
+    label: `${medicine.name} - ${medicine.brand || 'Unknown Brand'}`
   }));
 
   // Fetch franchises and medicines on mount

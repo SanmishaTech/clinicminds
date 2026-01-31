@@ -9,6 +9,7 @@ import { AppButton } from '@/components/common';
 import { AppCard } from '@/components/common/app-card';
 import { TextInput } from '@/components/common/text-input';
 import { ComboboxInput } from '@/components/common/combobox-input';
+import { NonFormTextInput } from '@/components/common/non-form-text-input';
 import { FormSection, FormRow } from '@/components/common/app-form';
 import { apiPost, apiPatch, apiGet } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
@@ -99,7 +100,7 @@ export function MedicineForm({
 
   const baseRateRaw = watch('rate');
   const gstPercentRaw = watch('gstPercent');
-  const computedMrp = useMemo(() => {
+  const computedFranchiseRate = useMemo(() => {
     const base = parseFloat(String(baseRateRaw ?? '0'));
     const gst = parseFloat(String(gstPercentRaw ?? '0'));
     const safeBase = Number.isFinite(base) ? base : 0;
@@ -107,13 +108,6 @@ export function MedicineForm({
     const rate = safeBase + (safeBase * safeGst) / 100;
     return rate.toFixed(2);
   }, [baseRateRaw, gstPercentRaw]);
-
-  useEffect(() => {
-    const current = getValues('mrp');
-    if (String(current ?? '') === String(computedMrp)) return;
-    const shouldDirty = String(current ?? '') !== '';
-    setValue('mrp', computedMrp, { shouldDirty, shouldValidate: true });
-  }, [computedMrp, getValues, setValue]);
 
   async function onSubmit(values: RawFormValues) {
     clearErrors('name');
@@ -180,7 +174,7 @@ export function MedicineForm({
                   className='col-span-12 md:col-span-6'
                 />
               </FormRow>
-              <FormRow cols={3} from='md'>
+              <FormRow cols={4} from='md'>
                 <TextInput
                   control={control}
                   name='rate'
@@ -199,6 +193,12 @@ export function MedicineForm({
                   step='0.01'
                   required
                 />
+                <NonFormTextInput
+                  label='Franchise Rate'
+                  value={computedFranchiseRate}
+                  readOnly
+                  disabled
+                />
                 <TextInput
                   control={control}
                   name='mrp'
@@ -207,7 +207,6 @@ export function MedicineForm({
                   type='number'
                   step='0.01'
                   required
-                  disabled
                 />
               </FormRow>
             </FormSection>

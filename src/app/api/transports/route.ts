@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
   const status = (searchParams.get('status') || '').trim().toUpperCase();
   const page = Math.max(1, Number(searchParams.get('page')) || 1);
   const perPage = Math.min(100, Math.max(1, Number(searchParams.get('perPage')) || 10));
+  const sort = (searchParams.get('sort') || 'createdAt').trim();
+  const order = (searchParams.get('order') === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
 
   try {
     const where: any = {};
@@ -54,10 +56,31 @@ export async function GET(req: NextRequest) {
       ];
     }
 
+    const sortable = new Set([
+      'createdAt',
+      'status',
+      'transportFee',
+      'dispatchedAt',
+      'dispatchedStock',
+      'invoiceNo',
+      'invoiceDate',
+      'franchise',
+    ]);
+
+    const safeSort = sortable.has(sort) ? sort : 'createdAt';
+
+    const orderBy: any = (() => {
+      if (safeSort === 'invoiceNo') return { sale: { invoiceNo: order } };
+      if (safeSort === 'invoiceDate') return { sale: { invoiceDate: order } };
+      if (safeSort === 'franchise') return { franchise: { name: order } };
+      if (safeSort === 'dispatchedStock') return { dispatchedQuantity: order };
+      return { [safeSort]: order };
+    })();
+
     const result = await paginate({
       model: transportModel,
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: orderBy as any,
       page,
       perPage,
       select: {
