@@ -35,6 +35,42 @@ async function checkConsultationExists(appointmentId: number): Promise<{ exists:
   }
 }
 
+// ConsultationAwareEditButton component using checkConsultationExists helper
+function ConsultationAwareEditButton({ appointmentId }: { appointmentId: number }) {
+  const [consultationStatus, setConsultationStatus] = useState<{ exists: boolean } | null>(null);
+  const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    async function checkStatus() {
+      setChecking(true);
+      try {
+        const status = await checkConsultationExists(appointmentId);
+        setConsultationStatus({ exists: status.exists });
+      } catch {
+        setConsultationStatus({ exists: false });
+      } finally {
+        setChecking(false);
+      }
+    }
+    
+    checkStatus();
+  }, [appointmentId]);
+
+  if (checking) {
+    return <EditButton tooltip='Edit Appointment' aria-label='Edit Appointment' disabled />;
+  }
+
+  if (consultationStatus?.exists) {
+    return <div className='w-8 h-8'></div>;
+  }
+
+  return (
+    <Link href={`/appointments/${appointmentId}/edit`}>
+      <EditButton tooltip='Edit Appointment' aria-label='Edit Appointment' />
+    </Link>
+  );
+}
+
 // ConsultationButton component to handle consultation/edit logic
 function ConsultationButton({ appointmentId }: { appointmentId: number }) {
   const [consultationStatus, setConsultationStatus] = useState<{ exists: boolean; consultationId?: number } | null>(null);
@@ -241,14 +277,14 @@ export default function AppointmentsPage() {
     {
       key: 'patient',
       header: 'Patient',
-      sortable: false,
+      sortable: true,
       accessor: (r) => `${r.patient.firstName} ${r.patient.middleName} ${r.patient.lastName}`,
       cellClassName: 'whitespace-nowrap',
     },
     {
       key: 'gender',
       header: 'Gender',
-      sortable: false,
+      sortable: true,
       accessor: (r) => r.patient.gender ? (GENDER_LABEL[r.patient.gender] ?? r.patient.gender) : '-',
       cellClassName: 'whitespace-nowrap',
     },
@@ -262,7 +298,7 @@ export default function AppointmentsPage() {
     {
       key: 'team',
       header: 'Team',
-      sortable: false,
+      sortable: true,
       accessor: (r) => r.team.name,
       cellClassName: 'whitespace-nowrap',
     },
@@ -394,9 +430,7 @@ export default function AppointmentsPage() {
                   <ConsultationButton appointmentId={appointment.id} />
                 )}
                 {can(PERMISSIONS.EDIT_APPOINTMENTS) && (
-                  <Link href={`/appointments/${appointment.id}/edit`}>
-                    <EditButton tooltip='Edit Appointment' aria-label='Edit Appointment' />
-                  </Link>
+                  <ConsultationAwareEditButton appointmentId={appointment.id} />
                 )}
                 {can(PERMISSIONS.DELETE_APPOINTMENTS) && (
                   <DeleteButton

@@ -130,6 +130,12 @@ export const NAV_ITEMS: NavItem[] = [
     title: "Transactions",
     icon: Landmark,
     children: [
+        {
+        title: "Stocks",
+        href: "/stocks",
+        icon: Package,
+        permission: PERMISSIONS.VIEW_STOCKS,
+        },
         {   
         title: "Sales",
         href: "/sales",
@@ -141,12 +147,6 @@ export const NAV_ITEMS: NavItem[] = [
           href: "/purchases",
           icon: Receipt,
           permission: PERMISSIONS.VIEW_PURCHASES,
-        },
-        {
-        title: "Stocks",
-        href: "/stocks",
-        icon: Package,
-        permission: PERMISSIONS.VIEW_STOCKS,
         },
         {
           title: "Medicine Bills",

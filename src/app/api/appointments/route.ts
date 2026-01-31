@@ -140,13 +140,19 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const sortableFields = new Set(["appointmentDateTime", "createdAt", "visitPurpose", "gender", "type"]);
+  const sortableFields = new Set(["appointmentDateTime", "createdAt", "visitPurpose", "gender", "type", "patient", "team"]);
   let orderBy: any;
   
   if (sortableFields.has(sort)) {
     if (sort === "gender") {
       // Handle nested gender sorting
       orderBy = { patient: { gender: order } };
+    } else if (sort === "patient") {
+      // Handle patient sorting by combined name
+      orderBy = { patient: { firstName: order } };
+    } else if (sort === "team") {
+      // Handle team sorting by name
+      orderBy = { team: { name: order } };
     } else {
       orderBy = { [sort]: order };
     }
