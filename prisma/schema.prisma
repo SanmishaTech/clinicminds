@@ -33,6 +33,7 @@ model User {
   stockRecallsCreated         StockRecall[]      @relation("StockRecallCreatedBy")
   franchiseFeePaymentsCreated FranchiseFeePayment[] @relation("FranchiseFeePaymentCreatedBy")
   consultationReceiptsCreated ConsultationReceipt[] @relation("ConsultationReceiptCreatedBy")
+  medicineBillReceiptsCreated MedicineBillReceipt[] @relation("MedicineBillReceiptCreatedBy")
   
   @@index([role])
   @@map("users")
@@ -753,8 +754,10 @@ model MedicineBill{
   patient         Patient? @relation(fields: [patientId], references: [id], onDelete: SetNull)
   discountPercent Int?
   totalAmount     Decimal @db.Decimal(10, 2)
+  totalReceivedAmount Decimal @db.Decimal(10, 2) @default(0)
   stockTransaction StockTransaction?
   medicineDetails MedicineBillDetail[]
+  medicineBillReceipts MedicineBillReceipt[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -779,6 +782,28 @@ model MedicineBillDetail{
   @@index([medicineId])
   @@index([medicineBillId, medicineId])
   @@map("medicine_bill_details")
+}
+
+model MedicineBillReceipt{
+  id                    Int       @id @default(autoincrement())
+  receiptNumber         String    @unique
+  medicineBillId        Int
+  medicineBill          MedicineBill @relation(fields: [medicineBillId], references: [id], onDelete: Cascade)
+  date                  DateTime
+  paymentMode           String
+  payerName             String?
+  contactNumber         String?
+  upiName               String?
+  utrNumber             String?
+  bankName              String?
+  chequeDate            DateTime?
+  chequeNumber          String?
+  notes                 String?   @db.Text
+  createdByUserId       Int?
+  createdByUser         User?     @relation("MedicineBillReceiptCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  amount                Decimal   @db.Decimal(10, 2)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 }
 
 model Lab{

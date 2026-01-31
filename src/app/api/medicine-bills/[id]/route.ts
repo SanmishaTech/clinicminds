@@ -62,6 +62,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
         billDate: true,
         discountPercent: true,
         totalAmount: true,
+        totalReceivedAmount: true,
         createdAt: true,
         updatedAt: true,
         patient: {

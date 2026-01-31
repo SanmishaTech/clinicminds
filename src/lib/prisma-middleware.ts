@@ -182,6 +182,33 @@ export const generateEntityCode = (prisma: PrismaClient) => {
       params.args.data.receiptNumber = `R-${dayMonthYear}-${String(sequence).padStart(4, '0')}`;
     }
 
+    // Handle single create for MedicineBillReceipt
+    if (params.action === 'create' && params.model === 'MedicineBillReceipt') {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0'); // DD
+      const month = String(now.getMonth() + 1).padStart(2, '0'); // MM
+      const year = now.getFullYear(); // YYYY
+      const dayMonthYear = `${day}${month}${year}`; // DDMMYYYY
+      
+      // Find latest receipt number for today
+      const latestReceipt = await prisma.medicineBillReceipt.findFirst({
+        where: {
+          receiptNumber: {
+            startsWith: `RM-${dayMonthYear}`
+          }
+        },
+        orderBy: {
+          receiptNumber: 'desc'
+        },
+        select: {
+          receiptNumber: true
+        }
+      });
+
+      const sequence = latestReceipt ? parseInt(latestReceipt.receiptNumber.split('-')[2]) + 1 : 1;
+      params.args.data.receiptNumber = `RM-${dayMonthYear}-${String(sequence).padStart(4, '0')}`;
+    }
+
     return next(params);
   });
 };
