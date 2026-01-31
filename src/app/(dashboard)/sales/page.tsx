@@ -19,6 +19,7 @@ import { DeleteButton } from '@/components/common/delete-button';
 import { StatusBadge } from '@/components/common/status-badge';
 import { AppSelect } from '@/components/common/app-select';
 import Link from 'next/link';
+import jsPDF from 'jspdf';
 
 
 
@@ -75,6 +76,7 @@ export default function SalesPage() {
   const [startDateDraft, setStartDateDraft] = useState(startDate);
   const [endDateDraft, setEndDateDraft] = useState(endDate);
   const [franchiseIdDraft, setFranchiseIdDraft] = useState(franchiseId);
+  const [invoiceLoadingId, setInvoiceLoadingId] = useState<number | null>(null);
 
   useEffect(() => { 
     setSearchDraft(search);
@@ -136,6 +138,136 @@ export default function SalesPage() {
   const franchiseOptions = useMemo(() => {
     return (franchisesResp as any)?.data?.map((f: any) => ({ value: String(f.id), label: f.name })) || [];
   }, [franchisesResp]);
+
+  const formatPdfCurrency = (amount: number) => {
+    const n = Number(amount) || 0;
+    const formatted = n.toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return `Rs. ${formatted}`;
+  };
+
+  async function openInvoicePdf(saleId: number) {
+    if (typeof window === 'undefined') return;
+
+    const tab = window.open('', '_blank');
+    if (!tab) {
+      toast.error('Please allow popups to open the invoice');
+      return;
+    }
+
+    try {
+      // Security: explicitly sever the opener reference
+      tab.opener = null;
+    } catch {
+      // ignore
+    }
+
+    try {
+      setInvoiceLoadingId(saleId);
+      tab.document.open();
+      tab.document.write('<!doctype html><html><head><title>Invoice</title></head><body>Loading invoice...</body></html>');
+      tab.document.close();
+
+      const sale = (await apiGet(`/api/sales/${saleId}`)) as any;
+
+      const appName = process.env.NEXT_PUBLIC_APP_NAME || 'ClinicMinds';
+      const invoiceNo = String(sale?.invoiceNo ?? '');
+      const invoiceDate = sale?.invoiceDate ? new Date(sale.invoiceDate) : null;
+      const franchiseName = String(sale?.franchise?.name ?? '');
+      const items = (sale?.saleDetails || []) as Array<any>;
+
+      const doc = new jsPDF();
+      doc.setFont('helvetica', 'normal');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text(appName, 14, 16);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.text('Sale Invoice', 14, 24);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(80);
+      doc.text(`Invoice No: ${invoiceNo}`, 14, 32);
+      doc.text(`Date: ${invoiceDate ? invoiceDate.toLocaleDateString() : ''}`, 14, 38);
+      doc.text(`Franchise: ${franchiseName}`, 14, 44);
+      doc.setTextColor(0);
+
+      const startX = 14;
+      let y = 54;
+      const rowH = 8;
+      const colW = [60, 28, 26, 14, 22, 26];
+      const headers = ['Medicine', 'Batch', 'Expiry', 'Qty', 'Rate', 'Amount'];
+      const maxY = doc.internal.pageSize.getHeight() - 12;
+
+      const drawRow = (cells: string[], isHeader = false) => {
+        let x = startX;
+        doc.setFont('helvetica', isHeader ? 'bold' : 'normal');
+        for (let i = 0; i < cells.length; i++) {
+          doc.rect(x, y, colW[i], rowH);
+          const text = cells[i] ?? '';
+          const clipped = doc.splitTextToSize(text, colW[i] - 4);
+          doc.text(clipped[0] || '', x + 2, y + 5.5);
+          x += colW[i];
+        }
+        doc.setFont('helvetica', 'normal');
+      };
+
+      drawRow(headers, true);
+      y += rowH;
+
+      for (const d of items) {
+        if (y + rowH > maxY) {
+          doc.addPage();
+          y = 20;
+          drawRow(headers, true);
+          y += rowH;
+        }
+
+        const medName = String(d?.medicine?.name ?? '');
+        const brand = String(d?.medicine?.brand ?? '');
+        const displayMedicine = brand ? `${medName} - ${brand}` : medName;
+        const batch = String(d?.batchNumber ?? '');
+        const expiry = d?.expiryDate ? new Date(d.expiryDate).toLocaleDateString() : '';
+        const qty = String(Number(d?.quantity ?? 0) || 0);
+        const rate = formatPdfCurrency(Number(d?.rate ?? 0) || 0);
+        const amount = formatPdfCurrency(Number(d?.amount ?? (Number(d?.rate ?? 0) || 0) * (Number(d?.quantity ?? 0) || 0)));
+
+        drawRow([displayMedicine, batch, expiry, qty, rate, amount], false);
+        y += rowH;
+      }
+
+      const totalAmount = Number(sale?.totalAmount ?? 0) || 0;
+      if (y + rowH * 2 > maxY) {
+        doc.addPage();
+        y = 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total: ${formatPdfCurrency(totalAmount)}`, 14, y + 10);
+      doc.setFont('helvetica', 'normal');
+
+      const blob = doc.output('blob');
+      const url = URL.createObjectURL(blob);
+      tab.location.replace(url);
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      try {
+        tab.document.open();
+        tab.document.write('<!doctype html><html><head><title>Invoice Error</title></head><body>Failed to generate invoice.</body></html>');
+        tab.document.close();
+      } catch {
+        // ignore
+      }
+      toast.error((e as Error).message || 'Failed to generate invoice');
+    } finally {
+      setInvoiceLoadingId(null);
+    }
+  }
 
   if (error) {
     toast.error((error as Error).message || 'Failed to load Sales');
@@ -270,6 +402,14 @@ export default function SalesPage() {
           renderRowActions={(row) => {
             return (
               <div className='flex items-center gap-1'>
+                <IconButton
+                  iconName='Download'
+                  tooltip='Download Invoice'
+                  aria-label='Download Invoice'
+                  onClick={() => void openInvoicePdf(row.id)}
+                  disabled={invoiceLoadingId === row.id}
+                />
+
                 {can(PERMISSIONS.CREATE_TRANSPORTS) && (
                   <Link
                     href={
