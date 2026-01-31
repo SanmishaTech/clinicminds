@@ -488,7 +488,7 @@ export function PatientForm({
                 <TextInput
                   control={control}
                   name='patientNo'
-                  label='Patient No'
+                  label='Patient Number'
                   placeholder={isCreate ? 'Auto-generated' : 'Patient number'}
                   disabled
                 />
@@ -619,7 +619,7 @@ export function PatientForm({
                 <TextInput
                   control={control}
                   name='mobile'
-                  label='Mobile No. 1'
+                  label='Mobile Number 1'
                   required
                   placeholder='Primary Mobile number'
                   type='tel'
@@ -632,7 +632,7 @@ export function PatientForm({
                 <TextInput
                   control={control}
                   name='mobile2'
-                  label='Mobile No. 2'
+                  label='Mobile Number 2'
                   placeholder='Secondary mobile number'
                   type='tel'
                   maxLength={10}
@@ -655,7 +655,7 @@ export function PatientForm({
                 <TextInput
                   control={control}
                   name='aadharNo'
-                  label='Aadhar No'
+                  label='Aadhar Number'
                   required
                   placeholder='12-digit Aadhar'
                   maxLength={12}
@@ -676,7 +676,7 @@ export function PatientForm({
                 <TextInput
                   control={control}
                   name='contactPersonMobile'
-                  label='Contact Person Mobile'
+                  label='Contact Person Mobile Number'
                   placeholder='Mobile number'
                   type='tel'
                   maxLength={10}
