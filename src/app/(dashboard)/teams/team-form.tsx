@@ -46,7 +46,7 @@ export interface TeamFormInitialData {
   status?: boolean;
   joiningDate?: string | null;
   leavingDate?: string | null;
-  role?: 'FRANCHISE' | 'DOCTOR';
+  role?: 'FRANCHISE' | 'DOCTOR' | 'STAFF' | 'TECHNICIAN' | 'ACCOUNT' | 'SALES';
 }
 
 export interface TeamFormProps {
@@ -74,9 +74,9 @@ export function TeamForm({
     pincode: z.string().regex(/^[0-9]{6}$/, 'Pincode must be exactly 6 digits'),
     joiningDate: z.string().nullable().optional(),
     leavingDate: z.string().nullable().optional(),
-    role: z.enum(['FRANCHISE', 'DOCTOR'], {
+    role: z.enum(["FRANCHISE", "DOCTOR", "STAFF", "TECHNICIAN", "ACCOUNT", "SALES"], {
       required_error: 'Role is required',
-      invalid_type_error: 'Role must be either FRANCHISE or DOCTOR',
+      invalid_type_error: 'Role must be one of: Franchise, Doctor, Staff, Technician, Account, Sales',
     }),
     userMobile: z.string().regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
     email: z.string().email('Invalid email').max(255, 'Email must be less than 255 characters'),
@@ -132,6 +132,10 @@ export function TeamForm({
   const roleOptions = [
     { value: 'FRANCHISE', label: 'Franchise Admin' },
     { value: 'DOCTOR', label: 'Doctor' },
+    { value: 'STAFF', label: 'Staff' },
+    { value: 'TECHNICIAN', label: 'Technician' },
+    { value: 'ACCOUNT', label: 'Account' },
+    { value: 'SALES', label: 'Sales' },
   ];
 
   const stateOptions = useMemo(() => {
@@ -334,6 +338,7 @@ export function TeamForm({
                   label={isCreate ? 'Password' : 'New Password'}
                   placeholder={isCreate ? 'Secret password' : 'Leave blank to keep current'}
                   autoComplete='new-password'
+                  required={isCreate}
                 />
               </FormRow>
               <FormRow cols={2}>

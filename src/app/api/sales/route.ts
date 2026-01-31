@@ -168,6 +168,22 @@ export async function POST(req: NextRequest) {
         select: { medicineId: true, quantity: true },
       });
 
+      // Fetch medicine details for error messages
+      const medicines = await tx.medicine.findMany({
+        where: { id: { in: medicineIds } },
+        select: { 
+          id: true, 
+          name: true,
+          brand: { select: { name: true } }
+        },
+      }) as Array<{
+        id: number;
+        name: string;
+        brand: { name: string };
+      }>;
+
+      const medicineMap = new Map(medicines.map(m => [m.id, m]));
+
       const adminQtyByMedicineId = new Map<number, number>();
       for (const b of adminBalances) {
         adminQtyByMedicineId.set(Number(b.medicineId), Number(b.quantity) || 0);
@@ -176,7 +192,14 @@ export async function POST(req: NextRequest) {
       for (const [medicineId, required] of requiredByMedicineId.entries()) {
         const available = adminQtyByMedicineId.get(medicineId) ?? 0;
         if (available < required) {
-          return { error: 'INSUFFICIENT_ADMIN_STOCK', medicineId, available, required } as const;
+          const medicine = medicineMap.get(medicineId);
+          return { 
+            error: 'INSUFFICIENT_ADMIN_STOCK', 
+            medicineId, 
+            available, 
+            required,
+            medicineName: medicine ? `${medicine.name} - ${medicine.brand.name}` : `Medicine ${medicineId}`
+          } as const;
         }
       }
 
@@ -223,7 +246,7 @@ export async function POST(req: NextRequest) {
     if ((result as any)?.error === 'INSUFFICIENT_ADMIN_STOCK') {
       const r = result as any;
       return Error(
-        `Insufficient admin stock for medicine ${r.medicineId} (available ${r.available}, required ${r.required})`,
+        `Insufficient admin stock for medicine ${r.medicineName} (available ${r.available}, required ${r.required})`,
         409
       );
     }

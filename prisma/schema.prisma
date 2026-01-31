@@ -387,7 +387,7 @@ model Patient {
   reports                       PatientReport[]
   isReferredToHo                Boolean @default(false) 
   medicalHistory                PatientMedicalHistory?
-  referedBy                     String?
+  referredBy                    String?
   balanceAmount                 Float    @default(0)
   createdAt                     DateTime @default(now())
   updatedAt                     DateTime @updatedAt

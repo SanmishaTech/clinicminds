@@ -67,7 +67,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             age: true,
             gender: true,
             dateOfBirth: true,
-            referedBy: true,
+            referredBy: true,
           },
         },
         team: {

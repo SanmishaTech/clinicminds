@@ -190,6 +190,12 @@ export const NAV_ITEMS: NavItem[] = [
         icon: Archive,
         href:"/reports/closing-stock",
         permission: PERMISSIONS.VIEW_CLOSING_STOCK,
+      },
+      {
+        title:"Day Book Report",
+        icon: Book,
+        href:"/reports/day-book",
+        permission: PERMISSIONS.VIEW_DAY_BOOK_REPORT,
       }
     ]
   },
