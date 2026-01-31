@@ -68,6 +68,11 @@ type Medicine = {
   brand: string | null;
 };
 
+type PackageListItem = {
+  id: number;
+  name: string;
+};
+
 type Appointment = {
   id: number;
   appointmentDateTime: string;
@@ -96,7 +101,13 @@ type PatientInfo = {
   mobile: string;
 };
 
-const consultationFormSchema = z.object({
+const consultationFormSchema = z
+  .object({
+  entryMode: z.enum(['custom', 'package']).optional(),
+  packageId: z
+    .string()
+    .refine((v) => !v || /^\d+$/.test(v), 'Must be a valid number')
+    .optional(),
   complaint: z.string().optional(),
   diagnosis: z.string().optional(),
   remarks: z.string().optional(),
@@ -219,7 +230,18 @@ const consultationFormSchema = z.object({
     chequeDate: z.string().optional(),
     notes: z.string().optional(),
   }).optional(),
-});
+  })
+  .superRefine((val, ctx) => {
+    if (val.entryMode === 'package') {
+      if (!val.packageId || String(val.packageId).trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Package is required',
+          path: ['packageId'],
+        });
+      }
+    }
+  });
 
 export type ConsultationFormValues = z.infer<typeof consultationFormSchema>;
 
@@ -232,6 +254,7 @@ export function ConsultationForm({
   const router = useRouter();
   const [services, setServices] = useState<Service[]>([]);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [packages, setPackages] = useState<PackageListItem[]>([]);
   const [patientInfo, setPatientInfo] = useState<PatientInfo | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -245,6 +268,8 @@ export function ConsultationForm({
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
+      entryMode: 'custom',
+      packageId: '',
       complaint: initial?.complaint || '',
       diagnosis: initial?.diagnosis || '',
       remarks: initial?.remarks || '',
@@ -289,6 +314,13 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
     }));
   }, [services]);
 
+  const packageOptions = useMemo(() => {
+    return packages.map((p) => ({
+      value: String(p.id),
+      label: p.name,
+    }));
+  }, [packages]);
+
   const medicineOptions = useMemo(() => {
     return medicines.map((m) => ({
       value: String(m.id),
@@ -316,8 +348,12 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
 
   const watchedDetails = useWatch({ control, name: 'consultationDetails' });
   const watchedMedicines = useWatch({ control, name: 'consultationMedicines' });
+  const watchedEntryMode = useWatch({ control, name: 'entryMode' });
+  const watchedPackageId = useWatch({ control, name: 'packageId' });
   const watchedReceiptAmount = useWatch({ control, name: 'receipt.amount' });
   const currentTotalAmount = useWatch({ control, name: 'totalAmount' });
+
+  const isPackageMode = mode === 'create' && watchedEntryMode === 'package';
 
   // Check if total amount is 0 to disable receipt fields
   const isTotalAmountZero = parseFloat(currentTotalAmount || '0') === 0;
@@ -467,13 +503,15 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
         }
 
         // Now fetch services based on the appointment type
-        const [servicesRes, medicinesRes] = await Promise.all([
+        const [servicesRes, medicinesRes, packagesRes] = await Promise.all([
           apiGet(`/api/services?perPage=1000&isProcedure=${appointmentType === 'PROCEDURE'}`),
           apiGet('/api/medicines?perPage=1000'),
+          apiGet('/api/packages?perPage=1000&sort=name&order=asc'),
         ]);
 
         setServices((servicesRes as any).data || []);
         setMedicines((medicinesRes as any).data || []);
+        setPackages((packagesRes as any).data || []);
       } catch (e) {
         toast.error('Failed to load data');
       } finally {
@@ -483,6 +521,67 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
 
     fetchData();
   }, [initial?.appointmentId]);
+
+  useEffect(() => {
+    if (mode !== 'create') return;
+
+    if (watchedEntryMode === 'custom') {
+      if (watchedPackageId) setValue('packageId', '');
+      return;
+    }
+
+    if (watchedEntryMode !== 'package') return;
+
+    if (!watchedPackageId) {
+      setValue('consultationDetails', [{ serviceId: '', description: '', rate: '', amount: '' }]);
+      setValue('consultationMedicines', [{ medicineId: '', qty: '', mrp: '', amount: '', doses: '' }]);
+      return;
+    }
+
+    const loadPackage = async () => {
+      try {
+        const res = (await apiGet(`/api/packages/${watchedPackageId}`)) as any;
+        const packageDetails = (res?.packageDetails || []) as Array<any>;
+        const packageMedicines = (res?.packageMedicines || []) as Array<any>;
+
+        const detailsRows =
+          packageDetails.length > 0
+            ? packageDetails.map((d: any) => {
+                const rate = Number(d?.rate ?? 0) || 0;
+                return {
+                  serviceId: String(d?.serviceId ?? ''),
+                  description: String(d?.description ?? ''),
+                  rate: String(rate),
+                  amount: String(rate),
+                };
+              })
+            : [{ serviceId: '', description: '', rate: '', amount: '' }];
+
+        const medicineRows =
+          packageMedicines.length > 0
+            ? packageMedicines.map((m: any) => {
+                const qty = Number(m?.qty ?? 0) || 0;
+                const mrp = Number(m?.rate ?? 0) || 0;
+                const amount = Number(m?.amount ?? qty * mrp) || 0;
+                return {
+                  medicineId: String(m?.medicineId ?? ''),
+                  doses: '',
+                  qty: String(qty),
+                  mrp: String(mrp),
+                  amount: amount.toFixed(2),
+                };
+              })
+            : [{ medicineId: '', qty: '', mrp: '', amount: '', doses: '' }];
+
+        setValue('consultationDetails', detailsRows, { shouldDirty: true, shouldValidate: true });
+        setValue('consultationMedicines', medicineRows, { shouldDirty: true, shouldValidate: true });
+      } catch (e) {
+        toast.error('Failed to load package');
+      }
+    };
+
+    void loadPackage();
+  }, [mode, watchedEntryMode, watchedPackageId, setValue]);
 
   async function onSubmit(values: ConsultationFormValues) {
     setSubmitting(true);
@@ -609,6 +708,46 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                 </AppCard.Header>
                 <AppCard.Content className='space-y-6'>
                   <FormSection legend='Consultation Details'>
+                    {mode === 'create' && (
+                      <FormRow cols={1}>
+                        <div className='space-y-2'>
+                          <div className='text-sm font-medium'>Billing Type</div>
+                          <div className='flex items-center gap-6'>
+                            <label className='flex items-center gap-2 text-sm'>
+                              <input
+                                type='radio'
+                                name='entryMode'
+                                checked={(watchedEntryMode || 'custom') === 'custom'}
+                                onChange={() => setValue('entryMode', 'custom', { shouldDirty: true, shouldValidate: true })}
+                              />
+                              Custom
+                            </label>
+                            <label className='flex items-center gap-2 text-sm'>
+                              <input
+                                type='radio'
+                                name='entryMode'
+                                checked={watchedEntryMode === 'package'}
+                                onChange={() => setValue('entryMode', 'package', { shouldDirty: true, shouldValidate: true })}
+                              />
+                              Package
+                            </label>
+                          </div>
+                        </div>
+                      </FormRow>
+                    )}
+
+                    {mode === 'create' && isPackageMode && (
+                      <FormRow cols={1}>
+                        <ComboboxInput
+                          control={control}
+                          name={'packageId' as any}
+                          options={packageOptions}
+                          placeholder='Select package'
+                          required
+                        />
+                      </FormRow>
+                    )}
+
                     <FormRow cols={1}>
                       <TextareaInput
                         control={control}
@@ -696,7 +835,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                         )}
                       </div>
                     </FormSection>
-                  ) : (
+                  ) : (isPackageMode && !watchedPackageId ? null : (
                   <FormSection legend='Services'>
                     <div className='border rounded-lg overflow-hidden'>
                       <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
@@ -743,6 +882,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   );
                                 }
                               }}
+                              disabled={isPackageMode}
                             />
                           </div>
                           <div className='col-span-3 p-3 border-r'>
@@ -755,7 +895,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   placeholder=''
                                   className='w-full h-10 border'
                                   value={field.value || ''}
-                                  disabled={!watchedDetails?.[index]?.serviceId}
+                                  disabled={isPackageMode || !watchedDetails?.[index]?.serviceId}
                                 />
                               )}
                             />
@@ -778,7 +918,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                     onChange={(e) =>
                                       updateDetailAmount(index, 'rate', e.target.value)
                                     }
-                                    disabled={!watchedDetails?.[index]?.serviceId}
+                                    disabled={isPackageMode || !watchedDetails?.[index]?.serviceId}
                                   />
                                 </div>
                               )}
@@ -804,6 +944,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 size='sm'
                                 onClick={() => removeDetail(index)}
                                 className='h-8 w-8 p-0'
+                                disabled={isPackageMode}
                               >
                                 <Trash2 className='h-4 w-4' />
                               </AppButton>
@@ -826,13 +967,14 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                           })
                         }
                         className='gap-2'
+                        disabled={isPackageMode}
                       >
                         <Plus className='h-4 w-4' />
                         Add
                       </AppButton>
                     </div>
                   </FormSection>
-                  )}
+                  ))}
 
                   {mode === 'edit' ? (
                     <FormSection legend='Medicines'>
@@ -869,7 +1011,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                         )}
                       </div>
                     </FormSection>
-                  ) : (
+                  ) : (isPackageMode && !watchedPackageId ? null : (
                     <FormSection legend='Medicines'>
                       <div className='border rounded-lg overflow-hidden'>
                       <div className='grid grid-cols-12 gap-0 bg-muted border-b'>
@@ -913,6 +1055,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   (qty * Number((medicine as any).mrp ?? 0)).toFixed(2)
                                 );
                               }}
+                              disabled={isPackageMode}
                             />
                           </div>
                           <div className='col-span-2 p-3 border-r'>
@@ -925,7 +1068,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   placeholder='e.g., 1-1-1'
                                   className='w-full h-10 border'
                                   value={field.value || ''}
-                                  disabled={!watchedMedicines?.[index]?.medicineId}
+                                  disabled={isPackageMode || !watchedMedicines?.[index]?.medicineId}
                                 />
                               )}
                             />
@@ -943,7 +1086,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                   className='w-full h-10 border'
                                   value={field.value || ''}
                                   onChange={(e) => updateMedicineAmount(index, 'qty', e.target.value)}
-                                  disabled={!watchedMedicines?.[index]?.medicineId}
+                                  disabled={isPackageMode || !watchedMedicines?.[index]?.medicineId}
                                 />
                               )}
                             />
@@ -966,7 +1109,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                     onChange={(e) =>
                                       updateMedicineAmount(index, 'mrp', e.target.value)
                                     }
-                                    disabled={true}
+                                    disabled={isPackageMode || !watchedMedicines?.[index]?.medicineId}
                                   />
                                 </div>
                               )}
@@ -992,6 +1135,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 size='sm'
                                 onClick={() => removeMedicine(index)}
                                 className='h-8 w-8 p-0'
+                                disabled={isPackageMode}
                               >
                                 <Trash2 className='h-4 w-4' />
                               </AppButton>
@@ -1009,13 +1153,14 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                           appendMedicine({ medicineId: '', qty: '', mrp: '', amount: '', doses: '' })
                         }
                         className='gap-2'
+                        disabled={isPackageMode}
                       >
                         <Plus className='h-4 w-4' />
                         Add
                       </AppButton>
                     </div>
                   </FormSection>
-                  )}
+                  ))}
 
                     {/* Total Amount */}
                     <FormRow cols={12}>

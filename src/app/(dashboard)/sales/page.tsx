@@ -158,10 +158,8 @@ export default function SalesPage() {
     }
 
     try {
-      // Security: explicitly sever the opener reference
       tab.opener = null;
     } catch {
-      // ignore
     }
 
     try {
