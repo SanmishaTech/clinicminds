@@ -13,9 +13,11 @@ import { PERMISSIONS } from '@/config/roles';
 import { formatDate } from '@/lib/locales';
 import { formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
+import { AppSelect } from '@/components/common/app-select';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx-js-style';
 import { format } from 'date-fns';
+import { useCurrentUser } from '@/hooks/use-current-user';
 
 type DayBookReportItem = {
   id: number;
@@ -31,6 +33,10 @@ type DayBookReportItem = {
     appointmentDateTime: string;
     type: string;
     team: {
+      name: string;
+    };
+    franchise: {
+      id: number;
       name: string;
     };
     patient: {
@@ -59,42 +65,50 @@ export default function DayBookReportPage() {
     order: 'asc',
     startDate: '',
     endDate: '',
+    franchiseId: '',
   });
 
-  const { page, perPage, sort, order, startDate, endDate } = (qp as unknown) as {
+  const { page, perPage, sort, order, startDate, endDate, franchiseId } = (qp as unknown) as {
     page: number;
     perPage: number;
     sort: string;
     order: 'asc' | 'desc';
     startDate: string;
     endDate: string;
+    franchiseId: string;
   };
 
   const [startDateDraft, setStartDateDraft] = useState(startDate);
   const [endDateDraft, setEndDateDraft] = useState(endDate);
+  const [franchiseIdDraft, setFranchiseIdDraft] = useState(franchiseId);
+  const { user } = useCurrentUser();
 
   useEffect(() => {
     setStartDateDraft(startDate);
     setEndDateDraft(endDate);
-  }, [startDate, endDate]);
+    setFranchiseIdDraft(franchiseId);
+  }, [startDate, endDate, franchiseId]);
 
-  const filtersDirty = startDateDraft !== startDate || endDateDraft !== endDate;
+  const filtersDirty = startDateDraft !== startDate || endDateDraft !== endDate || franchiseIdDraft !== franchiseId;
 
   function applyFilters() {
     setQp({
       page: 1,
       startDate: startDateDraft,
       endDate: endDateDraft,
+      franchiseId: franchiseIdDraft,
     });
   }
 
   function resetFilters() {
     setStartDateDraft('');
     setEndDateDraft('');
+    setFranchiseIdDraft('');
     setQp({
       page: 1,
       startDate: '',
       endDate: '',
+      franchiseId: '',
     });
   }
 
@@ -104,13 +118,30 @@ export default function DayBookReportPage() {
     sp.set('perPage', String(perPage));
     if (startDate) sp.set('startDate', startDate);
     if (endDate) sp.set('endDate', endDate);
+    if (franchiseId) sp.set('franchiseId', franchiseId);
     sp.set('sort', sort);
     sp.set('order', order);
     return `/api/consultations?${sp.toString()}`;
-  }, [page, perPage, startDate, endDate, sort, order]);
+  }, [page, perPage, startDate, endDate, franchiseId, sort, order]);
 
   const { data, error, isLoading } = useSWR<DayBookReportResponse>(query, apiGet);
   const { can } = usePermissions();
+
+  // Fetch franchises for admin users
+  const { data: franchisesResp } = useSWR(
+    can(PERMISSIONS.READ_FRANCHISES) ? '/api/franchises?page=1&perPage=100&sort=name&order=asc' : null,
+    apiGet
+  );
+
+  const franchiseOptions = useMemo(() => {
+    return (franchisesResp as any)?.data?.map((f: any) => ({ value: String(f.id), label: f.name })) || [];
+  }, [franchisesResp]);
+
+  const selectedFranchiseLabel = useMemo(() => {
+    if (!franchiseId) return 'All Franchises';
+    const match = franchiseOptions.find((o) => o.value === franchiseId);
+    return match?.label || 'Selected Franchise';
+  }, [franchiseId, franchiseOptions]);
 
   if (!can(PERMISSIONS.READ_CONSULTATIONS)) {
     return <div>You don't have permission to view this report.</div>;
@@ -183,6 +214,13 @@ export default function DayBookReportPage() {
         : formatDate(endDate) 
         ? `Up to ${formatDate(endDate)}`
         : 'All Dates';
+      
+      // Franchise info for admin
+      const franchiseInfo = user?.role === 'ADMIN' && franchiseId 
+        ? `Franchise: ${selectedFranchiseLabel}`
+        : user?.role === 'ADMIN' 
+        ? 'Franchise: All Franchises'
+        : '';
 
       // Header
       doc.setFontSize(16);
@@ -200,17 +238,26 @@ export default function DayBookReportPage() {
       const pageWidth = doc.internal.pageSize.getWidth();
       const reportDateTimeWidth = doc.getTextWidth(`Report Date & Time: ${reportDateTime}`);
       const periodWidth = doc.getTextWidth(`Period: ${dateRange}`);
+      const franchiseWidth = franchiseInfo ? doc.getTextWidth(franchiseInfo) : 0;
+      
+      // Adjust layout based on whether franchise info is shown
+      let startY = 38;
+      if (franchiseInfo) {
+        doc.text(franchiseInfo, pageWidth / 2, startY, { align: 'center' });
+        startY += 8;
+      }
+      
       const gap = 120; // Gap between the two texts
       const totalWidth = reportDateTimeWidth + gap + periodWidth;
       const startX = (pageWidth - totalWidth) / 2;
       
-      doc.text(`Report Date & Time: ${reportDateTime}`, startX, 38);
-      doc.text(`Period: ${dateRange}`, startX + reportDateTimeWidth + gap, 38);
+      doc.text(`Report Date & Time: ${reportDateTime}`, startX, startY);
+      doc.text(`Period: ${dateRange}`, startX + reportDateTimeWidth + gap, startY);
 
       doc.setTextColor(0);
 
       const tableStartX = 14;
-      let y = 42;
+      let y = franchiseInfo ? 54 : 46;
       const rowH = 8;
       const colW = [23, 25, 40, 25, 17, 35, 35, 35, 35];
       const headers = ['Date', 'Team', 'Patient Name', 'Mobile', 'Gender', 'Type', 'Amount', 'Paid', 'Balance'];
@@ -384,6 +431,32 @@ export default function DayBookReportPage() {
       // Prepare data for Excel
       const wsData: any[][] = [];
       
+      // Add header info for admin users
+      if (user?.role === 'ADMIN') {
+        const now = new Date();
+        const reportDateTime = format(now, 'dd/MM/yyyy hh:mm a');
+        
+        // Date range
+        const dateRange = startDate && endDate 
+          ? `${formatDate(startDate)} to ${formatDate(endDate)}`
+          : formatDate(startDate) 
+          ? `From ${formatDate(startDate)}`
+          : formatDate(endDate) 
+          ? `Up to ${formatDate(endDate)}`
+          : 'All Dates';
+        
+        // Franchise info
+        const franchiseInfo = franchiseId 
+          ? `Franchise: ${selectedFranchiseLabel}`
+          : 'Franchise: All Franchises';
+        
+        wsData.push(['Day Book Report']);
+        wsData.push([`Report Date & Time: ${reportDateTime}`]);
+        wsData.push([`Period: ${dateRange}`]);
+        wsData.push([franchiseInfo]);
+        wsData.push([]); // Empty row
+      }
+      
       // Headers
       const headers = [
         'Date', 'Team', 'Patient Name', 'Mobile', 'Gender', 
@@ -464,6 +537,20 @@ export default function DayBookReportPage() {
         </AppCard.Header>
         <AppCard.Content>
           <FilterBar title='Filter by Date'>
+          {can(PERMISSIONS.READ_FRANCHISES) && (
+            <AppSelect
+              value={franchiseIdDraft || '__all'}
+              onValueChange={(value) => setFranchiseIdDraft(value === '__all' ? '' : value)}
+              placeholder='All Franchises'
+            >
+              <AppSelect.Item value='__all'>All Franchises</AppSelect.Item>
+              {franchiseOptions.map((option) => (
+                <AppSelect.Item key={option.value} value={option.value}>
+                  {option.label}
+                </AppSelect.Item>
+              ))}
+            </AppSelect>
+          )}
             <NonFormTextInput
               type='date'
               aria-label='Start date'
@@ -488,7 +575,7 @@ export default function DayBookReportPage() {
             >
               Filter
             </AppButton>
-            {(startDate || endDate) && (
+            {(startDate || endDate || franchiseId) && (
               <AppButton
                 variant='secondary'
                 size='sm'
@@ -544,6 +631,12 @@ export default function DayBookReportPage() {
                      endDate ? `Up to ${endDate}` : 'All Dates'}
                   </span>
                 </div>
+                {user?.role === 'ADMIN' && (
+                  <div>
+                    <span className='text-muted-foreground'>Franchise:</span>
+                    <span className='ml-2 font-medium'>{selectedFranchiseLabel}</span>
+                  </div>
+                )}
               </div>
             </div>
           )}

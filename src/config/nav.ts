@@ -192,7 +192,7 @@ export const NAV_ITEMS: NavItem[] = [
         permission: PERMISSIONS.VIEW_CLOSING_STOCK,
       },
       {
-        title:"Day Book Report",
+        title:"Day Book",
         icon: Book,
         href:"/reports/day-book",
         permission: PERMISSIONS.VIEW_DAY_BOOK_REPORT,
