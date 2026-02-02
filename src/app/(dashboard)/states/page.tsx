@@ -125,7 +125,7 @@ export default function StatesPage() {
       <AppCard.Header>
         <AppCard.Title>States</AppCard.Title>
         <AppCard.Description>Manage states.</AppCard.Description>
-        {can(PERMISSIONS.EDIT_STATES) && (
+        {can(PERMISSIONS.CREATE_STATES) && (
           <AppCard.Action>
             <Link href='/states/new'>
               <AppButton size='sm' iconName='Plus' type='button'>

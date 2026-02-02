@@ -280,6 +280,12 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       PATCH: [PERMISSIONS.EDIT_LABS],
       DELETE: [PERMISSIONS.DELETE_LABS],
     }
+  },
+  {
+    prefix: "/api/day-book",
+    methods: {
+      GET: [PERMISSIONS.READ_DAY_BOOK],
+    },
   }
 ];
 

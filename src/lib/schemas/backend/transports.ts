@@ -13,29 +13,27 @@ export const createTransportSchema = z
     transportId: z.number().int().positive().optional(),
     companyName: z.string().trim().min(1),
     dispatchedDetails: z.array(dispatchedDetailSchema).min(1).optional(),
-    dispatchedQuantity: z.number().int().positive().optional(),
-    transporterName: z.string().trim().optional(),
+    transporterName: z.string().trim().optional().nullable(),
     transportFee: z.number().min(0),
-    receiptNumber: z.string().trim().optional(),
-    vehicleNumber: z.string().trim().optional(),
-    trackingNumber: z.string().trim().optional(),
-    notes: z.string().optional(),
+    receiptNumber: z.string().trim().optional().nullable(),
+    vehicleNumber: z.string().trim().optional().nullable(),
+    trackingNumber: z.string().trim().optional().nullable(),
+    notes: z.string().optional().nullable(),
   })
-  .refine((data) => (data.dispatchedDetails?.length ?? 0) > 0 || data.dispatchedQuantity !== undefined, {
+  .refine((data) => (data.dispatchedDetails?.length ?? 0) > 0, {
     message: 'Dispatched details are required',
     path: ['dispatchedDetails'],
   });
 
 export const updateTransportSchema = z.object({
-  transporterName: z.string().trim().optional(),
-  companyName: z.string().trim().optional(),
+  transporterName: z.string().trim().optional().nullable(),
+  companyName: z.string().trim().optional().nullable(),
   dispatchedDetails: z.array(dispatchedDetailSchema).min(1).optional(),
-  dispatchedQuantity: z.number().int().positive().optional(),
   transportFee: z.number().min(0).optional(),
-  receiptNumber: z.string().trim().optional(),
-  vehicleNumber: z.string().trim().optional(),
-  trackingNumber: z.string().trim().optional(),
-  notes: z.string().optional(),
+  receiptNumber: z.string().trim().optional().nullable(),
+  vehicleNumber: z.string().trim().optional().nullable(),
+  trackingNumber: z.string().trim().optional().nullable(),
+  notes: z.string().optional().nullable(),
   status: transportStatusSchema.optional(),
 });
 

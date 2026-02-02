@@ -49,9 +49,22 @@ export interface TransportFormProps {
   initial?: TransportFormInitial | null;
   transportId?: number | null;
   redirectOnSuccess?: string;
+  onSubmit?: (data: any) => void;
+  onCancel?: () => void;
+  isLoading?: boolean;
+  isEdit?: boolean;
 }
 
-export default function TransportForm({ sale, initial, transportId, redirectOnSuccess = '/transports' }: TransportFormProps) {
+export default function TransportForm({ 
+  sale, 
+  initial, 
+  transportId, 
+  redirectOnSuccess = '/transports', 
+  onSubmit, 
+  onCancel, 
+  isLoading: externalLoading, 
+  isEdit = false 
+}: TransportFormProps) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
@@ -97,33 +110,53 @@ export default function TransportForm({ sale, initial, transportId, redirectOnSu
   const isDelivered = statusLower === 'delivered';
   const isPending = !isAlreadyDispatched && !isDelivered;
 
-  async function onSubmit(values: TransportFormValues) {
-    if (!isPending) return;
-    setSubmitting(true);
-    try {
+  async function onSubmitForm(values: TransportFormValues) {
+    if (!isAlreadyDispatched && !isEdit) return;
+    
+    if (onSubmit) {
+      // Use custom submit handler (for edit mode)
       const payload = {
-        saleId: sale.saleId,
-        transportId: transportId ?? undefined,
-        companyName: values.companyName.trim(),
+        companyName: values.companyName.trim() || null,
         dispatchedDetails: values.dispatchedDetails.map((detail) => ({
           saleDetailId: Number(detail.saleDetailId),
           quantity: Number(detail.quantity) || 0,
         })),
-        transporterName: values.transporterName?.trim() || undefined,
-        transportFee: Number(values.transportFee),
-        receiptNumber: values.receiptNumber?.trim() || undefined,
-        vehicleNumber: values.vehicleNumber?.trim() || undefined,
-        trackingNumber: values.trackingNumber?.trim() || undefined,
-        notes: values.notes || undefined,
+        transporterName: values.transporterName?.trim() || null,
+        transportFee: Number(values.transportFee) || 0,
+        receiptNumber: values.receiptNumber?.trim() || null,
+        vehicleNumber: values.vehicleNumber?.trim() || null,
+        trackingNumber: values.trackingNumber?.trim() || null,
+        notes: values.notes || null,
       };
+      onSubmit(payload);
+    } else {
+      // Use default submit handler (for create mode)
+      setSubmitting(true);
+      try {
+        const payload = {
+          saleId: sale.saleId,
+          transportId: transportId ?? undefined,
+          companyName: values.companyName.trim() || null,
+          dispatchedDetails: values.dispatchedDetails.map((detail) => ({
+            saleDetailId: Number(detail.saleDetailId),
+            quantity: Number(detail.quantity) || 0,
+          })),
+          transporterName: values.transporterName?.trim() || null,
+          transportFee: Number(values.transportFee) || 0,
+          receiptNumber: values.receiptNumber?.trim() || null,
+          vehicleNumber: values.vehicleNumber?.trim() || null,
+          trackingNumber: values.trackingNumber?.trim() || null,
+          notes: values.notes || null,
+        };
 
-      await apiPost('/api/transports', payload);
-      toast.success(isAlreadyDispatched ? 'Transport updated successfully' : 'Transport dispatched successfully');
-      router.push(redirectOnSuccess);
-    } catch (e) {
-      toast.error((e as Error).message || 'Failed to dispatch transport');
-    } finally {
-      setSubmitting(false);
+        await apiPost('/api/transports', payload);
+        toast.success(isAlreadyDispatched ? 'Transport updated successfully' : 'Transport dispatched successfully');
+        router.push(redirectOnSuccess);
+      } catch (e) {
+        toast.error((e as Error).message || 'Failed to dispatch transport');
+      } finally {
+        setSubmitting(false);
+      }
     }
   }
 
@@ -146,7 +179,7 @@ export default function TransportForm({ sale, initial, transportId, redirectOnSu
             />
           </div>
         </AppCard.Header>
-        <form noValidate onSubmit={handleSubmit(onSubmit)}>
+        <form noValidate onSubmit={handleSubmit(onSubmitForm)}>
           <AppCard.Content>
             {sale.saleDetails && sale.saleDetails.length > 0 && (
               <FormSection legend='Sale Details'>
@@ -199,7 +232,7 @@ export default function TransportForm({ sale, initial, transportId, redirectOnSu
                                         max={isPending ? remainingQty : saleQty}
                                         step={1}
                                         className='h-9 w-24 text-right'
-                                        disabled={!isPending || submitting}
+                                        disabled={submitting || externalLoading}
                                         {...field}
                                         value={field.value ?? ''}
                                       />
@@ -235,14 +268,14 @@ export default function TransportForm({ sale, initial, transportId, redirectOnSu
                   label='Company Name'
                   placeholder='Enter company name'
                   required
-                  disabled={!isPending || submitting}
+                  disabled={submitting || externalLoading}
                 />
                 <TextInput
                   control={control}
                   name='transporterName'
                   label='Transporter Name'
                   placeholder='Enter transporter name'
-                  disabled={!isPending || submitting}
+                  disabled={submitting || externalLoading}
                 />
                 <TextInput
                   control={control}
@@ -252,7 +285,7 @@ export default function TransportForm({ sale, initial, transportId, redirectOnSu
                   type='number'
                   step='0.01'
                   required
-                  disabled={!isPending || submitting}
+                  disabled={submitting || externalLoading}
                 />
               </FormRow>
 
@@ -262,21 +295,21 @@ export default function TransportForm({ sale, initial, transportId, redirectOnSu
                   name='receiptNumber'
                   label='Receipt Number'
                   placeholder='Enter receipt number'
-                  disabled={!isPending || submitting}
+                  disabled={submitting || externalLoading}
                 />
                 <TextInput
                   control={control}
                   name='vehicleNumber'
                   label='Vehicle Number'
                   placeholder='Enter vehicle number'
-                  disabled={!isPending || submitting}
+                  disabled={submitting || externalLoading}
                 />
                 <TextInput
                   control={control}
                   name='trackingNumber'
                   label='Tracking Number'
                   placeholder='Enter tracking number'
-                  disabled={!isPending || submitting}
+                  disabled={submitting || externalLoading}
                 />
               </FormRow>
 
@@ -286,7 +319,7 @@ export default function TransportForm({ sale, initial, transportId, redirectOnSu
                   name='notes'
                   label='Notes'
                   placeholder='Any notes'
-                  disabled={!isPending || submitting}
+                  disabled={submitting || externalLoading}
                 />
               </FormRow>
             </FormSection>
@@ -294,12 +327,22 @@ export default function TransportForm({ sale, initial, transportId, redirectOnSu
 
           <AppCard.Footer className='justify-end'>
             <div className='flex items-end gap-2'>
-              <AppButton type='button' variant='secondary' onClick={() => router.back()}>
-                Cancel
-              </AppButton>
+              {onCancel ? (
+                <AppButton type='button' variant='secondary' onClick={onCancel}>
+                  Cancel
+                </AppButton>
+              ) : (
+                <AppButton type='button' variant='secondary' onClick={() => router.back()}>
+                  Cancel
+                </AppButton>
+              )}
 
-              <AppButton type='submit' disabled={!isPending || submitting} isLoading={submitting}>
-                {isDelivered ? 'Delivered' : isAlreadyDispatched ? 'Update' : 'Dispatch'}
+              <AppButton 
+                type='submit' 
+                disabled={submitting || externalLoading} 
+                isLoading={submitting || externalLoading}
+              >
+                {isEdit ? 'Update Transport' : isDelivered ? 'Delivered' : isAlreadyDispatched ? 'Update' : 'Dispatch'}
               </AppButton>
             </div>
           </AppCard.Footer>

@@ -153,11 +153,11 @@ export default function SalesDetailsPage() {
         });
         
         // Medicines subtotal
-        const medicinesSubtotal = saleData.saleDetails.reduce((sum, detail) => sum + detail.amount, 0);
+        const medicinesSubtotal = saleData.saleDetails.reduce((sum, detail) => sum + parseFloat(String(detail.amount || '0')), 0);
         y = drawRow(['', '', '', '', 'Subtotal:', formatPdfCurrency(medicinesSubtotal)], false, true);
         
         // Discount calculation
-        const discountAmount = (medicinesSubtotal * saleData.discountPercent) / 100;
+        const discountAmount = (medicinesSubtotal * parseFloat(String(saleData.discountPercent || '0'))) / 100;
         y = drawRow(['', '', '', '', `Discount (${saleData.discountPercent}%)`, `-${formatPdfCurrency(discountAmount)}`], false, true);
         
         // Grand Total

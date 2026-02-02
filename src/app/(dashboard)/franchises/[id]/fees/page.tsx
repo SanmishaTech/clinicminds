@@ -179,6 +179,8 @@ export default function FranchiseFeesPage() {
     const n = Number(amountDraft);
     if (!Number.isFinite(n) || n <= 0) return;
     if (n > remainingBalance) {
+      const formatted = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(remainingBalance);
+      toast.error(`Amount exceeds remaining balance (${formatted})`);
       form.setValue('amount', String(remainingBalance), { shouldDirty: true, shouldValidate: true });
     }
   }, [amountDraft, form, isFullyPaid, remainingBalance]);
@@ -312,6 +314,11 @@ export default function FranchiseFeesPage() {
                           control={control}
                           name='chequeNumber'
                           label='Cheque Number'
+                          maxLength={10}
+                          pattern='[+0-9]*'
+                          onInput={(e) => {
+                            e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                          }}
                           required
                           placeholder='Cheque number'
                         />
@@ -325,6 +332,11 @@ export default function FranchiseFeesPage() {
                           control={control}
                           name='contactNumber'
                           label='Contact Number'
+                          maxLength={10}
+                          pattern='[+0-9]*'
+                          onInput={(e) => {
+                            e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                          }}
                           required
                           placeholder='10 digit mobile'
                         />

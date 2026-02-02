@@ -44,6 +44,7 @@ export const medicineSchema = z.object({
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "Rate must be a valid positive number"),
     gstPercent: z.string().trim()
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "GST must be a valid positive number"),
+    franchiseRate: z.string(),
     mrp: z.string().trim()
       .refine((val) => val && val.trim().length > 0, "MRP is required")
       .refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) >= 0, "MRP must be a valid positive number"),
@@ -78,6 +79,7 @@ export function MedicineForm({
       brandId: initial?.brandId?.toString() || '',
       rate: initial?.baseRate || initial?.rate || '',
       gstPercent: initial?.gstPercent || '0',
+      franchiseRate: '0.00',
       mrp: initial?.mrp || '',
     } 
   });
@@ -108,6 +110,10 @@ export function MedicineForm({
     const rate = safeBase + (safeBase * safeGst) / 100;
     return rate.toFixed(2);
   }, [baseRateRaw, gstPercentRaw]);
+
+  useEffect(() => {
+    setValue('franchiseRate', computedFranchiseRate);
+  }, [computedFranchiseRate, setValue]);
 
   async function onSubmit(values: RawFormValues) {
     clearErrors('name');
@@ -193,10 +199,14 @@ export function MedicineForm({
                   step='0.01'
                   required
                 />
-                <NonFormTextInput
+                <TextInput
+                  control={control}
+                  name='franchiseRate'
                   label='Franchise Rate'
-                  value={computedFranchiseRate}
-                  readOnly
+                  placeholder='Franchise Rate'
+                  type='number'
+                  step='0.01'
+                  required
                   disabled
                 />
                 <TextInput

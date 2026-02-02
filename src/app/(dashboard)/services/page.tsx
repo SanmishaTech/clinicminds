@@ -15,6 +15,7 @@ import { PERMISSIONS } from '@/config/roles';
 import { formatRelativeTime } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { DeleteButton } from '@/components/common/delete-button';
+import { EditButton } from '@/components/common/icon-button';
 import Link from 'next/link';
 
 type ServiceListItem = {
@@ -164,10 +165,19 @@ export default function ServicesPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(row) => {
-            if (!can(PERMISSIONS.DELETE_SERVICES)) return null;
+            const hasEditPermission = can(PERMISSIONS.EDIT_SERVICES);
+            const hasDeletePermission = can(PERMISSIONS.DELETE_SERVICES); 
+            
+            if (!hasEditPermission && !hasDeletePermission) return null;
+            
             return (
-              <div className='flex'>
-                {can(PERMISSIONS.DELETE_SERVICES) && (
+              <div className='flex gap-1'>
+                {hasEditPermission && (
+                  <Link href={`/services/${row.id}/edit`}>
+                    <EditButton tooltip='Edit Service' aria-label='Edit Service' />
+                  </Link>
+                )}
+                {hasDeletePermission && (
                   <DeleteButton
                     onDelete={() => handleDelete(row.id)}
                     itemLabel='Service'

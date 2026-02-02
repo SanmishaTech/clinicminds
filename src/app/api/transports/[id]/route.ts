@@ -53,6 +53,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         stockPostedAt: true,
         transportDetails: {
           select: {
+            id: true,
             saleDetailId: true,
             quantity: true,
           },
@@ -64,6 +65,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             invoiceNo: true,
             invoiceDate: true,
             totalAmount: true,
+            discountPercent: true,
           },
         },
         franchise: { select: { name: true } },
@@ -399,11 +401,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       });
       if (!existing) return null;
       if (String(existing.status || '').toUpperCase() === 'DELIVERED') {
-        throw new Error('TRANSPORT_ALREADY_DELIVERED');
-      }
-
-      if (String(existing.status || '').toUpperCase() !== 'PENDING') {
-        throw new Error('ONLY_PENDING_CAN_BE_UPDATED');
+        throw new Error('DELIVERED_CANNOT_BE_UPDATED');
       }
 
       const sale = await tx.sale.findUnique({
@@ -421,6 +419,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
           transport: {
             saleId: sale.id,
             status: { in: ['DISPATCHED', 'DELIVERED'] },
+            id: { not: idNum }, // Exclude current transport being edited
           },
         },
         select: { saleDetailId: true, quantity: true },
@@ -436,7 +435,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
       let dispatchedDetailsToSave: Array<{ saleDetailId: number; quantity: number }> | null = null;
       let computedDispatchedQty: number | undefined;
 
-      if ((data.dispatchedDetails && data.dispatchedDetails.length > 0) || data.dispatchedQuantity !== undefined) {
+      if ((data.dispatchedDetails && data.dispatchedDetails.length > 0)) {
         const saleDetails = sale.saleDetails || [];
         const saleDetailMap = new Map<number, { quantity: number }>();
         const totalSaleQty = saleDetails.reduce((sum: number, d: any) => {
@@ -481,19 +480,6 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
 
           dispatchedDetailsToSave = computedDetails;
           computedDispatchedQty = totalDispatchedQty;
-        } else if (data.dispatchedQuantity !== undefined) {
-          const requestedDispatchQty = Number(data.dispatchedQuantity) || 0;
-          if (requestedDispatchQty > totalRemainingQty) throw new Error('DISPATCHED_QTY_EXCEEDS_REMAINING');
-
-          let remaining = requestedDispatchQty;
-          dispatchedDetailsToSave = saleDetails.map((detail) => {
-            const saleDetailId = Number(detail.id);
-            const maxQty = remainingBySaleDetailId.get(saleDetailId) ?? 0;
-            const qty = remaining > 0 ? Math.min(remaining, maxQty) : 0;
-            remaining -= qty;
-            return { saleDetailId, quantity: qty };
-          });
-          computedDispatchedQty = requestedDispatchQty;
         }
       }
 

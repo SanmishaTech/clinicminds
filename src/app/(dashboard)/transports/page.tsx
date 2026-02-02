@@ -17,6 +17,8 @@ import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { AppButton } from '@/components/common/app-button';
 import { AppSelect } from '@/components/common/app-select';
 import { ConfirmDialog } from '@/components/common/confirm-dialog';
+import { EditButton, ViewButton } from '@/components/common/icon-button';
+import IconButton from '@/components/common/icon-button';
 import { formatDate, formatIndianCurrency } from '@/lib/locales';
 
 type TransportListItem = {
@@ -281,6 +283,25 @@ export default function TransportsPage() {
 
             return (
               <div className='flex items-center gap-1'>
+                {/* Always show View button */}
+                <Link href={`/transports/${row.id}`}>
+                  <IconButton
+                    iconName='Eye'
+                    tooltip='View Transport Details'
+                    aria-label='View Transport Details'
+                  />
+                </Link>
+                
+                {/* Show Edit button only for DISPATCHED transports with edit permissions */}
+                {can(PERMISSIONS.EDIT_TRANSPORTS) && statusUpper === 'DISPATCHED' && (
+                  <Link href={`/transports/${row.id}/edit`}>
+                    <EditButton
+                      tooltip='Edit Transport'
+                      aria-label='Edit Transport'
+                    />
+                  </Link>
+                )}
+                
                 {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper === 'PENDING' && (
                   <Link href={`/transports/new?transportId=${row.id}`}>
                     <AppButton size='sm' variant='secondary' type='button'>
