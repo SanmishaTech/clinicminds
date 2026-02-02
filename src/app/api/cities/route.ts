@@ -24,16 +24,18 @@ export async function GET(req: NextRequest) {
       }
     : {}) as any;
 
-  const sortableFields = new Set(["city", "createdAt"]);
-  const orderBy: Record<string, "asc" | "desc"> = sortableFields.has(sort)
-    ? { [sort]: order }
+  const sortableFields = new Set(["city", "createdAt", "state"]);
+  const orderBy = sortableFields.has(sort)
+    ? sort === "state" 
+      ? { state: { state: order } }
+      : { [sort]: order }
     : { createdAt: "desc" };
 
   try {
     const result = await paginate({
       model: prisma.city,
       where,
-      orderBy,
+      orderBy: orderBy as any,
       page,
       perPage,
       select: {

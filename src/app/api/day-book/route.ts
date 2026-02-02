@@ -175,6 +175,7 @@ async function fetchConsultations(params: {
     select: {
       id: true,
       appointmentId: true,
+      consultationNumber: true,
       complaint: true,
       diagnosis: true,
       remarks: true,
@@ -299,7 +300,7 @@ function normalizeConsultation(consultation: any) {
     mobile: consultation.appointment.patient.mobile,
     gender: consultation.appointment.patient.gender,
     teamName: consultation.appointment.team?.name || '',
-    referenceNumber: `APT-${consultation.appointmentId}`,
+    referenceNumber: consultation.consultationNumber || `APT-${consultation.appointmentId}`,
     totalAmount: consultation.totalAmount.toString(),
     receivedAmount: (consultation.totalReceivedAmount || '0').toString(),
     balanceAmount: (parseFloat(consultation.totalAmount) - parseFloat(consultation.totalReceivedAmount || '0')).toString(),

@@ -104,6 +104,7 @@ export default function CitiesPage() {
     {
       key: 'state',
       header: 'State',
+      sortable: true,
       accessor: (r) => r.state?.state || '—',
       cellClassName: 'whitespace-nowrap',
     },

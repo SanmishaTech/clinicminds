@@ -73,6 +73,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             middleName: true,
             lastName: true,
             mobile: true,
+            gender: true,
           }
         },
         franchise: {

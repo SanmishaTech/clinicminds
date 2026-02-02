@@ -2,7 +2,7 @@
 
 import useSWR from 'swr';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { apiGet, apiPost } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { AppCard } from '@/components/common/app-card';
@@ -80,7 +80,8 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function FranchiseFeesPage() {
   const params = useParams<{ id: string }>();
-  const franchiseId = params?.id;
+  const router = useRouter();
+  const franchiseId = params?.id ? Number(params.id) : null;
 
   const query = useMemo(() => {
     if (!franchiseId) return null;
@@ -216,18 +217,7 @@ export default function FranchiseFeesPage() {
       });
 
       toast.success('Payment added');
-      reset({
-        paymentDate: new Date().toISOString().split('T')[0],
-        amount: '',
-        paymentMode: 'CASH',
-        payerName: '',
-        contactNumber: '',
-        utrNumber: '',
-        chequeDate: '',
-        chequeNumber: '',
-        notes: '',
-      });
-      await mutate();
+      router.push('/franchises');
     } catch (e) {
       toast.error((e as Error).message || 'Failed to add payment');
     } finally {
@@ -360,7 +350,15 @@ export default function FranchiseFeesPage() {
                       itemClassName='col-span-12'
                     />
                   </FormRow>
-                  <div className='flex justify-end'>
+                  <div className='flex justify-end gap-2'>
+                    <AppButton 
+                      type='button' 
+                      variant='secondary'
+                      iconName='X'
+                      onClick={() => router.push('/franchises')}
+                    >
+                      Cancel
+                    </AppButton>
                     <AppButton type='submit' isLoading={submitting} disabled={submitting || !form.formState.isValid}>
                       Add Payment
                     </AppButton>

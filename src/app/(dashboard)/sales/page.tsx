@@ -400,13 +400,13 @@ export default function SalesPage() {
           renderRowActions={(row) => {
             return (
               <div className='flex items-center gap-1'>
-                <IconButton
-                  iconName='Download'
-                  tooltip='Download Invoice'
-                  aria-label='Download Invoice'
-                  onClick={() => void openInvoicePdf(row.id)}
-                  disabled={invoiceLoadingId === row.id}
-                />
+                <Link href={`/sales/${row.id}`}>
+                  <IconButton
+                    iconName='Eye'
+                    tooltip='View Sale Details'
+                    aria-label='View Sale Details'
+                  />
+                </Link>
 
                 {can(PERMISSIONS.CREATE_TRANSPORTS) && (
                   <Link
