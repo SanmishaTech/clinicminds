@@ -19,35 +19,36 @@ import { formatDate, formatIndianCurrency } from '@/lib/locales';
 import { format } from 'date-fns';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
-import { EditButton } from '@/components/common/icon-button';
+import { EditButton, IconButton } from '@/components/common/icon-button';
 
-type ConsultationListItem = {
-  id: number;
-  appointmentId: number;
-  complaint?: string;
-  diagnosis?: string;
-  remarks?: string;
-  nextFollowUpDate?: string;
+type DayBookItem = {
+  id: string; // Now prefixed string for uniqueness
+  originalId: number; // Original numeric ID
+  transactionType: 'CONSULTATION' | 'MEDICINE_BILL';
+  date: string;
+  patientNo: string;
+  patientName: string;
+  mobile: string;
+  referenceNumber: string;
   totalAmount: string;
-  totalReceivedAmount?: string | null;
-  createdAt: string;
-  appointment: {
-    id: number;
-    appointmentDateTime: string;
+  receivedAmount: string;
+  balanceAmount: string;
+  remarks?: string;
+  consultationData?: {
+    appointmentId: number;
     type: string;
-    patient: {
-      id: number;
-      patientNo: string;
-      firstName: string;
-      middleName: string;
-      lastName: string;
-      mobile: string;
-    };
+    nextFollowUpDate?: string;
+    complaint?: string;
+    diagnosis?: string;
+  };
+  medicineBillData?: {
+    billNumber: string;
+    discountPercent?: number;
   };
 };
 
-type ConsultationsResponse = {
-  data: ConsultationListItem[];
+type DayBookResponse = {
+  data: DayBookItem[];
   page: number;
   perPage: number;
   total: number;
@@ -106,15 +107,13 @@ export default function DayBookPage() {
     if (endDate) sp.set('endDate', endDate);
     if (sort) sp.set('sort', sort);
     if (order) sp.set('order', order);
-    return `/api/consultations?${sp.toString()}`;
+    return `/api/day-book?${sp.toString()}`;
   }, [page, perPage, search, startDate, endDate, sort, order]);
 
-  const { data, error, isLoading, mutate } = useSWR<ConsultationsResponse>(query, apiGet);
-  const { can } = usePermissions();
-  const { user } = useCurrentUser();
+  const { data, error, isLoading, mutate } = useSWR<DayBookResponse>(query, apiGet);
 
   if (error) {
-    toast.error((error as Error).message || 'Failed to load consultations');
+    toast.error((error as Error).message || 'Failed to load day book data');
   }
 
   function toggleSort(field: string) {
@@ -125,54 +124,54 @@ export default function DayBookPage() {
     }
   }
 
-  const columns: Column<ConsultationListItem>[] = [
+  const columns: Column<DayBookItem>[] = [
+    {
+      key: 'transactionType',
+      header: 'Type',
+      sortable: true,
+      accessor: (r) => r.transactionType === 'CONSULTATION' ? 'Consultation' : 'Medicine Bill',
+      cellClassName: 'whitespace-nowrap font-medium',
+    },
     {
       key: 'patientNo',
       header: 'Patient No',
       sortable: false,
-      accessor: (r) => r.appointment.patient.patientNo,
+      accessor: (r) => r.patientNo,
       cellClassName: 'font-medium whitespace-nowrap',
     },
     {
       key: 'patientName',
       header: 'Patient Name',
       sortable: false,
-      accessor: (r) => `${r.appointment.patient.firstName} ${r.appointment.patient.middleName} ${r.appointment.patient.lastName}`.trim(),
+      accessor: (r) => r.patientName,
       cellClassName: 'whitespace-nowrap',
     },
     {
-      key: 'appointmentDateTime',
-      header: 'Appointment Date/Time',
+      key: 'date',
+      header: 'Date/Time',
       sortable: true,
-      accessor: (r) => format(new Date(r.appointment.appointmentDateTime), 'dd/MM/yyyy hh:mm a'),
+      accessor: (r) => format(new Date(r.date), 'dd/MM/yyyy hh:mm a'),
       cellClassName: 'whitespace-nowrap',
     },
     {
-      key: 'appointmentType',
-      header: 'Type',
+      key: 'referenceNumber',
+      header: 'Reference',
       sortable: true,
-      accessor: (r) => r.appointment.type.charAt(0).toUpperCase() + r.appointment.type.slice(1).toLowerCase(),
+      accessor: (r) => r.referenceNumber,
       cellClassName: 'whitespace-nowrap font-medium',
-    },
-    {
-      key: 'nextFollowUpDate',
-      header: 'Next Followup Date',
-      sortable: true,
-      accessor: (r) => r.nextFollowUpDate ? formatDate(r.nextFollowUpDate) : '—',
-      cellClassName: 'whitespace-nowrap',
     },
     {
       key: 'mobile',
       header: 'Mobile No',
       sortable: false,
-      accessor: (r) => r.appointment.patient.mobile,
+      accessor: (r) => r.mobile,
       cellClassName: 'whitespace-nowrap',
     },
     {
       key: 'remarks',
       header: 'Remark',
       sortable: false,
-      accessor: (r) => r.remarks || r.diagnosis || '—',
+      accessor: (r) => r.remarks || '—',
       cellClassName: 'max-w-xs truncate',
     },
     {
@@ -186,40 +185,25 @@ export default function DayBookPage() {
       key: 'balanceAmount',
       header: 'Balance Amount',
       sortable: true,
-      accessor: (r) => {
-        const total = parseFloat(r.totalAmount) || 0;
-        const received = parseFloat(r.totalReceivedAmount || '0') || 0;
-        const balance = total - received;
-        return formatIndianCurrency(balance);
-      },
+      accessor: (r) => formatIndianCurrency(parseFloat(r.balanceAmount)),
       cellClassName: 'whitespace-nowrap font-medium',
     },
   ];
 
   const sortState: SortState = { field: sort, order };
 
-  async function handleDelete(id: number) {
-    try {
-      await apiDelete(`/api/consultations/${id}`);
-      toast.success('Consultation deleted');
-      await mutate();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  }
-
   return (
     <>
       <AppCard>
         <AppCard.Header>
           <AppCard.Title>Day Book</AppCard.Title>
-          <AppCard.Description>Consultation Records</AppCard.Description>
+          <AppCard.Description>Consultation & Medicine Bill Records</AppCard.Description>
         </AppCard.Header>
       <AppCard.Content>
         <FilterBar title='Search & Filter'>
           <NonFormTextInput
-            aria-label='Search consultations'
-            placeholder='Search consultations…'
+            aria-label='Search day book'
+            placeholder='Search day book…'
             value={searchDraft}
             onChange={(e) => setSearchDraft(e.target.value)}
             containerClassName='w-full'
@@ -267,31 +251,32 @@ export default function DayBookPage() {
           onSortChange={(s) => toggleSort(s.field)}
           stickyColumns={1}
           renderRowActions={(row) => {
-            if (!can(PERMISSIONS.EDIT_CONSULTATIONS) && !can(PERMISSIONS.DELETE_CONSULTATIONS)) return null;
             return (
               <div className='flex items-center gap-1'>
                 <div className="flex space-x-2">
-                  <Link href={`/day-book/receipts/${row.id}`}>
+                  <Link href={
+                    row.transactionType === 'CONSULTATION' 
+                      ? `/day-book/receipts/${row.originalId}`
+                      : `/medicine-bills/receipts/${row.originalId}`
+                  }>
                     <AppButton
                       size="sm"
                     >
                       Receipt
                     </AppButton>
                   </Link>
-                </div>
-                {can(PERMISSIONS.EDIT_CONSULTATIONS) && (
-                  <Link href={`/consultations/${row.id}/edit`}>
-                    <EditButton tooltip='Edit Consultation' aria-label='Edit Consultation' />
+                  <Link href={
+                    row.transactionType === 'CONSULTATION' 
+                      ? `/consultations/${row.originalId}/edit`
+                      : `/medicine-bills/${row.originalId}`
+                  }>
+                    <IconButton
+                      iconName="Eye"
+                      tooltip={row.transactionType === 'CONSULTATION' ? 'View Consultation' : 'View Medicine Bill'}
+                      aria-label={row.transactionType === 'CONSULTATION' ? 'View Consultation' : 'View Medicine Bill'}
+                    />
                   </Link>
-                )}
-                {can(PERMISSIONS.DELETE_CONSULTATIONS) && (
-                  <DeleteButton
-                    onDelete={() => handleDelete(row.id)}
-                    itemLabel='consultation'
-                    title='Delete Consultation?'
-                    description={`This will permanently remove the consultation for patient ${row.appointment.patient.patientNo}. This action cannot be undone.`}
-                  />
-                )}
+                </div>
               </div>
             );
           }}
