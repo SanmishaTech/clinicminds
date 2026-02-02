@@ -21,14 +21,15 @@ type UpdateConsultationReceiptInput = z.infer<typeof updateConsultationReceiptSc
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
   try {
-    const id = parseInt(params.id);
-    if (isNaN(id)) {
+    const { id } = await params;
+    const receiptId = parseInt(id);
+    if (isNaN(receiptId)) {
       return BadRequest("Invalid receipt ID");
     }
 
@@ -64,7 +65,7 @@ export async function GET(
 
     const receipt = await prisma.consultationReceipt.findFirst({
       where: {
-        id,
+        id: receiptId,
         consultation: {
           appointment:{
             patient: {
