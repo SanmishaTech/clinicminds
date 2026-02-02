@@ -9,10 +9,13 @@ import { toast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
+import { AppCheckbox } from '@/components/common/app-checkbox';
 import { FormSection, FormRow } from '@/components/common/app-form';
 import { Form } from '@/components/ui/form';
 import { FormMessage } from '@/components/ui/form';
 import { ComboboxInput } from '@/components/common/combobox-input';
+import { TextInput } from '@/components/common/text-input';
+import TextareaInput from '@/components/common/textarea-input';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -69,6 +72,20 @@ const medicineBillSchema = z.object({
     .refine((v) => v === '' || v === '0' || (!isNaN(parseFloat(v)) && parseFloat(v) >= 0 && parseFloat(v) <= 100), 'Discount must be 0 to 100'),
   totalAmount: z.number().positive(),
   medicineBillDetails: z.array(medicineBillDetailSchema).min(1, 'At least one medicine is required'),
+  addReceipt: z.boolean().optional(),
+  receipt: z.object({
+    date: z.string().optional(),
+    paymentMode: z.string().optional(),
+    payerName: z.string().optional(),
+    contactNumber: z.string().optional(),
+    upiName: z.string().optional(),
+    utrNumber: z.string().optional(),
+    bankName: z.string().optional(),
+    chequeDate: z.string().optional(),
+    chequeNumber: z.string().optional(),
+    notes: z.string().optional(),
+    amount: z.string().optional(),
+  }).optional(),
 });
 
 type MedicineBillFormData = z.infer<typeof medicineBillSchema>;
@@ -94,10 +111,14 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
         mrp: detail.mrp.toString(),
         amount: detail.amount.toString(),
       })) : [{ medicineId: '', qty: '', mrp: '', amount: '' }],
+      addReceipt: mode === 'create' ? false : undefined,
+      receipt: mode === 'create' ? {
+        date: new Date().toISOString().split('T')[0], // Today's date for receipt
+      } : undefined,
     },
   });
 
-  const { control, setValue, handleSubmit, trigger } = form;
+  const { control, setValue, handleSubmit, trigger, watch } = form;
 
 
   const { fields, append, remove } = useFieldArray({
@@ -112,11 +133,39 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
 
   // Calculate total amount whenever details or discount changes
   const watchedDiscountPercent = useWatch({ control, name: 'discountPercent' });
+  const watchedReceiptAmount = useWatch({ control, name: 'receipt.amount' });
+  const currentTotalAmount = useWatch({ control, name: 'totalAmount' });
 
+  // Check if total amount is 0 to disable receipt fields
+  const isTotalAmountZero = parseFloat(String(currentTotalAmount || '0')) === 0;
+
+  // Trigger validation only when qty/rate/amount fields change to fix submit button state
   useEffect(() => {
-    // Trigger validation when watched values change
-    trigger();
-  }, [watchedDetails, watchedDiscountPercent, trigger]);
+    // Only watch specific fields that affect validation
+    trigger([
+      'medicineBillDetails',
+      'discountPercent',
+      'receipt.amount'
+    ]);
+  }, [
+    // Only watch specific fields that affect validation
+    watchedDetails?.map(d => `${d.medicineId}-${d.qty}-${d.mrp}-${d.amount}`).join('|'),
+    watchedDiscountPercent,
+    watchedReceiptAmount,
+    trigger
+  ]);
+
+  // Check if receipt amount exceeds total amount
+  useEffect(() => {
+    if (watchedReceiptAmount && currentTotalAmount) {
+      const receiptAmount = parseFloat(watchedReceiptAmount);
+      const totalAmount = parseFloat(String(currentTotalAmount));
+      if (receiptAmount > totalAmount) {
+        toast.error('Receipt amount cannot exceed total amount');
+        setValue('receipt.amount', totalAmount.toString());
+      }
+    }
+  }, [watchedReceiptAmount, currentTotalAmount, setValue]);
 
   const totals = useMemo(() => {
     const subtotal = watchedDetails.reduce((sum, detail) => sum + (parseFloat(detail.amount) || 0), 0);
@@ -188,6 +237,12 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
     }))
   , [patients]);
 
+  const paymentModeOptions = [
+    { value: 'CASH', label: 'Cash' },
+    { value: 'UPI', label: 'UPI' },
+    { value: 'CHEQUE', label: 'Cheque' },
+  ];
+
   async function onSubmit(data: MedicineBillFormData) {
     setSubmitting(true);
     try {
@@ -203,6 +258,22 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
           mrp: Number(detail.mrp),
           amount: Number(detail.amount),
         })),
+        // Include receipt data if addReceipt is checked
+        ...(data.addReceipt && data.receipt ? {
+          receipt: {
+            date: data.receipt.date ? new Date(data.receipt.date).toISOString() : new Date().toISOString(),
+            paymentMode: data.receipt.paymentMode || '',
+            payerName: data.receipt.payerName || '',
+            contactNumber: data.receipt.contactNumber || '',
+            upiName: data.receipt.upiName || '',
+            utrNumber: data.receipt.utrNumber || '',
+            bankName: data.receipt.bankName || '',
+            amount: parseFloat(data.receipt.amount || '0'),
+            chequeNumber: data.receipt.chequeNumber || '',
+            chequeDate: data.receipt.chequeDate ? new Date(data.receipt.chequeDate).toISOString() : null,
+            notes: data.receipt.notes || '',
+          }
+        } : {}),
       };
       
       const result = await apiPost('/api/medicine-bills', apiData);
@@ -448,6 +519,147 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
                   </div>
               </FormRow>
             </FormSection>
+
+            {/* Receipt Section - Only show in create mode */}
+            {mode === 'create' && (
+            <FormSection legend='Payment Receipt'>
+              <FormRow cols={1}>
+                <div className="col-span-12">
+                  <div className="mb-4">
+                    <AppCheckbox
+                      id="addReceipt"
+                      label="Add payment receipt for this medicine bill"
+                      checked={watch('addReceipt')}
+                      onCheckedChange={(checked) => setValue('addReceipt', checked)}
+                      disabled={isTotalAmountZero}
+                    />
+                  </div>
+                  
+                  {watch('addReceipt') && (
+                    <div className="space-y-4">
+                      <FormRow cols={1}>
+                        <TextInput
+                          control={control}
+                          name="receipt.amount"
+                          label="Receipt Amount"
+                          type="number"
+                          step="0.01"
+                          placeholder="Enter amount received"
+                          disabled={isTotalAmountZero}
+                          required={watch('addReceipt')}
+                        />
+                      </FormRow>
+                      <FormRow cols={3}>
+                        <TextInput
+                          control={control}
+                          name="receipt.date"
+                          label="Receipt Date"
+                          type="date"
+                          required
+                          disabled={isTotalAmountZero}
+                        />
+                        <ComboboxInput
+                          control={control as any}
+                          name="receipt.paymentMode"
+                          label="Payment Mode"
+                          options={paymentModeOptions}
+                          placeholder="Select payment mode"
+                          disabled={isTotalAmountZero}
+                          required={watch('addReceipt')}
+                        />
+                         <TextInput
+                          control={control}
+                          name="receipt.payerName"
+                          label="Payer Name"
+                          placeholder="Enter payer name"
+                          disabled={isTotalAmountZero}
+                        />
+                      </FormRow>
+                      
+                      {/* Conditional fields based on payment mode */}
+                      {watch('receipt.paymentMode') === 'CASH' && (
+                        <FormRow cols={1}>
+                          <TextInput
+                            control={control}
+                            name="receipt.contactNumber"
+                            label="Contact Number"
+                            maxLength={10}
+                            pattern='[+0-9]*'
+                            placeholder="Enter contact number"
+                            disabled={isTotalAmountZero}
+                          />
+                        </FormRow>
+                      )}
+                      
+                      {watch('receipt.paymentMode') === 'UPI' && (
+                        <FormRow cols={3}>
+                          <TextInput
+                            control={control}
+                            name="receipt.upiName"
+                            label="UPI Name"
+                            placeholder="Enter UPI name"
+                            disabled={isTotalAmountZero}
+                          />
+                          <TextInput
+                            control={control}
+                            name="receipt.utrNumber"
+                            label="UTR Number"
+                            placeholder="Enter UTR number"
+                            disabled={isTotalAmountZero}
+                          />
+                           <TextInput
+                            control={control}
+                            name="receipt.contactNumber"
+                            label="Contact Number"
+                            maxLength={10}
+                            pattern='[+0-9]*'
+                            placeholder="Enter contact number"
+                            disabled={isTotalAmountZero}
+                          />
+                        </FormRow>
+                      )}
+                      
+                      {watch('receipt.paymentMode') === 'CHEQUE' && (
+                        <FormRow cols={3}>
+                          <TextInput
+                            control={control}
+                            name="receipt.chequeNumber"
+                            label="Cheque Number"
+                            placeholder="Enter cheque number"
+                            disabled={isTotalAmountZero}
+                          />
+                          <TextInput
+                            control={control}
+                            name="receipt.chequeDate"
+                            label="Cheque Date"
+                            type="date"
+                            disabled={isTotalAmountZero}
+                          />
+                          <TextInput
+                            control={control}
+                            name="receipt.bankName"
+                            label="Bank Name"
+                            placeholder="Enter bank name"
+                            disabled={isTotalAmountZero}
+                          />
+                        </FormRow>
+                      )}
+                      
+                      <FormRow cols={1}>
+                        <TextareaInput
+                          control={control}
+                          name="receipt.notes"
+                          label="Notes"
+                          placeholder="Enter any additional notes"
+                          disabled={isTotalAmountZero}
+                        />
+                      </FormRow>
+                    </div>
+                  )}
+                </div>
+              </FormRow>
+            </FormSection>
+            )}
           </AppCard.Content>
         </AppCard>
 

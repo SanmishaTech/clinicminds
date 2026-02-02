@@ -207,6 +207,13 @@ export default function MedicineBillsPage() {
             // No edit or delete actions for medicine bills as per requirements
             return (
               <div className='flex items-center gap-1'>
+                <Link href={`/medicine-bills/receipts/${row.id}`}>
+                  <AppButton
+                    size="sm"
+                  >
+                    Receipts
+                  </AppButton>
+                </Link>
                 <Link href={`/medicine-bills/${row.id}`}>
                   <IconButton
                     iconName='Eye'
