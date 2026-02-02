@@ -4,12 +4,13 @@ import { Success, Error, NotFound } from '@/lib/api-response';
 import { guardApiAccess } from '@/lib/access-guard';
 
 // GET /api/medicine-bills/[id]
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await guardApiAccess(req);
   if (auth.ok === false) return auth.response;
 
-  const id = parseInt(params.id);
-  if (isNaN(id)) {
+  const { id } = await params;
+  const billId = parseInt(id);
+  if (isNaN(billId)) {
     return Error('Invalid medicine bill ID', 400);
   }
 
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     }
 
     // Build where clause based on user role
-    let whereClause: any = { id };
+    let whereClause: any = { id: billId };
     
     // If not admin, restrict to user's franchise
     if (currentUser.role !== 'ADMIN') {

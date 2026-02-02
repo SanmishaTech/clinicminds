@@ -20,7 +20,7 @@ export async function GET(
   const { searchParams } = new URL(req.url);
   const transportIdParam = searchParams.get('transportId');
   const transportIdFilter = transportIdParam ? Number(transportIdParam) : null;
-  if (transportIdParam && (Number.isNaN(transportIdFilter) || transportIdFilter <= 0)) {
+  if (transportIdParam && (Number.isNaN(transportIdFilter!) || transportIdFilter! <= 0)) {
     return BadRequest('Invalid transport ID');
   }
   try {

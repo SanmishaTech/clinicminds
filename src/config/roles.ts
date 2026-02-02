@@ -147,9 +147,13 @@ export const ROLES = {
   ADMIN: "Admin",
   FRANCHISE: "Franchise",
   DOCTOR: "Doctor",
+  STAFF: "Staff",
+  TECHNICIAN: "Technician",
+  ACCOUNT: "Account",
+  SALES: "Sales",
 } as const;
 
-export const ACTIVE_ROLE_CODES = ["ADMIN", "FRANCHISE", "DOCTOR"] as const;
+export const ACTIVE_ROLE_CODES = ["ADMIN", "FRANCHISE", "DOCTOR", "STAFF", "TECHNICIAN", "ACCOUNT", "SALES"] as const;
 
 export const ACTIVE_ROLE_LABELS = ACTIVE_ROLE_CODES.map(
   (code) => (ROLES as any)[code]
@@ -386,5 +390,25 @@ export const ROLES_PERMISSIONS = {
     PERMISSIONS.EDIT_CONSULTATIONS,
     PERMISSIONS.DELETE_CONSULTATIONS,
     PERMISSIONS.VIEW_CONSULTATIONS,
+  ],
+  
+  // Staff: basic dashboard access only
+  [ROLES.STAFF]: [
+    PERMISSIONS.VIEW_DASHBOARD,
+  ],
+  
+  // Technician: basic dashboard access only
+  [ROLES.TECHNICIAN]: [
+    PERMISSIONS.VIEW_DASHBOARD,
+  ],
+  
+  // Account: basic dashboard access only
+  [ROLES.ACCOUNT]: [
+    PERMISSIONS.VIEW_DASHBOARD,
+  ],
+  
+  // Sales: basic dashboard access only
+  [ROLES.SALES]: [
+    PERMISSIONS.VIEW_DASHBOARD,
   ],
 } as const;
