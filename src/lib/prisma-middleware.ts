@@ -155,6 +155,33 @@ export const generateEntityCode = (prisma: PrismaClient) => {
       params.args.data.billNumber = `M-${dayMonthYear}-${String(sequence).padStart(4, '0')}`;
     }
 
+    // Handle single create for Consultation
+    if (params.action === 'create' && params.model === 'Consultation') {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0'); // DD
+      const month = String(now.getMonth() + 1).padStart(2, '0'); // MM
+      const year = now.getFullYear(); // YYYY
+      const dayMonthYear = `${day}${month}${year}`; // DDMMYYYY
+      
+      // Find latest consultation number for today
+      const latestConsultation = await prisma.consultation.findFirst({
+        where: {
+          consultationNumber: {
+            startsWith: `C-${dayMonthYear}`
+          }
+        },
+        orderBy: {
+          consultationNumber: 'desc'
+        },
+        select: {
+          consultationNumber: true
+        }
+      });
+
+      const sequence = latestConsultation?.consultationNumber ? parseInt(latestConsultation.consultationNumber.split('-')[2]) + 1 : 1;
+      params.args.data.consultationNumber = `C-${dayMonthYear}-${String(sequence).padStart(4, '0')}`;
+    }
+
     // Handle single create for ConsultationReceipt
     if (params.action === 'create' && params.model === 'ConsultationReceipt') {
       const now = new Date();

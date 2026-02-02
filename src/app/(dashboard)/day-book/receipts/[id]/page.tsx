@@ -17,6 +17,7 @@ import { FormSection, FormRow } from '@/components/common/app-form';
 import { DataTable, Column } from '@/components/common/data-table';
 import { formatIndianCurrency, formatDate } from '@/lib/locales';
 import { useParams, useRouter } from 'next/navigation';
+import jsPDF from 'jspdf';
 
 const paymentModeOptions = [
   { value: 'CASH', label: 'Cash' },
@@ -42,16 +43,29 @@ type ReceiptFormData = z.infer<typeof receiptSchema>;
 
 type ConsultationData = {
   id: number;
+  consultationNumber?: string;
   totalAmount: string;
   totalReceivedAmount?: string | null;
+  complaint?: string;
+  diagnosis?: string;
+  remarks?: string;
+  nextFollowUpDate?: string;
+  createdAt: string;
+  updatedAt: string;
   appointment: {
+    id: number;
     appointmentDateTime: string;
+    type: string;
     patient: {
       patientNo: string;
       firstName: string;
       middleName?: string;
       lastName: string;
       mobile: string;
+      gender: string;
+    };
+    team?: {
+      name: string;
     };
   };
   consultationDetails?: Array<{
@@ -69,14 +83,33 @@ type ConsultationData = {
   consultationMedicines?: Array<{
     id: number;
     medicineId: number;
+    medicine?: {
+      id: number;
+      name: string;
+      brand?: {
+        id: number;
+        name: string;
+      };
+    };
     qty: number;
     mrp: number;
     amount: number;
-    doses: string | null;
-    medicine: {
-      id: number;
-      name: string;
-    } | null;
+    doses?: string;
+  }>;
+  consultationReceipts?: Array<{
+    id: number;
+    receiptNumber: string;
+    date: string;
+    paymentMode: string;
+    amount: number;
+    payerName?: string;
+    contactNumber?: string;
+    upiName?: string;
+    utrNumber?: string;
+    bankName?: string;
+    chequeNumber?: string;
+    chequeDate?: string;
+    notes?: string;
   }>;
 };
 
@@ -260,6 +293,179 @@ export default function ReceiptPage() {
   const currentBalance = parseFloat(consultationData.totalAmount) - 
     parseFloat(consultationData.totalReceivedAmount || '0');
 
+  const formatPdfCurrency = (amount: number): string => {
+    // Convert to number and then to string with 2 decimal places
+    const numAmount = Number(amount);
+    const amountStr = numAmount.toFixed(2);
+    const [integerPart, decimalPart] = amountStr.split('.');
+    
+    // Format the integer part according to Indian numbering system
+    let formattedInteger = '';
+    if (parseInt(integerPart) >= 1000) {
+      // Get the last 3 digits
+      const lastThree = integerPart.slice(-3);
+      // Get the remaining digits
+      const remaining = integerPart.slice(0, -3);
+      
+      // Format remaining digits with commas every 2 digits from right
+      if (remaining.length > 0) {
+        const remainingFormatted = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+        formattedInteger = remainingFormatted + ',' + lastThree;
+      } else {
+        formattedInteger = lastThree;
+      }
+    } else {
+      formattedInteger = integerPart;
+    }
+    
+    return `Rs. ${formattedInteger}.${decimalPart}`;
+  };
+
+  const generateInvoicePDF = () => {
+    if (!consultationData) return;
+
+    try {
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.setFont('helvetica', 'normal');
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 10;
+      let y = margin;
+
+      // Header with App Name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text('ClinicMinds', pageWidth / 2, y, { align: 'center' });
+      y += 10;
+      doc.setFontSize(16);
+      doc.text('CONSULTATION INVOICE', pageWidth / 2, y, { align: 'center' });
+      y += 12;
+
+      // Invoice and Patient Info
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      const invoiceNumber = consultationData.consultationNumber || `APT-${consultationData.appointment.id}`;
+      const patientName = `${consultationData.appointment.patient.firstName} ${consultationData.appointment.patient.middleName} ${consultationData.appointment.patient.lastName}`.trim();
+      
+      doc.text(`Patient: ${patientName}`, margin, y);
+      doc.text(`Date: ${formatDate(consultationData.appointment.appointmentDateTime)}`, pageWidth - 60, y);
+      y += 8;
+      
+      doc.text(`Mobile: ${consultationData.appointment.patient.mobile}`, margin, y);
+      doc.text(`Gender: ${consultationData.appointment.patient.gender}`, pageWidth - 60, y);
+      y += 8;
+      
+      if (consultationData.appointment.team) {
+        doc.text(`Team: ${consultationData.appointment.team.name}`, margin, y);
+        y += 8;
+      }
+      y += 5;
+
+      // Table headers
+      const headers = ['Type', 'Description', 'Quantity', 'MRP', 'Amount'];
+      const colWidths = [25, 100, 25, 30, 40];
+      const rowH = 8;
+
+      const drawRow = (rowData: string[], isHeader = false, isBold = false) => {
+        let x = margin;
+        
+        if (isHeader) {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(x, y, colWidths.reduce((a, b) => a + b, 0), rowH, 'F');
+        }
+        
+        rowData.forEach((cell, index) => {
+          doc.rect(x, y, colWidths[index], rowH);
+          doc.setFont('helvetica', isBold ? 'bold' : (isHeader ? 'bold' : 'normal'));
+          doc.text(cell, x + 2, y + 5.5);
+          x += colWidths[index];
+        });
+        
+        y += rowH;
+        return y;
+      };
+
+      // Draw table headers
+      y = drawRow(headers, true);
+
+      // Services
+      if (consultationData.consultationDetails && consultationData.consultationDetails.length > 0) {
+        consultationData.consultationDetails.forEach((detail) => {
+          const description = detail.service?.name || detail.description || 'Service';
+          y = drawRow([
+            'Service',
+            description.substring(0, 35),
+            '-',
+            formatPdfCurrency(detail.rate),
+            formatPdfCurrency(detail.amount)
+          ]);
+        });
+        
+        // Services subtotal
+        const servicesSubtotal = consultationData.consultationDetails.reduce((sum, detail) => sum + detail.amount, 0);
+        y = drawRow(['', '', 'Subtotal:', '', formatPdfCurrency(servicesSubtotal)], false, true);
+      }
+
+      // Medicines
+      if (consultationData.consultationMedicines && consultationData.consultationMedicines.length > 0) {
+        consultationData.consultationMedicines.forEach((medicine) => {
+          const medicineName = medicine.medicine ? 
+            `${medicine.medicine.name} ${medicine.medicine.brand?.name || ''}`.trim() : 
+            'Medicine';
+          y = drawRow([
+            'Medicine',
+            medicineName.substring(0, 35),
+            medicine.qty.toString(),
+            formatPdfCurrency(medicine.mrp),
+            formatPdfCurrency(medicine.amount)
+          ]);
+        });
+        
+        // Medicines subtotal
+        const medicinesSubtotal = consultationData.consultationMedicines.reduce((sum, medicine) => sum + medicine.amount, 0);
+        y = drawRow(['', '', 'Subtotal:', '', formatPdfCurrency(medicinesSubtotal)], false, true);
+      }
+
+      // Grand Total - right after medicines subtotal
+      const servicesSubtotal = consultationData.consultationDetails?.reduce((sum, detail) => sum + parseFloat(detail.amount.toString()), 0) || 0;
+      const medicinesSubtotal = consultationData.consultationMedicines?.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0) || 0;
+      const grandTotal = parseFloat(servicesSubtotal.toString()) + parseFloat(medicinesSubtotal.toString());
+      
+      y = drawRow(['', '', 'Grand Total:', '', formatPdfCurrency(grandTotal)], false, true);
+
+      // Receipts
+      if (consultationData.consultationReceipts && consultationData.consultationReceipts.length > 0) {
+        doc.setFont('helvetica', 'bold');
+        doc.text('PAYMENT RECEIPTS', margin, y);
+        y += 8;
+
+        consultationData.consultationReceipts.forEach((receipt) => {
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Receipt #: ${receipt.receiptNumber} | ${formatDate(receipt.date)} | ${receipt.paymentMode} | ${formatPdfCurrency(receipt.amount)}`, margin, y);
+          y += 6;
+          if (receipt.payerName) {
+            doc.text(`Payer: ${receipt.payerName}`, margin + 5, y);
+            y += 6;
+          }
+        });
+      }
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.text('This is a computer-generated invoice.', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      // Save PDF
+      const filenameBase = `consultation-invoice-${consultationData.consultationNumber || consultationData.appointment.id}`;
+      const dateStr = format(new Date(), 'dd-MM-yyyy');
+      doc.save(`${filenameBase}-${dateStr}.pdf`);
+    } catch (e) {
+      toast.error('Failed to generate PDF');
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       
@@ -285,6 +491,10 @@ export default function ReceiptPage() {
             <div>
               <label className="block text-sm font-medium">Mobile</label>
               <p className="text-sm">{consultationData.appointment.patient.mobile}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Gender</label>
+              <p className="text-sm">{consultationData.appointment.patient.gender}</p>
             </div>
             <div>
               <label className="block text-sm font-medium">Appointment Date and Time</label>
@@ -314,9 +524,10 @@ export default function ReceiptPage() {
             </div>
             <AppButton
              type='button'
-             disabled={currentBalance !== 0}
+            //  disabled={currentBalance !== 0}
              iconName='Download'
              size='sm'
+             onClick={generateInvoicePDF}
              >
               Download Invoice
             </AppButton>

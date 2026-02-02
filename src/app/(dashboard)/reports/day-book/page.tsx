@@ -490,7 +490,7 @@ export default function DayBookReportPage() {
 
           wsData.push([
             format(new Date(item.date), 'dd-MM-yyyy'),
-            item.transactionType === 'MEDICINE' ? '-' : (item.teamName || '-'),
+            item.transactionType === 'MEDICINE_BILL' ? '-' : (item.teamName || '-'),
             patientName,
             item.mobile,
             item.gender.charAt(0).toUpperCase() + item.gender.slice(1).toLowerCase(),

@@ -54,6 +54,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       select: {
         id: true,
         appointmentId: true,
+        consultationNumber: true,
         complaint: true,
         diagnosis: true,
         remarks: true,
@@ -76,6 +77,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
                 middleName: true,
                 lastName: true,
                 mobile: true,
+                gender: true,
               },
             },
             team: {

@@ -17,6 +17,7 @@ import { FormSection, FormRow } from '@/components/common/app-form';
 import { DataTable, Column } from '@/components/common/data-table';
 import { formatIndianCurrency, formatDate } from '@/lib/locales';
 import { useParams, useRouter } from 'next/navigation';
+import jsPDF from 'jspdf';
 
 const paymentModeOptions = [
   { value: 'CASH', label: 'Cash' },
@@ -52,6 +53,7 @@ type MedicineBillData = {
     middleName?: string;
     lastName: string;
     mobile: string;
+    gender: string;
   };
   medicineDetails: Array<{
     id: number;
@@ -115,6 +117,140 @@ export default function MedicineBillReceiptsPage() {
   const totalReceivedAmount = medicineBillData?.totalReceivedAmount || 0;
 
   const currentBalance = medicineBillData ? medicineBillData.totalAmount - totalReceivedAmount : 0;
+
+  const formatPdfCurrency = (amount: number): string => {
+    // Convert to number and then to string with 2 decimal places
+    const numAmount = Number(amount);
+    const amountStr = numAmount.toFixed(2);
+    const [integerPart, decimalPart] = amountStr.split('.');
+    
+    // Format the integer part according to Indian numbering system
+    let formattedInteger = '';
+    if (parseInt(integerPart) >= 1000) {
+      // Get the last 3 digits
+      const lastThree = integerPart.slice(-3);
+      // Get the remaining digits
+      const remaining = integerPart.slice(0, -3);
+      
+      // Format remaining digits with commas every 2 digits from right
+      if (remaining.length > 0) {
+        const remainingFormatted = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+        formattedInteger = remainingFormatted + ',' + lastThree;
+      } else {
+        formattedInteger = lastThree;
+      }
+    } else {
+      formattedInteger = integerPart;
+    }
+    
+    return `Rs. ${formattedInteger}.${decimalPart}`;
+  };
+
+  const generateInvoicePDF = () => {
+    if (!medicineBillData) return;
+
+    try {
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.setFont('helvetica', 'normal');
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 10;
+      let y = margin;
+
+      // Header with App Name
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.text('ClinicMinds', pageWidth / 2, y, { align: 'center' });
+      y += 10;
+      doc.setFontSize(16);
+      doc.text('MEDICINE BILL INVOICE', pageWidth / 2, y, { align: 'center' });
+      y += 12;
+
+      // Invoice and Patient Info
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      
+      const billNumber = medicineBillData.billNumber;
+      const patientName = `${medicineBillData.patient.firstName} ${medicineBillData.patient.middleName} ${medicineBillData.patient.lastName}`.trim();
+      
+      doc.text(`Bill #: ${billNumber}`, margin, y);
+      doc.text(`Date: ${formatDate(medicineBillData.billDate)}`, pageWidth - 60, y);
+      y += 8;
+      
+      doc.text(`Patient: ${patientName}`, margin, y);
+      doc.text(`Mobile: ${medicineBillData.patient.mobile}`, pageWidth - 80, y);
+      y += 8;
+      
+      doc.text(`Gender: ${medicineBillData.patient.gender}`, margin, y);
+      y += 8;
+      y += 5;
+
+      // Table headers
+      const headers = ['Description', 'Quantity', 'MRP', 'Amount'];
+      const colWidths = [130, 25, 30, 40];
+      const rowH = 8;
+
+      const drawRow = (rowData: string[], isHeader = false, isBold = false) => {
+        let x = margin;
+        
+        if (isHeader) {
+          doc.setFillColor(240, 240, 240);
+          doc.rect(x, y, colWidths.reduce((a, b) => a + b, 0), rowH, 'F');
+        }
+        
+        rowData.forEach((cell, index) => {
+          doc.rect(x, y, colWidths[index], rowH);
+          doc.setFont('helvetica', isBold ? 'bold' : (isHeader ? 'bold' : 'normal'));
+          doc.text(cell, x + 2, y + 5.5);
+          x += colWidths[index];
+        });
+        
+        y += rowH;
+        return y;
+      };
+
+      // Draw table headers
+      y = drawRow(headers, true);
+
+      // Medicines
+      if (medicineBillData.medicineDetails && medicineBillData.medicineDetails.length > 0) {
+        medicineBillData.medicineDetails.forEach((medicine) => {
+          const medicineName = medicine.medicine ? 
+            `${medicine.medicine.name} - ${medicine.medicine.brand || ''}`.trim() : 
+            'Medicine';
+          y = drawRow([
+            medicineName.substring(0, 35),
+            medicine.qty.toString(),
+            formatPdfCurrency(medicine.mrp),
+            formatPdfCurrency(medicine.amount)
+          ]);
+        });
+        
+        // Medicines subtotal
+        const medicinesSubtotal = medicineBillData.medicineDetails.reduce((sum, medicine) => sum + medicine.amount, 0);
+        y = drawRow(['', 'Subtotal:', '', formatPdfCurrency(medicinesSubtotal)], false, true);
+      }
+
+      // Grand Total
+      const medicinesSubtotal = medicineBillData.medicineDetails?.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0) || 0;
+      const grandTotal = medicinesSubtotal;
+      
+      y = drawRow(['', 'Grand Total:', '', formatPdfCurrency(grandTotal)], false, true);
+
+      // Footer
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'italic');
+      doc.text('This is a computer-generated invoice.', pageWidth / 2, pageHeight - 10, { align: 'center' });
+
+      // Save PDF
+      const filenameBase = `medicine-bill-invoice-${medicineBillData.billNumber}`;
+      const dateStr = format(new Date(), 'dd-MM-yyyy');
+      doc.save(`${filenameBase}-${dateStr}.pdf`);
+    } catch (e) {
+      toast.error('Failed to generate PDF');
+    }
+  };
 
   // Check if receipt amount exceeds balance
   useEffect(() => {
@@ -281,6 +417,10 @@ export default function MedicineBillReceiptsPage() {
               <p className="text-sm">{medicineBillData.patient.mobile}</p>
             </div>
             <div>
+              <label className="block text-sm font-medium">Gender</label>
+              <p className="text-sm">{medicineBillData.patient.gender}</p>
+            </div>
+            <div>
               <label className="block text-sm font-medium">Bill Date</label>
               <p className="text-sm">
                 {format(new Date(medicineBillData.billDate), 'dd/MM/yyyy')}
@@ -308,9 +448,10 @@ export default function MedicineBillReceiptsPage() {
             </div>
             <AppButton
              type='button'
-             disabled={currentBalance !== 0}
+            //  disabled={currentBalance !== 0}
              iconName='Download'
              size='sm'
+             onClick={generateInvoicePDF}
              >
               Download Invoice
             </AppButton>

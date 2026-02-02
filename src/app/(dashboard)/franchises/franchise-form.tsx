@@ -375,6 +375,7 @@ export function FranchiseForm({
                   label={isCreate ? 'Password' : 'New Password'}
                   placeholder={isCreate ? 'Secret password' : 'Leave blank to keep current'}
                   autoComplete='new-password'
+                  required={isCreate}
                 />
                 <AppCheckbox
                   label='Active Status'

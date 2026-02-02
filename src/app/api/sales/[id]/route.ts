@@ -48,6 +48,7 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
+                franchiseRate: true,
                 brand: { select: { name: true } },
               }
             }
@@ -282,6 +283,7 @@ export async function PATCH(
                 select: {
                   id: true,
                   name: true,
+                  franchiseRate: true,
                   brand: { select: { name: true } },
                 }
               }

@@ -137,6 +137,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         appointmentId: true,
+        consultationNumber: true,
         complaint: true,
         diagnosis: true,
         remarks: true,
@@ -361,6 +362,7 @@ export async function POST(req: NextRequest) {
         const consultation = await tx.consultation.create({
           data: {
             appointmentId: data.appointmentId,
+            consultationNumber: '',
             complaint: data.complaint,
             diagnosis: data.diagnosis,
             remarks: data.remarks,
@@ -572,6 +574,7 @@ export async function POST(req: NextRequest) {
         const consultation = await tx.consultation.create({
           data: {
             appointmentId: data.appointmentId,
+            consultationNumber: '',
             complaint: data.complaint,
             diagnosis: data.diagnosis,
             remarks: data.remarks,

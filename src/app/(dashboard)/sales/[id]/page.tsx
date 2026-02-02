@@ -40,7 +40,7 @@ type SaleDetailsData = {
   saleDetails: SaleDetail[];
 };
 
-export default function PurchaseDetailsPage() {
+export default function SalesDetailsPage() {
   const params = useParams();
   const router = useRouter();
   const saleId = params?.id ? Number(params.id) : null;
@@ -94,7 +94,7 @@ export default function PurchaseDetailsPage() {
       doc.text('ClinicMinds', pageWidth / 2, y, { align: 'center' });
       y += 10;
       doc.setFontSize(16);
-      doc.text('PURCHASE INVOICE', pageWidth / 2, y, { align: 'center' });
+      doc.text('SALES INVOICE', pageWidth / 2, y, { align: 'center' });
       y += 12;
 
       // Invoice and Franchise Info
@@ -171,7 +171,7 @@ export default function PurchaseDetailsPage() {
       doc.text('This is a computer-generated invoice.', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       // Save PDF
-      const filenameBase = `purchase-invoice-${saleData.invoiceNo}`;
+      const filenameBase = `sales-invoice-${saleData.invoiceNo}`;
       const dateStr = format(new Date(), 'dd-MM-yyyy');
       doc.save(`${filenameBase}-${dateStr}.pdf`);
     } catch (e) {
@@ -188,7 +188,7 @@ export default function PurchaseDetailsPage() {
         const response = await apiGet(`/api/sales/${saleId}`);
         setSaleData(response as SaleDetailsData);
       } catch (error) {
-        console.error('Failed to fetch purchase details:', error);
+        console.error('Failed to fetch sales details:', error);
       } finally {
         setIsLoading(false);
       }
@@ -203,7 +203,7 @@ export default function PurchaseDetailsPage() {
         <AppCard>
           <AppCard.Content>
             <div className="text-center py-8 text-red-600">
-              Invalid purchase ID
+              Invalid sales ID
             </div>
           </AppCard.Content>
         </AppCard>
@@ -215,9 +215,9 @@ export default function PurchaseDetailsPage() {
     <div className="container mx-auto p-6">
       <AppCard>
         <AppCard.Header>
-          <AppCard.Title>Purchase Details</AppCard.Title>
+          <AppCard.Title>Sales Details</AppCard.Title>
           <AppCard.Description>
-            View detailed information about this purchase
+            View detailed information about this sales
           </AppCard.Description>
           <AppCard.Action>
             <AppButton
@@ -231,10 +231,10 @@ export default function PurchaseDetailsPage() {
         </AppCard.Header>
         <AppCard.Content>
           {isLoading ? (
-            <div className="text-center py-8">Loading purchase details...</div>
+            <div className="text-center py-8">Loading sales details...</div>
           ) : saleData ? (
             <div className="space-y-6">
-              {/* Purchase Information */}
+              {/* Sales Information */}
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 <div>
                   <span className="font-semibold text-base">Invoice No:</span>
@@ -266,7 +266,7 @@ export default function PurchaseDetailsPage() {
                 </div>
               </div>
 
-              {/* Purchase Details Table */}
+              {/* Sales Details Table */}
               {saleData.saleDetails.length > 0 && (
                 <div>
                   <h3 className="font-semibold text-base mb-3">Medicines</h3>
@@ -311,7 +311,7 @@ export default function PurchaseDetailsPage() {
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              No purchase details available
+              No sales details available
             </div>
           )}
         </AppCard.Content>
