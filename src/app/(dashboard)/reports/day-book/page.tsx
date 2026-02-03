@@ -10,13 +10,11 @@ import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
-import { formatDate } from '@/lib/locales';
-import { formatIndianCurrency } from '@/lib/locales';
+import { formatDate, formatDateTime, formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { AppSelect } from '@/components/common/app-select';
 import jsPDF from 'jspdf';
 import * as XLSX from 'xlsx-js-style';
-import { format } from 'date-fns';
 import { useCurrentUser } from '@/hooks/use-current-user';
 
 type DayBookReportItem = {
@@ -154,7 +152,7 @@ export default function DayBookReportPage() {
     if (!data?.data) return {};
     
     return data.data.reduce((groups, item) => {
-      const date = format(new Date(item.date), 'dd-MM-yyyy');
+      const date = formatDateTime(new Date(item.date), { year: 'numeric', month: '2-digit', day: '2-digit' });
       if (!groups[date]) {
         groups[date] = [];
       }
@@ -202,7 +200,7 @@ export default function DayBookReportPage() {
       const appName = process.env.NEXT_PUBLIC_APP_NAME || 'ClinicMinds';
       
       // Report date and time
-      const reportDateTime = format(now, 'dd/MM/yyyy hh:mm a');
+      const reportDateTime = formatDateTime(now, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true });
       
       // Date range
       const dateRange = startDate && endDate 
@@ -387,7 +385,7 @@ export default function DayBookReportPage() {
 
           y += drawRow(
             [
-              format(new Date(item.date), 'dd-MM-yyyy'),
+              formatDateTime(new Date(item.date), { year: 'numeric', month: '2-digit', day: '2-digit' }),
               item.transactionType === 'MEDICINE_BILL' ? '-' : (item.teamName || '-'),
               patientName,
               item.mobile,
@@ -439,7 +437,7 @@ export default function DayBookReportPage() {
       // Add header info for admin users
       if (user?.role === 'ADMIN') {
         const now = new Date();
-        const reportDateTime = format(now, 'dd/MM/yyyy hh:mm a');
+        const reportDateTime = formatDateTime(now, { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true });
         
         // Date range
         const dateRange = startDate && endDate 
@@ -489,7 +487,7 @@ export default function DayBookReportPage() {
             : 'Medicine';
 
           wsData.push([
-            format(new Date(item.date), 'dd-MM-yyyy'),
+            formatDateTime(new Date(item.date), { year: 'numeric', month: '2-digit', day: '2-digit' }),
             item.transactionType === 'MEDICINE_BILL' ? '-' : (item.teamName || '-'),
             patientName,
             item.mobile,
@@ -530,8 +528,8 @@ export default function DayBookReportPage() {
 
       // Save file
       const now = new Date();
-      const dateStr = format(now, 'dd-MM-yyyy');
-      const timeStr = format(now, 'HH-mm-ss');
+      const dateStr = formatDateTime(now, { year: 'numeric', month: '2-digit', day: '2-digit' });
+      const timeStr = formatDateTime(now, { hour: '2-digit', minute: '2-digit', hour12: false });
       XLSX.writeFile(wb, `day-book-report-${dateStr}-${timeStr}.xlsx`);
     } catch (e) {
       toast.error('Failed to generate Excel');

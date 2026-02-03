@@ -93,6 +93,7 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             status: true,
+            dispatchedQuantity: true,
           },
         },
         franchise: {
@@ -100,6 +101,11 @@ export async function GET(req: NextRequest) {
         },
         _count: {
           select: { saleDetails: true }
+        },
+        saleDetails: {
+          select: {
+            quantity: true,
+          }
         }
       }
     });
@@ -110,8 +116,21 @@ export async function GET(req: NextRequest) {
         (transport: any) => String(transport.status || '').toUpperCase() === 'PENDING'
       );
       const [latestTransport] = transportRows;
-      const { transports: _ignoredTransports, ...rest } = row;
-      return { ...rest, transport: pendingTransport ?? latestTransport ?? null };
+      
+      // Calculate total quantity from sale details
+      const totalQuantity = row.saleDetails?.reduce((sum: number, detail: any) => sum + (detail.quantity || 0), 0) || 0;
+      
+      // Calculate total dispatched quantity from all transports
+      const totalDispatchedQuantity = transportRows?.reduce((sum: number, transport: any) => sum + (transport.dispatchedQuantity || 0), 0) || 0;
+      
+      const { transports: _ignoredTransports, saleDetails: _ignoredSaleDetails, ...rest } = row;
+      return { 
+        ...rest, 
+        transport: pendingTransport ?? latestTransport ?? null,
+        totalQuantity,
+        totalDispatchedQuantity,
+        isFullyDispatched: totalQuantity > 0 && totalDispatchedQuantity >= totalQuantity
+      };
     });
 
     return Success({ ...result, data });

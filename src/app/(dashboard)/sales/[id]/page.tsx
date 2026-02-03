@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { apiGet } from '@/lib/api-client';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
-import { formatIndianCurrency, formatDate } from '@/lib/locales';
-import { format } from 'date-fns';
+import { formatIndianCurrency, formatDate, formatDateTime } from '@/lib/locales';
 import jsPDF from 'jspdf';
 
 type SaleDetail = {
@@ -172,7 +171,7 @@ export default function SalesDetailsPage() {
 
       // Save PDF
       const filenameBase = `sales-invoice-${saleData.invoiceNo}`;
-      const dateStr = format(new Date(), 'dd-MM-yyyy');
+      const dateStr = formatDateTime(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' });
       doc.save(`${filenameBase}-${dateStr}.pdf`);
     } catch (e) {
       console.error('Failed to generate PDF:', e);

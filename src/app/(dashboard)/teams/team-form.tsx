@@ -69,9 +69,11 @@ export function TeamForm({
     name: z.string().min(1, 'Team Name is required').max(255, 'Team Name must be less than 255 characters'),
     addressLine1: z.string().min(1, 'Address Line 1 is required').max(500, 'Address Line 1 must be less than 500 characters'),
     addressLine2: z.string().max(500, 'Address Line 2 must be less than 500 characters').nullable().optional(),
-    stateId: z.string().min(1, 'State is required'),
-    cityId: z.string().min(1, 'City is required'),
-    pincode: z.string().regex(/^[0-9]{6}$/, 'Pincode must be exactly 6 digits'),
+    stateId: z.string().optional().nullable(),
+    cityId: z.string().optional().nullable(),
+    pincode: z.string().optional().nullable().refine(val => !val || /^[0-9]{6}$/.test(val), {
+      message: 'Pincode must be exactly 6 digits'
+    }),
     joiningDate: z.string().nullable().optional(),
     leavingDate: z.string().nullable().optional(),
     role: z.enum(["FRANCHISE", "DOCTOR", "STAFF", "TECHNICIAN", "ACCOUNT", "SALES"], {
@@ -86,7 +88,6 @@ export function TeamForm({
           message: "Password must be at least 8 characters long"
         })
     ),
-
     status: z.boolean().default(true),
   });
 
@@ -114,6 +115,7 @@ export function TeamForm({
   });
 
   const { control, handleSubmit } = form;
+  
   const statusValue = form.watch('status');
   const stateIdValue = form.watch('stateId');
   const cityIdValue = form.watch('cityId');
@@ -190,9 +192,9 @@ export function TeamForm({
           status: values.status,
           addressLine1: values.addressLine1.trim(),
           addressLine2: values.addressLine2?.trim() || null,
-          city: cityLabel.trim(),
-          state: stateLabel.trim(),
-          pincode: values.pincode.trim(),
+          city: cityLabel.trim() || null,
+          state: stateLabel.trim() || null,
+          pincode: values.pincode?.trim() || null,
           userMobile: values.userMobile.trim(),
           joiningDate: values.joiningDate ? new Date(values.joiningDate).toISOString() : null,
           leavingDate: values.leavingDate ? new Date(values.leavingDate).toISOString() : null,
@@ -208,9 +210,9 @@ export function TeamForm({
           status: values.status,
           addressLine1: values.addressLine1.trim(),
           addressLine2: values.addressLine2?.trim() || null,
-          city: cityLabel.trim(),
-          state: stateLabel.trim(),
-          pincode: values.pincode.trim(),
+          city: cityLabel.trim() || null,
+          state: stateLabel.trim() || null,
+          pincode: values.pincode?.trim() || null,
           userMobile: values.userMobile.trim(),
           joiningDate: values.joiningDate ? new Date(values.joiningDate).toISOString() : null,
           leavingDate: values.leavingDate ? new Date(values.leavingDate).toISOString() : null,
@@ -257,7 +259,6 @@ export function TeamForm({
                     placeholder='Select state'
                     searchPlaceholder='Search states...'
                     emptyText='No state found.'
-                    required
                   />
                 </div>
                 <div className='flex-1'>
@@ -268,8 +269,7 @@ export function TeamForm({
                     options={cityOptions}
                     placeholder={stateIdValue ? 'Select city' : 'Select state first'}
                     searchPlaceholder='Search cities...'
-                    emptyText={stateIdValue ? 'No city found.' : 'Select state first'}
-                    required   
+                    emptyText={stateIdValue ? 'No city found.' : 'Select state first'}   
                   />
                 </div>
                 <div className='flex-1'>
@@ -278,7 +278,6 @@ export function TeamForm({
                     maxLength={6}
                     name='pincode' 
                     label='Pincode' 
-                    required 
                     placeholder='Pincode' 
                     onInput={(e) => {
                       e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');

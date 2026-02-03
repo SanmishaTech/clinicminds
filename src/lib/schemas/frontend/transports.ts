@@ -27,16 +27,6 @@ export const transportFormSchema = z
     vehicleNumber: z.string().optional(),
     trackingNumber: z.string().optional(),
     notes: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    const total = data.dispatchedDetails.reduce((sum, detail) => sum + (Number(detail.quantity) || 0), 0);
-    if (total <= 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Total dispatched quantity must be greater than 0',
-        path: ['dispatchedDetails'],
-      });
-    }
   });
 
 export type TransportFormValues = z.infer<typeof transportFormSchema>;

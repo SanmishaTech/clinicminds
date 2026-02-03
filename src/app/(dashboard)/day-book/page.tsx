@@ -15,8 +15,7 @@ import { DeleteIconButton } from '@/components/common/icon-button';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { PERMISSIONS } from '@/config/roles';
-import { formatDate, formatIndianCurrency } from '@/lib/locales';
-import { format } from 'date-fns';
+import { formatDate, formatDateTime, formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
 import { EditButton, IconButton } from '@/components/common/icon-button';
@@ -150,7 +149,7 @@ export default function DayBookPage() {
       key: 'date',
       header: 'Date/Time',
       sortable: true,
-      accessor: (r) => format(new Date(r.date), 'dd/MM/yyyy hh:mm a'),
+      accessor: (r) => formatDateTime(new Date(r.date), { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }),
       cellClassName: 'whitespace-nowrap',
     },
     {

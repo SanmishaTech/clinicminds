@@ -291,6 +291,9 @@ export default function FranchiseFeesPage() {
                       min={0}
                       max={remainingBalance || undefined}
                       step='0.01'
+                      onInput={(e) => {
+                        e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
+                      }}
                     />
                   </FormRow>
                   <FormRow>

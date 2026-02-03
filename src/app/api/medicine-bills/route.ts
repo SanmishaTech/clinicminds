@@ -23,8 +23,8 @@ const createMedicineBillSchema = z.object({
   totalAmount: z.number().positive(),
   medicineBillDetails: z.array(medicineBillDetailSchema).min(1),
   receipt: z.object({
-    date: z.string().datetime(),
-    paymentMode: z.string().min(1),
+    date: z.string().datetime().optional().nullable(),
+    paymentMode: z.string().min(1).optional().nullable(),
     payerName: z.string().optional(),
     contactNumber: z.string().optional(),
     upiName: z.string().optional(),
@@ -33,7 +33,7 @@ const createMedicineBillSchema = z.object({
     chequeDate: z.string().datetime().optional().nullable(),
     chequeNumber: z.string().optional(),
     notes: z.string().optional(),
-    amount: z.number().positive(),
+    amount: z.number().positive().optional().nullable(),
   }).optional(),
 });
 

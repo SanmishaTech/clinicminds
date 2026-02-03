@@ -111,28 +111,46 @@ export default function TransportForm({
   const isPending = !isAlreadyDispatched && !isDelivered;
 
   async function onSubmitForm(values: TransportFormValues) {
-    if (!isAlreadyDispatched && !isEdit) return;
+    if (isDelivered) return; // Delivered transports cannot be edited or dispatched
+    
+    // Check if all quantities are 0
+    const allQuantitiesAreZero = values.dispatchedDetails.every(detail => Number(detail.quantity) === 0);
+    if (allQuantitiesAreZero) {
+      toast.error('At least one medicine must have a quantity greater than 0');
+      return;
+    }
     
     if (onSubmit) {
-      // Use custom submit handler (for edit mode)
-      const payload = {
-        companyName: values.companyName.trim() || null,
-        dispatchedDetails: values.dispatchedDetails.map((detail) => ({
-          saleDetailId: Number(detail.saleDetailId),
-          quantity: Number(detail.quantity) || 0,
-        })),
-        transporterName: values.transporterName?.trim() || null,
-        transportFee: Number(values.transportFee) || 0,
-        receiptNumber: values.receiptNumber?.trim() || null,
-        vehicleNumber: values.vehicleNumber?.trim() || null,
-        trackingNumber: values.trackingNumber?.trim() || null,
-        notes: values.notes || null,
-      };
-      onSubmit(payload);
-    } else {
-      // Use default submit handler (for create mode)
+      // Edit mode - can only edit dispatched transports
+      if (!isAlreadyDispatched) return;
+      
       setSubmitting(true);
       try {
+        const payload = {
+          companyName: values.companyName.trim() || null,
+          dispatchedDetails: values.dispatchedDetails.map((detail) => ({
+            saleDetailId: Number(detail.saleDetailId),
+            quantity: Number(detail.quantity) || 0,
+          })),
+          transporterName: values.transporterName?.trim() || null,
+          transportFee: Number(values.transportFee) || 0,
+          receiptNumber: values.receiptNumber?.trim() || null,
+          vehicleNumber: values.vehicleNumber?.trim() || null,
+          trackingNumber: values.trackingNumber?.trim() || null,
+          notes: values.notes || null,
+        };
+        await onSubmit(payload);
+      } catch (e) {
+        toast.error((e as Error).message || 'Failed to update transport');
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      // Create mode - can only dispatch pending transports
+      if (isAlreadyDispatched) return;
+      
+      setSubmitting(true);
+      try {        
         const payload = {
           saleId: sale.saleId,
           transportId: transportId ?? undefined,
@@ -190,9 +208,7 @@ export default function TransportForm({
                         <th className='px-3 py-2 text-left font-medium'>Medicine</th>
                         <th className='px-3 py-2 text-left font-medium'>Batch</th>
                         <th className='px-3 py-2 text-left font-medium'>Expiry</th>
-                        <th className='px-3 py-2 text-right font-medium'>
-                          {isPending ? 'Remaining Qty' : 'Qty'}
-                        </th>
+                        <th className='px-3 py-2 text-right font-medium'>Remaining Qty</th>
                         <th className='px-3 py-2 text-right font-medium'>Dispatched Qty</th>
                       </tr>
                     </thead>
@@ -200,7 +216,7 @@ export default function TransportForm({
                       {sale.saleDetails.map((d, idx) => {
                         const saleQty = Number(d.quantity) || 0;
                         const remainingQty = Number(d.remainingQuantity ?? saleQty) || 0;
-                        const displayQty = isPending ? remainingQty : saleQty;
+                        const displayQty = remainingQty;
                         return (
                           <tr key={d.id ?? idx} className='border-t'>
                             <td className='px-3 py-2'>
@@ -229,7 +245,7 @@ export default function TransportForm({
                                         type='number'
                                         inputMode='numeric'
                                         min={0}
-                                        max={isPending ? remainingQty : saleQty}
+                                        max={remainingQty}
                                         step={1}
                                         className='h-9 w-24 text-right'
                                         disabled={submitting || externalLoading}
@@ -328,18 +344,18 @@ export default function TransportForm({
           <AppCard.Footer className='justify-end'>
             <div className='flex items-end gap-2'>
               {onCancel ? (
-                <AppButton type='button' variant='secondary' onClick={onCancel}>
+                <AppButton type='button' variant='secondary' iconName='X' onClick={onCancel}>
                   Cancel
                 </AppButton>
               ) : (
-                <AppButton type='button' variant='secondary' onClick={() => router.back()}>
+                <AppButton type='button' variant='secondary' iconName='X' onClick={() => router.back()}>
                   Cancel
                 </AppButton>
               )}
 
               <AppButton 
                 type='submit' 
-                disabled={submitting || externalLoading} 
+                disabled={submitting || externalLoading || !form.formState.isValid} 
                 isLoading={submitting || externalLoading}
               >
                 {isEdit ? 'Update Transport' : isDelivered ? 'Delivered' : isAlreadyDispatched ? 'Update' : 'Dispatch'}

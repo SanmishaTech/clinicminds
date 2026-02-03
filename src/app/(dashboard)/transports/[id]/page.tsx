@@ -5,8 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { apiGet } from '@/lib/api-client';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
-import { formatIndianCurrency, formatDate } from '@/lib/locales';
-import { format } from 'date-fns';
+import { formatIndianCurrency, formatDate, formatDateTime } from '@/lib/locales';
 import { StatusBadge } from '@/components/common/status-badge';
 
 type TransportDetail = {
@@ -133,9 +132,45 @@ export default function TransportDetailsPage() {
   if (isLoading) {
     return (
       <div className="container mx-auto p-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
-          <div className="h-64 bg-gray-200 rounded"></div>
+        <div className="space-y-6">
+          {/* Header skeleton */}
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded w-1/3 mb-2"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
+          </div>
+          
+          {/* Transport info card skeleton */}
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-muted rounded"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <div className="h-4 bg-muted rounded w-20"></div>
+                <div className="h-4 bg-muted rounded w-32"></div>
+                <div className="h-4 bg-muted rounded w-28"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-muted rounded w-24"></div>
+                <div className="h-4 bg-muted rounded w-36"></div>
+                <div className="h-4 bg-muted rounded w-30"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-muted rounded w-22"></div>
+                <div className="h-4 bg-muted rounded w-34"></div>
+                <div className="h-4 bg-muted rounded w-26"></div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Table skeleton */}
+          <div className="animate-pulse">
+            <div className="h-6 bg-muted rounded w-1/4 mb-4"></div>
+            <div className="border rounded-lg overflow-hidden">
+              <div className="h-12 bg-muted/80 border-b"></div>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="h-16 bg-muted/60 border-b last:border-b-0"></div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -152,21 +187,6 @@ export default function TransportDetailsPage() {
       </div>
     );
   }
-
-  const getStatusColor = (status: string) => {
-    switch (status?.toUpperCase()) {
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'DISPATCHED':
-        return 'bg-blue-100 text-blue-800';
-      case 'DELIVERED':
-        return 'bg-green-100 text-green-800';
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   return (
     <div className="container mx-auto p-6">
@@ -267,19 +287,19 @@ export default function TransportDetailsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6 pt-6 border-t">
             <div>
               <p className="text-sm">Created</p>
-              <p className="font-medium">{transportData.createdAt ? format(new Date(transportData.createdAt), 'dd/MM/yyyy hh:mm a') : '—'}</p>
+              <p className="font-medium">{transportData.createdAt ? formatDateTime(new Date(transportData.createdAt), { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : '—'}</p>
             </div>
             <div>
               <p className="text-sm">Dispatched</p>
-              <p className="font-medium">{transportData.dispatchedAt ? format(new Date(transportData.dispatchedAt), 'dd/MM/yyyy hh:mm a') : 'Not dispatched'}</p>
+              <p className="font-medium">{transportData.dispatchedAt ? formatDateTime(new Date(transportData.dispatchedAt), { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not dispatched'}</p>
             </div>
             <div>
               <p className="text-sm">Delivered</p>
-              <p className="font-medium">{transportData.deliveredAt ? format(new Date(transportData.deliveredAt), 'dd/MM/yyyy hh:mm a') : 'Not delivered'}</p>
+              <p className="font-medium">{transportData.deliveredAt ? formatDateTime(new Date(transportData.deliveredAt), { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not delivered'}</p>
             </div>
             <div>
               <p className="text-sm">Stock Posted</p>
-              <p className="font-medium">{transportData.stockPostedAt ? format(new Date(transportData.stockPostedAt), 'dd/MM/yyyy hh:mm a') : 'Not posted'}</p>
+              <p className="font-medium">{transportData.stockPostedAt ? formatDateTime(new Date(transportData.stockPostedAt), { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not posted'}</p>
             </div>
           </div>
 

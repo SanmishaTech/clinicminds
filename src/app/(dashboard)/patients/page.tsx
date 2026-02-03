@@ -146,7 +146,7 @@ export default function PatientsPage() {
       {
         key: 'team',
         header: 'Team',
-        sortable: false,
+        sortable: true,
         cellClassName: 'whitespace-nowrap',
         accessor: (r) => r.team?.name || '-',
       },
@@ -160,18 +160,20 @@ export default function PatientsPage() {
       {
         key: 'mobile',
         header: 'Mobile',
-        sortable: true,
+        sortable: false,
         cellClassName: 'whitespace-nowrap',
       },
       {
         key: 'state',
         header: 'State',
+        sortable: true,
         accessor: (r) => r.state?.state || '-',
         cellClassName: 'whitespace-nowrap',
       },
       {
         key: 'city',
         header: 'City',
+        sortable: true,
         accessor: (r) => r.city?.city || '-',
         cellClassName: 'whitespace-nowrap',
       },
@@ -189,7 +191,7 @@ export default function PatientsPage() {
       baseColumns.splice(1, 0, {
         key: 'franchise',
         header: 'Franchise',
-        sortable: false,
+        sortable: true,
         accessor: (r) => r.franchise?.name || '-',
         cellClassName: 'whitespace-nowrap',
       });
@@ -228,7 +230,7 @@ export default function PatientsPage() {
       <AppCard.Header>
         <AppCard.Title>Patients</AppCard.Title>
         <AppCard.Description>Manage patients.</AppCard.Description>
-        {can(PERMISSIONS.EDIT_PATIENTS) && !isAdmin && (
+        {can(PERMISSIONS.CREATE_PATIENTS) && !isAdmin && (
           <AppCard.Action>
             <Link href='/patients/new'>
               <AppButton size='sm' iconName='Plus' type='button'>

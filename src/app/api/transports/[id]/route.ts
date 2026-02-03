@@ -516,14 +516,15 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         });
       }
 
-      if (statusUpper === 'DISPATCHED') {
+      // Create PENDING transport for remaining quantities when dispatched details are updated
+      if (dispatchedDetailsToSave) {
         const saleDetails = sale.saleDetails || [];
         const dispatchedSumBySaleDetailId = new Map<number, number>();
         for (const [k, v] of alreadyDispatchedBySaleDetailId.entries()) {
           dispatchedSumBySaleDetailId.set(k, v);
         }
 
-        for (const row of dispatchedDetailsToSave || []) {
+        for (const row of dispatchedDetailsToSave) {
           const sid = Number(row.saleDetailId);
           const q = Number(row.quantity) || 0;
           dispatchedSumBySaleDetailId.set(sid, (dispatchedSumBySaleDetailId.get(sid) ?? 0) + q);
@@ -538,8 +539,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
               saleDetailId,
               quantity: Math.max(0, saleQty - dispatchedQty),
             };
-          })
-          .filter((d) => (Number(d.quantity) || 0) > 0);
+          });
 
         const remainderTotal = remainderDetails.reduce((sum, d) => sum + (Number(d.quantity) || 0), 0);
 
@@ -570,6 +570,10 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
         } else {
           await tx.transport.deleteMany({ where: { saleId: sale.id, status: 'PENDING' } });
         }
+      }
+
+      if (statusUpper === 'DISPATCHED') {
+        // Note: PENDING transport creation is now handled above when dispatchedDetailsToSave is present
       }
 
       return updatedTransport;

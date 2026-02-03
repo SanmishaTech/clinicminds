@@ -134,7 +134,7 @@ export default function CitiesPage() {
       <AppCard.Header>
         <AppCard.Title>Cities</AppCard.Title>
         <AppCard.Description>Manage cities.</AppCard.Description>
-        {can(PERMISSIONS.EDIT_CITIES) && (
+        {can(PERMISSIONS.CREATE_CITIES) && (
           <AppCard.Action>
             <Link href='/cities/new'>
               <AppButton size='sm' iconName='Plus' type='button'>

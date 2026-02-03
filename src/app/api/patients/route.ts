@@ -111,8 +111,23 @@ export async function GET(req: NextRequest) {
     where.team = { is: { name: { contains: team } } };
   }
 
-  const sortableFields = new Set(["patientNo", "firstName", "gender", "mobile", "createdAt"]);
-  const orderBy: Record<string, "asc" | "desc"> = sortableFields.has(sort) ? { [sort]: order } : { createdAt: "desc" };
+  const sortableFields = new Set(["patientNo", "firstName", "gender", "mobile", "createdAt", "franchise", "team", "state", "city"]);
+  const orderBy: any = (() => {
+    if (!sortableFields.has(sort)) return { createdAt: "desc" };
+    
+    switch (sort) {
+      case "franchise":
+        return { franchise: { name: order } };
+      case "team":
+        return { team: { name: order } };
+      case "state":
+        return { state: { state: order } };
+      case "city":
+        return { city: { city: order } };
+      default:
+        return { [sort]: order };
+    }
+  })();
 
   try {
     const patientModel = (prisma as any).patient;

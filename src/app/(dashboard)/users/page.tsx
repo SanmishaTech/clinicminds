@@ -193,7 +193,7 @@ export default function UsersPage() {
 			<AppCard.Header>
 				<AppCard.Title>Users</AppCard.Title>
 				<AppCard.Description>Manage application users.</AppCard.Description>
-				{can(PERMISSIONS.EDIT_USERS) && (
+				{can(PERMISSIONS.CREATE_USERS) && (
 					<AppCard.Action>
 						<Link href='/users/new'>
 							<AppButton size='sm' iconName='Plus' type='button'>

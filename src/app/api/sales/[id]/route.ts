@@ -31,7 +31,7 @@ export async function GET(
           select: { id: true, name: true }
         },
         transports: {
-          ...(transportIdFilter ? { where: { id: transportIdFilter } } : {}),
+          // Always fetch ALL transports for remaining quantity calculation
           orderBy: { createdAt: 'desc' },
           include: {
             transportDetails: {
@@ -66,13 +66,34 @@ export async function GET(
     );
     const transport = transportIdFilter ? (transports[0] ?? null) : (pendingTransport ?? transports[0] ?? null);
 
-    const remainingBySaleDetailId = new Map<number, number>();
-    for (const td of transport?.transportDetails || []) {
-      remainingBySaleDetailId.set(Number(td.saleDetailId), Number(td.quantity) || 0);
+    // Calculate remaining quantities considering all dispatched transports
+    const dispatchedQuantities = new Map<number, number>();
+    
+    // Aggregate quantities from all DISPATCHED transports
+    transports
+      .filter((transport) => String(transport.status || '').toUpperCase() === 'DISPATCHED')
+      .forEach((transport) => {
+        (transport.transportDetails || []).forEach((detail) => {
+          const saleDetailId = Number(detail.saleDetailId);
+          const quantity = Number(detail.quantity) || 0;
+          dispatchedQuantities.set(saleDetailId, (dispatchedQuantities.get(saleDetailId) || 0) + quantity);
+        });
+      });
+
+    // For pending transport, add its quantities to dispatched (since they represent what's already allocated)
+    // But only if it's not the specific transport being requested
+    if (pendingTransport && (!transportIdFilter || pendingTransport.id !== transportIdFilter)) {
+      (pendingTransport.transportDetails || []).forEach((detail) => {
+        const saleDetailId = Number(detail.saleDetailId);
+        const quantity = Number(detail.quantity) || 0;
+        dispatchedQuantities.set(saleDetailId, (dispatchedQuantities.get(saleDetailId) || 0) + quantity);
+      });
     }
 
     const saleDetailsWithRemaining = (sale.saleDetails || []).map((d: any) => {
-      const remainingQuantity = remainingBySaleDetailId.get(Number(d.id)) ?? d.quantity;
+      const totalQuantity = Number(d.quantity) || 0;
+      const totalDispatched = dispatchedQuantities.get(Number(d.id)) || 0;
+      const remainingQuantity = Math.max(0, totalQuantity - totalDispatched);
       const brandName = d.medicine?.brand?.name ?? null;
       return {
         ...d,
@@ -334,89 +355,89 @@ export async function PATCH(
   }
 }
 
-// DELETE /api/sales/:id
-export async function DELETE(
-  req: NextRequest,
-  context: { params: Promise<{ id: string }> }
-) {
-  const auth = await guardApiAccess(req);
-  if (!auth.ok) return auth.response;
+// // DELETE /api/sales/:id
+// export async function DELETE(
+//   req: NextRequest,
+//   context: { params: Promise<{ id: string }> }
+// ) {
+//   const auth = await guardApiAccess(req);
+//   if (!auth.ok) return auth.response;
 
-  const { id } = await context.params;
-  const idNum = Number(id);
-  if (Number.isNaN(idNum)) return BadRequest('Invalid sale ID');
-  try {
-    const deleted = await prisma.$transaction(async (tx: any) => {
-      const existingSale = await tx.sale.findUnique({
-        where: { id: idNum },
-        select: { id: true },
-      });
-      if (!existingSale) {
-        return null;
-      }
+//   const { id } = await context.params;
+//   const idNum = Number(id);
+//   if (Number.isNaN(idNum)) return BadRequest('Invalid sale ID');
+//   try {
+//     const deleted = await prisma.$transaction(async (tx: any) => {
+//       const existingSale = await tx.sale.findUnique({
+//         where: { id: idNum },
+//         select: { id: true },
+//       });
+//       if (!existingSale) {
+//         return null;
+//       }
 
-      const stockTxn = await tx.stockTransaction.findUnique({
-        where: { saleId: idNum },
-        select: { id: true },
-      });
+//       const stockTxn = await tx.stockTransaction.findUnique({
+//         where: { saleId: idNum },
+//         select: { id: true },
+//       });
 
-      if (stockTxn) {
-        const ledgerLines = await tx.stockLedger.findMany({
-          where: { transactionId: stockTxn.id },
-          select: { franchiseId: true, medicineId: true, batchNumber: true, expiryDate: true, qtyChange: true },
-        });
+//       if (stockTxn) {
+//         const ledgerLines = await tx.stockLedger.findMany({
+//           where: { transactionId: stockTxn.id },
+//           select: { franchiseId: true, medicineId: true, batchNumber: true, expiryDate: true, qtyChange: true },
+//         });
 
-        for (const line of ledgerLines) {
-          await tx.stockBalance.upsert({
-            where: {
-              franchiseId_medicineId: {
-                franchiseId: line.franchiseId,
-                medicineId: line.medicineId,
-              },
-            },
-            create: {
-              franchiseId: line.franchiseId,
-              medicineId: line.medicineId,
-              quantity: -line.qtyChange,
-            },
-            update: {
-              quantity: { decrement: line.qtyChange },
-            },
-          });
+//         for (const line of ledgerLines) {
+//           await tx.stockBalance.upsert({
+//             where: {
+//               franchiseId_medicineId: {
+//                 franchiseId: line.franchiseId,
+//                 medicineId: line.medicineId,
+//               },
+//             },
+//             create: {
+//               franchiseId: line.franchiseId,
+//               medicineId: line.medicineId,
+//               quantity: -line.qtyChange,
+//             },
+//             update: {
+//               quantity: { decrement: line.qtyChange },
+//             },
+//           });
 
-          if (line.batchNumber && line.expiryDate) {
-            await tx.stockBatchBalance.upsert({
-              where: {
-                franchiseId_medicineId_batchNumber_expiryDate: {
-                  franchiseId: line.franchiseId,
-                  medicineId: line.medicineId,
-                  batchNumber: line.batchNumber,
-                  expiryDate: line.expiryDate,
-                },
-              },
-              create: {
-                franchiseId: line.franchiseId,
-                medicineId: line.medicineId,
-                batchNumber: line.batchNumber,
-                expiryDate: line.expiryDate,
-                quantity: -line.qtyChange,
-              },
-              update: {
-                quantity: { decrement: line.qtyChange },
-              },
-            });
-          }
-        }
-      }
+//           if (line.batchNumber && line.expiryDate) {
+//             await tx.stockBatchBalance.upsert({
+//               where: {
+//                 franchiseId_medicineId_batchNumber_expiryDate: {
+//                   franchiseId: line.franchiseId,
+//                   medicineId: line.medicineId,
+//                   batchNumber: line.batchNumber,
+//                   expiryDate: line.expiryDate,
+//                 },
+//               },
+//               create: {
+//                 franchiseId: line.franchiseId,
+//                 medicineId: line.medicineId,
+//                 batchNumber: line.batchNumber,
+//                 expiryDate: line.expiryDate,
+//                 quantity: -line.qtyChange,
+//               },
+//               update: {
+//                 quantity: { decrement: line.qtyChange },
+//               },
+//             });
+//           }
+//         }
+//       }
 
-      await tx.sale.delete({ where: { id: idNum } });
-      return { id: idNum };
-    });
+//       await tx.sale.delete({ where: { id: idNum } });
+//       return { id: idNum };
+//     });
 
-    if (!deleted) return NotFound('Sale not found');
-    return Success(deleted);
-  } catch (error) {
-    console.error('Error deleting sale:', error);
-    return Error('Failed to delete sale');
-  }
-}
+//     if (!deleted) return NotFound('Sale not found');
+//     return Success(deleted);
+//   } catch (error) {
+//     console.error('Error deleting sale:', error);
+//     return Error('Failed to delete sale');
+//   }
+// }

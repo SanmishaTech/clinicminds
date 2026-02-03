@@ -278,7 +278,7 @@ export default function StocksPage() {
                   <ConfirmDialog
                     trigger={<IconButton iconName='Undo2' tooltip='Recall Stock' />}
                     title='Recall stock?'
-                    description={`This will deduct ${row.stock} from ${row.franchiseName} for ${row.medicineName} (Batch ${row.batchNumber}).`}
+                    description={`This will recall ${row.stock} units of ${row.medicineName} (Batch: ${row.batchNumber}, Expiry: ${row.expiryDate ? new Date(row.expiryDate).toLocaleDateString() : 'N/A'}) from ${row.franchiseName}.`}
                     confirmText='Recall'
                     onConfirm={() => handleRecall(row)}
                   />

@@ -94,6 +94,7 @@ export default function NewTransportPage() {
         if (!mounted) return;
 
         const saleDetails = data.saleDetails || [];
+        console.log("Sale details", saleDetails);
 
         setSale({
           saleId: data.id,

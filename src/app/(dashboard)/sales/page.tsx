@@ -38,6 +38,9 @@ type SaleListItem = {
   _count: {
     saleDetails: number;
   };
+  totalQuantity: number;
+  totalDispatchedQuantity: number;
+  isFullyDispatched: boolean;
 };
 
 type SalesResponse = {
@@ -299,19 +302,12 @@ export default function SalesPage() {
     },
     { key: 'totalAmount', header: 'Total Amount', sortable: true, className: 'whitespace-nowrap', accessor: (r) => formatIndianCurrency(r.totalAmount) },
     { key: '_count', header: 'Items', sortable: false, accessor: (r) => r._count.saleDetails },
+    { key: 'totalQuantity', header: 'Total Qty', sortable: false, className: 'whitespace-nowrap', accessor: (r) => r.totalQuantity },
+    { key: 'totalDispatchedQuantity', header: 'Dispatched Qty', sortable: false, className: 'whitespace-nowrap', accessor: (r) => r.totalDispatchedQuantity },
   ];
 
   const sortState: SortState = { field: sort, order };
 
-  async function handleDelete(id: number) {
-    try {
-      await apiDelete(`/api/sales/${id}`);
-      toast.success('Sale has been deleted');
-      await mutate();
-    } catch (e) {
-      toast.error((e as Error).message);
-    }
-  }
 
   return (
     <AppCard>
@@ -400,15 +396,7 @@ export default function SalesPage() {
           renderRowActions={(row) => {
             return (
               <div className='flex items-center gap-1'>
-                <Link href={`/sales/${row.id}`}>
-                  <IconButton
-                    iconName='Eye'
-                    tooltip='View Sale Details'
-                    aria-label='View Sale Details'
-                  />
-                </Link>
-
-                {can(PERMISSIONS.CREATE_TRANSPORTS) && (
+                {can(PERMISSIONS.CREATE_TRANSPORTS) && row.transport?.status !== 'DELIVERED' && !row.isFullyDispatched && (
                   <Link
                     href={
                       row.transport?.id
@@ -419,15 +407,13 @@ export default function SalesPage() {
                     <IconButton iconName='Truck' tooltip='Transport' aria-label='Transport' />
                   </Link>
                 )}
-
-                {can(PERMISSIONS.DELETE_SALES) && (
-                  <DeleteButton
-                    onDelete={() => handleDelete(row.id)}
-                    itemLabel='Sale'
-                    title='Delete Sale?'
-                    description={`This will permanently remove sale "${row.invoiceNo}". This action cannot be undone.`}
+                <Link href={`/sales/${row.id}`}>
+                  <IconButton
+                    iconName='Eye'
+                    tooltip='View Sale Details'
+                    aria-label='View Sale Details'
                   />
-                )}
+                </Link>
               </div>
             );
           }}

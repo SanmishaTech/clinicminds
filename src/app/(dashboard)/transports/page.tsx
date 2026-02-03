@@ -12,6 +12,7 @@ import { Pagination } from '@/components/common/pagination';
 import { DataTable, type Column, type SortState } from '@/components/common/data-table';
 import { StatusBadge } from '@/components/common/status-badge';
 import { usePermissions } from '@/hooks/use-permissions';
+import { useCurrentUser } from '@/hooks/use-current-user';
 import { PERMISSIONS, ROLES } from '@/config/roles';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { AppButton } from '@/components/common/app-button';
@@ -108,6 +109,7 @@ export default function TransportsPage() {
   const { data, error, isLoading, mutate } = useSWR<TransportsResponse>(query, apiGet);
 
   const { can, role } = usePermissions();
+  const { user } = useCurrentUser();
 
   const showFranchiseColumn = role === ROLES.ADMIN;
 
@@ -170,7 +172,7 @@ export default function TransportsPage() {
         header: 'Transport Fee',
         sortable: true,
         className: 'whitespace-nowrap',
-        accessor: (r) => formatIndianCurrency(Number(r.transportFee) || 0),
+        accessor: (r) => r.transportFee ? formatIndianCurrency(Number(r.transportFee)) : '—',
       },
       {
         key: 'dispatchedAt',
@@ -283,41 +285,14 @@ export default function TransportsPage() {
 
             return (
               <div className='flex items-center gap-1'>
-                {/* Always show View button */}
-                <Link href={`/transports/${row.id}`}>
-                  <IconButton
-                    iconName='Eye'
-                    tooltip='View Transport Details'
-                    aria-label='View Transport Details'
-                  />
-                </Link>
-                
-                {/* Show Edit button only for DISPATCHED transports with edit permissions */}
-                {can(PERMISSIONS.EDIT_TRANSPORTS) && statusUpper === 'DISPATCHED' && (
-                  <Link href={`/transports/${row.id}/edit`}>
-                    <EditButton
-                      tooltip='Edit Transport'
-                      aria-label='Edit Transport'
-                    />
-                  </Link>
-                )}
-                
-                {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper === 'PENDING' && (
+                 {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper === 'PENDING' && (
                   <Link href={`/transports/new?transportId=${row.id}`}>
                     <AppButton size='sm' variant='secondary' type='button'>
                       Dispatch
                     </AppButton>
                   </Link>
                 )}
-
-                {can(PERMISSIONS.CREATE_TRANSPORTS) && statusUpper === 'DISPATCHED' && (
-                  <Link href={`/transports/new?transportId=${row.id}`}>
-                    <AppButton size='sm' variant='secondary' type='button'>
-                      View
-                    </AppButton>
-                  </Link>
-                )}
-
+                
                 {isFranchiseLike && statusUpper === 'DISPATCHED' && (
                   <ConfirmDialog
                     title='Mark as delivered?'
@@ -331,6 +306,29 @@ export default function TransportsPage() {
                     }
                   />
                 )}
+
+                {/* Show Edit button only for ADMIN users when transport is DISPATCHED */}
+                {user?.role === 'ADMIN' && statusUpper === 'DISPATCHED' && (
+                  <Link href={`/transports/${row.id}/edit`}>
+                    <EditButton
+                      tooltip='Edit Transport'
+                      aria-label='Edit Transport'
+                    />
+                  </Link>
+                )}
+
+                 {/* Always show View button */}
+                {can(PERMISSIONS.READ_TRANSPORTS) && statusUpper !== 'PENDING' && (
+                <Link href={`/transports/${row.id}`}>
+                  <IconButton
+                    iconName='Eye'
+                    tooltip='View Transport Details'
+                    aria-label='View Transport Details'
+                  />
+                </Link>
+                )}
+
+                
               </div>
             );
           }}

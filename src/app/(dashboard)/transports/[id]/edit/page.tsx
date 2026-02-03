@@ -59,24 +59,47 @@ export default function EditTransportPage() {
 
         setTransportData(transportResponse);
 
-        // Fetch sale data
+        // Fetch sale data and calculate remaining quantities
         if (transportResponse.saleId) {
           const saleResponse = await apiGet(`/api/sales/${transportResponse.saleId}`) as any;
+          
           if (saleResponse) {
+            // Calculate total dispatched quantities from all DISPATCHED transports
+            const dispatchedQuantities = new Map<number, number>();
+            
+            if (saleResponse.transports?.length > 0) {
+              saleResponse.transports
+                .filter((transport: any) => String(transport.status || '').toUpperCase() === 'DISPATCHED')
+                .forEach((transport: any) => {
+                  (transport.transportDetails || []).forEach((detail: any) => {
+                    const saleDetailId = Number(detail.saleDetailId);
+                    const quantity = Number(detail.quantity) || 0;
+                    dispatchedQuantities.set(saleDetailId, (dispatchedQuantities.get(saleDetailId) || 0) + quantity);
+                  });
+                });
+            }
+            
             setSaleData({
               saleId: saleResponse.id,
               invoiceNo: saleResponse.invoiceNo,
               invoiceDate: saleResponse.invoiceDate,
               franchiseName: saleResponse.franchise?.name || 'Unknown',
-              saleDetails: saleResponse.saleDetails?.map((detail: any) => ({
-                id: detail.id,
-                medicineName: detail.medicine?.name || 'Unknown',
-                brandName: detail.medicine?.brand || 'N/A',
-                batchNumber: detail.batchNumber || 'N/A',
-                expiryDate: detail.expiryDate || 'N/A',
-                quantity: detail.quantity,
-                remainingQuantity: detail.quantity, // For new transport, all quantity is remaining
-              })) || []
+              saleDetails: saleResponse.saleDetails?.map((detail: any) => {
+                const saleDetailId = Number(detail.id);
+                const totalQuantity = Number(detail.quantity) || 0;
+                const dispatchedQuantity = dispatchedQuantities.get(saleDetailId) || 0;
+                const remainingQuantity = Math.max(0, totalQuantity - dispatchedQuantity);
+                
+                return {
+                  id: detail.id,
+                  medicineName: detail.medicine?.name || 'Unknown',
+                  brandName: detail.medicine?.brand || 'N/A',
+                  batchNumber: detail.batchNumber || 'N/A',
+                  expiryDate: detail.expiryDate || 'N/A',
+                  quantity: detail.quantity,
+                  remainingQuantity,
+                };
+              }) || []
             });
           }
         }
@@ -94,7 +117,6 @@ export default function EditTransportPage() {
   const handleSubmit = async (data: any) => {
     if (!transportId) return;
 
-    setIsLoading(true);
     try {
       // Prepare data for PATCH API
       const patchData = {
@@ -119,8 +141,6 @@ export default function EditTransportPage() {
       console.error('Failed to update transport:', err);
       const errorMessage = err?.response?.data?.message || err?.message || 'Failed to update transport';
       toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -146,13 +166,36 @@ export default function EditTransportPage() {
   if (isLoading || !transportData || !saleData) {
     return (
       <div className="container mx-auto py-6">
-        <AppCard>
-          <AppCard.Content>
-            <div className="text-center py-8">
-              <p>Loading transport data...</p>
+        <div className="space-y-6">
+          {/* Header skeleton */}
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded w-1/3 mb-2"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
+          </div>
+          
+          {/* Form card skeleton */}
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-muted rounded"></div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <div className="h-4 bg-muted rounded w-20"></div>
+                <div className="h-10 bg-muted rounded"></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-4 bg-muted rounded w-24"></div>
+                <div className="h-10 bg-muted rounded"></div>
+              </div>
             </div>
-          </AppCard.Content>
-        </AppCard>
+            <div className="space-y-2">
+              <div className="h-4 bg-muted rounded w-16"></div>
+              <div className="h-24 bg-muted rounded"></div>
+            </div>
+            <div className="flex gap-4">
+              <div className="h-10 bg-muted rounded w-24"></div>
+              <div className="h-10 bg-muted rounded w-16"></div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -189,7 +232,6 @@ export default function EditTransportPage() {
             transportId={transportId}
             onSubmit={handleSubmit}
             onCancel={handleCancel}
-            isLoading={isLoading}
             isEdit={true}
           />
         </AppCard.Content>

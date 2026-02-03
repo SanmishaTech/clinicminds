@@ -497,9 +497,9 @@ model Team{
   leavingDate   DateTime?
   addressLine1  String   @db.Text
   addressLine2  String?  @db.Text
-  city          String
-  state         String
-  pincode       String
+  city          String?
+  state         String?
+  pincode       String?
   userMobile    String
   userId        Int    @unique
   user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)

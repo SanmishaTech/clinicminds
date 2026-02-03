@@ -175,7 +175,7 @@ export default function FranchisesPage() {
       <AppCard.Header>
         <AppCard.Title>Franchises</AppCard.Title>
         <AppCard.Description>Manage franchises.</AppCard.Description>
-        {can(PERMISSIONS.EDIT_FRANCHISES) && (
+        {can(PERMISSIONS.CREATE_FRANCHISES) && (
           <AppCard.Action>
             <Link href='/franchises/new'>
               <AppButton size='sm' iconName='Plus' type='button'>

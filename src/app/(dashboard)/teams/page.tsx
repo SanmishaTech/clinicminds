@@ -145,6 +145,7 @@ export default function TeamsPage() {
     {
       key: 'userRole',
       header: 'Role',
+      sortable: true,
       accessor: (r) => {
         const role = r.user?.role || '—';
         if (role === 'FRANCHISE') return 'Franchise Admin';

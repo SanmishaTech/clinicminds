@@ -8,23 +8,23 @@ import { PERMISSIONS } from "@/config/roles";
 export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   // Dashboard
   { prefix: "/dashboard", permissions: [PERMISSIONS.VIEW_DASHBOARD] },
-  { prefix: "/users/new", permissions: [PERMISSIONS.EDIT_USERS] }, // create user page
+  { prefix: "/users/new", permissions: [PERMISSIONS.CREATE_USERS] }, // create user page
   { prefix: "/users/", permissions: [PERMISSIONS.EDIT_USERS] }, // edit user pages (/users/:id/...)
   { prefix: "/users", permissions: [PERMISSIONS.READ_USERS] }, // users list (view only)
 
-  { prefix: "/patients/new", permissions: [PERMISSIONS.EDIT_PATIENTS] },
+  { prefix: "/patients/new", permissions: [PERMISSIONS.CREATE_PATIENTS] },
   { prefix: "/patients/", permissions: [PERMISSIONS.EDIT_PATIENTS] },
   { prefix: "/patients", permissions: [PERMISSIONS.READ_PATIENTS] },
 
-  { prefix: "/franchises/new", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
+  { prefix: "/franchises/new", permissions: [PERMISSIONS.CREATE_FRANCHISES] },
   { prefix: "/franchises/", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
   { prefix: "/franchises", permissions: [PERMISSIONS.READ_FRANCHISES] },
 
-  { prefix: "/states/new", permissions: [PERMISSIONS.EDIT_STATES] },
+  { prefix: "/states/new", permissions: [PERMISSIONS.CREATE_STATES] },
   { prefix: "/states/", permissions: [PERMISSIONS.EDIT_STATES] },
   { prefix: "/states", permissions: [PERMISSIONS.READ_STATES] },
 
-  { prefix: "/cities/new", permissions: [PERMISSIONS.EDIT_CITIES] },
+  { prefix: "/cities/new", permissions: [PERMISSIONS.CREATE_CITIES] },
   { prefix: "/cities/", permissions: [PERMISSIONS.EDIT_CITIES] },
   { prefix: "/cities", permissions: [PERMISSIONS.READ_CITIES] },
 
@@ -150,7 +150,6 @@ export const API_ACCESS_RULES: ApiAccessRule[] = [
       GET: [PERMISSIONS.READ_SALES],
       POST: [PERMISSIONS.CREATE_SALES],
       PATCH: [PERMISSIONS.EDIT_SALES],
-      DELETE: [PERMISSIONS.DELETE_SALES],
     },
   },
   {

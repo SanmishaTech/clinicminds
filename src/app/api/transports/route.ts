@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
           return { saleDetailId, quantity: qty };
         });
       } else {
-        const requestedDispatchQty = Number(data.dispatchedQuantity ?? 0) || 0;
+        const requestedDispatchQty = Number((data as any).dispatchedQuantity ?? 0) || 0;
         if (requestedDispatchQty > totalRemainingQty) throw new Error('DISPATCHED_QTY_EXCEEDS_REMAINING');
 
         let remaining = requestedDispatchQty;

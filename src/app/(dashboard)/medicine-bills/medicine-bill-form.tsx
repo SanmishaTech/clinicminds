@@ -112,9 +112,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
         amount: detail.amount.toString(),
       })) : [{ medicineId: '', qty: '', mrp: '', amount: '' }],
       addReceipt: mode === 'create' ? false : undefined,
-      receipt: mode === 'create' ? {
-        date: new Date().toISOString().split('T')[0], // Today's date for receipt
-      } : undefined,
+      receipt: mode === 'create' ? undefined : undefined,
     },
   });
 
@@ -135,6 +133,20 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
   const watchedDiscountPercent = useWatch({ control, name: 'discountPercent' });
   const watchedReceiptAmount = useWatch({ control, name: 'receipt.amount' });
   const currentTotalAmount = useWatch({ control, name: 'totalAmount' });
+  const watchedAddReceipt = useWatch({ control, name: 'addReceipt' });
+
+  // Set receipt date when addReceipt is checked, clear when unchecked
+  useEffect(() => {
+    if (watchedAddReceipt) {
+      const currentReceiptDate = form.getValues('receipt.date');
+      if (!currentReceiptDate) {
+        setValue('receipt.date', new Date().toISOString().split('T')[0]);
+      }
+    } else {
+      // Clear receipt date when addReceipt is unchecked
+      setValue('receipt.date', undefined);
+    }
+  }, [watchedAddReceipt, setValue, form]);
 
   // Check if total amount is 0 to disable receipt fields
   const isTotalAmountZero = parseFloat(String(currentTotalAmount || '0')) === 0;

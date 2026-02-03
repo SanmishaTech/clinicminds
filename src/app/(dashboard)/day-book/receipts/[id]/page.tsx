@@ -5,7 +5,6 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form } from '@/components/ui/form';
 import { z } from 'zod';
-import { format } from 'date-fns';
 import { toast } from '@/lib/toast';
 import { apiGet, apiPost } from '@/lib/api-client';
 import { AppCard } from '@/components/common/app-card';
@@ -15,7 +14,7 @@ import TextareaInput from '@/components/common/textarea-input';
 import { ComboboxInput } from '@/components/common/combobox-input';
 import { FormSection, FormRow } from '@/components/common/app-form';
 import { DataTable, Column } from '@/components/common/data-table';
-import { formatIndianCurrency, formatDate } from '@/lib/locales';
+import { formatIndianCurrency, formatDate, formatDateTime } from '@/lib/locales';
 import { useParams, useRouter } from 'next/navigation';
 import jsPDF from 'jspdf';
 
@@ -459,7 +458,7 @@ export default function ReceiptPage() {
 
       // Save PDF
       const filenameBase = `consultation-invoice-${consultationData.consultationNumber || consultationData.appointment.id}`;
-      const dateStr = format(new Date(), 'dd-MM-yyyy');
+      const dateStr = formatDateTime(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' });
       doc.save(`${filenameBase}-${dateStr}.pdf`);
     } catch (e) {
       toast.error('Failed to generate PDF');
@@ -475,7 +474,7 @@ export default function ReceiptPage() {
           <AppCard.Title>Consultation Information</AppCard.Title>
         </AppCard.Header>
         <AppCard.Content>
-          <FormRow cols={4}>
+          <FormRow cols={5}>
             <div>
               <label className="block text-sm font-medium">Patient No</label>
               <p className="text-sm">{consultationData.appointment.patient.patientNo}</p>
@@ -499,7 +498,7 @@ export default function ReceiptPage() {
             <div>
               <label className="block text-sm font-medium">Appointment Date and Time</label>
               <p className="text-sm">
-                {format(new Date(consultationData.appointment.appointmentDateTime), 'dd/MM/yyyy hh:mm a')}
+                {formatDateTime(new Date(consultationData.appointment.appointmentDateTime), { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}
               </p>
             </div>
           </FormRow>

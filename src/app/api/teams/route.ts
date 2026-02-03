@@ -77,10 +77,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const sortableFields = new Set(["name", "city", "state", "createdAt", "joiningDate"]);
-  const orderBy: Record<string, "asc" | "desc"> = sortableFields.has(sort)
-    ? { [sort]: order }
-    : { createdAt: "desc" };
+  const sortableFields = new Set(["name", "city", "state", "createdAt", "joiningDate", "userRole"]);
+  const orderBy: any = (() => {
+    if (!sortableFields.has(sort)) return { createdAt: "desc" };
+    
+    switch (sort) {
+      case "userRole":
+        return { user: { role: order } };
+      default:
+        return { [sort]: order };
+    }
+  })();
 
   const result = await paginate({
     model: prisma.team,

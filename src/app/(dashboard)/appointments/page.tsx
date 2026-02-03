@@ -15,8 +15,7 @@ import { DeleteButton } from '@/components/common/delete-button';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
 import { MASTER_CONFIG } from '@/config/master';
-import { formatDate } from '@/lib/locales';
-import { format } from 'date-fns';
+import { formatDate, formatDateTime } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
 import { EditButton } from '@/components/common/icon-button';
@@ -271,7 +270,14 @@ export default function AppointmentsPage() {
       key: 'appointmentDateTime',
       header: 'Date & Time',
       sortable: true,
-      accessor: (r) => format(new Date(r.appointmentDateTime), 'dd/MM/yyyy hh:mm a'),
+      accessor: (r) => formatDateTime(r.appointmentDateTime, { 
+        year: 'numeric', 
+        month: '2-digit', 
+        day: '2-digit', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      }),
       cellClassName: 'whitespace-nowrap',
     },
     {
@@ -332,7 +338,7 @@ export default function AppointmentsPage() {
       <AppCard.Header>
         <AppCard.Title>Appointments</AppCard.Title>
         <AppCard.Description>Manage appointments.</AppCard.Description>
-        {can(PERMISSIONS.EDIT_APPOINTMENTS) && (
+        {can(PERMISSIONS.CREATE_APPOINTMENTS) && (
           <AppCard.Action>
             <Link href='/appointments/new'>
               <AppButton size='sm' iconName='Plus' type='button'>

@@ -13,7 +13,7 @@ import IconButton from '@/components/common/icon-button';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
-import { formatRelativeTime, formatIndianCurrency } from '@/lib/locales';
+import { formatRelativeTime, formatIndianCurrency, formatDate } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
 
@@ -117,7 +117,7 @@ export default function MedicineBillsPage() {
       sortable: true,
       className: 'whitespace-nowrap',
       cellClassName: 'text-muted-foreground whitespace-nowrap',
-      accessor: (r) => new Date(r.billDate).toLocaleDateString('en-IN'),
+      accessor: (r) => formatDate(new Date(r.billDate)),
     },
     {
       key: 'patient',
