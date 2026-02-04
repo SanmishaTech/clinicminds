@@ -69,9 +69,12 @@ export async function GET(
     // Calculate remaining quantities considering all dispatched transports
     const dispatchedQuantities = new Map<number, number>();
     
-    // Aggregate quantities from all DISPATCHED transports
+    // Aggregate quantities from all DISPATCHED and DELIVERED transports
     transports
-      .filter((transport) => String(transport.status || '').toUpperCase() === 'DISPATCHED')
+      .filter((transport) => {
+        const status = String(transport.status || '').toUpperCase();
+        return status === 'DISPATCHED' || status === 'DELIVERED';
+      })
       .forEach((transport) => {
         (transport.transportDetails || []).forEach((detail) => {
           const saleDetailId = Number(detail.saleDetailId);

@@ -43,6 +43,7 @@ type ReceiptFormData = z.infer<typeof receiptSchema>;
 type ConsultationData = {
   id: number;
   consultationNumber?: string;
+  discountPercentage?: number | string;
   totalAmount: string;
   totalReceivedAmount?: string | null;
   complaint?: string;
@@ -364,7 +365,7 @@ export default function ReceiptPage() {
 
       // Table headers
       const headers = ['Type', 'Description', 'Quantity', 'MRP', 'Amount'];
-      const colWidths = [25, 100, 25, 30, 40];
+      const colWidths = [25, 90, 35, 30, 40];
       const rowH = 8;
 
       const drawRow = (rowData: string[], isHeader = false, isBold = false) => {
@@ -427,11 +428,25 @@ export default function ReceiptPage() {
         y = drawRow(['', '', 'Subtotal:', '', formatPdfCurrency(medicinesSubtotal)], false, true);
       }
 
-      // Grand Total - right after medicines subtotal
+      // Grand Total calculation with discount
       const servicesSubtotal = consultationData.consultationDetails?.reduce((sum, detail) => sum + parseFloat(detail.amount.toString()), 0) || 0;
       const medicinesSubtotal = consultationData.consultationMedicines?.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0) || 0;
-      const grandTotal = parseFloat(servicesSubtotal.toString()) + parseFloat(medicinesSubtotal.toString());
+      const subtotal = parseFloat(servicesSubtotal.toString()) + parseFloat(medicinesSubtotal.toString());
       
+      // Calculate discount
+      const discountPercentage = parseFloat(consultationData.discountPercentage?.toString() || '0') || 0;
+      const discountAmount = subtotal * (discountPercentage / 100);
+      const grandTotal = Math.max(0, subtotal - discountAmount);
+      
+      // Show subtotal
+      y = drawRow(['', '', 'Subtotal:', '', formatPdfCurrency(subtotal)], false, true);
+      
+      // Show discount if applicable
+      if (discountPercentage > 0) {
+        y = drawRow(['', '', `Discount (${discountPercentage}%):`, '', `-${formatPdfCurrency(discountAmount)}`], false, true);
+      }
+      
+      // Show grand total
       y = drawRow(['', '', 'Grand Total:', '', formatPdfCurrency(grandTotal)], false, true);
 
       // Receipts
@@ -474,7 +489,7 @@ export default function ReceiptPage() {
           <AppCard.Title>Consultation Information</AppCard.Title>
         </AppCard.Header>
         <AppCard.Content>
-          <FormRow cols={5}>
+          <FormRow cols={4}>
             <div>
               <label className="block text-sm font-medium">Patient No</label>
               <p className="text-sm">{consultationData.appointment.patient.patientNo}</p>
@@ -495,14 +510,14 @@ export default function ReceiptPage() {
               <label className="block text-sm font-medium">Gender</label>
               <p className="text-sm">{consultationData.appointment.patient.gender}</p>
             </div>
+          </FormRow>
+          <FormRow cols={5}>
             <div>
               <label className="block text-sm font-medium">Appointment Date and Time</label>
               <p className="text-sm">
                 {formatDateTime(new Date(consultationData.appointment.appointmentDateTime), { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true })}
               </p>
             </div>
-          </FormRow>
-          <FormRow cols={4}>
             <div>
               <label className="block text-sm font-medium">Total Amount</label>
               <p className="text-sm font-medium">

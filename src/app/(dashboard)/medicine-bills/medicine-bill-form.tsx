@@ -407,7 +407,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
                               onChange={(e) =>
                                 updateDetailAmount(index, 'mrp', e.target.value)
                               }
-                              disabled={!watchedDetails?.[index]?.medicineId}
+                              disabled
                             />
                           </div>
                         )}

@@ -37,8 +37,10 @@ export interface TeamFormInitialData {
   name?: string;
   addressLine1?: string | null;
   addressLine2?: string | null;
-  city?: string;
-  state?: string;
+  cityId?: number | null;
+  stateId?: number | null;
+  city?: string;  // For backward compatibility
+  state?: string; // For backward compatibility
   pincode?: string;
   userName?: string | null;
   userMobile?: string;
@@ -71,7 +73,11 @@ export function TeamForm({
     addressLine2: z.string().max(500, 'Address Line 2 must be less than 500 characters').nullable().optional(),
     stateId: z.string().optional().nullable(),
     cityId: z.string().optional().nullable(),
-    pincode: z.string().optional().nullable().refine(val => !val || /^[0-9]{6}$/.test(val), {
+    pincode: z.string().optional().nullable().transform((val) => {
+      // Convert empty string or null to undefined
+      if (val === null || val === '' || val === undefined) return undefined;
+      return val;
+    }).refine(val => !val || /^[0-9]{6}$/.test(val), {
       message: 'Pincode must be exactly 6 digits'
     }),
     joiningDate: z.string().nullable().optional(),
@@ -101,8 +107,8 @@ export function TeamForm({
       name: initial?.name || '',
       addressLine1: initial?.addressLine1 || '',
       addressLine2: initial?.addressLine2 || null,
-      stateId: '',
-      cityId: '',
+      stateId: initial?.stateId ? String(initial.stateId) : '',
+      cityId: initial?.cityId ? String(initial.cityId) : '',
       pincode: initial?.pincode || '',
       joiningDate: initial?.joiningDate || null,
       leavingDate: initial?.leavingDate || null,
@@ -163,9 +169,21 @@ export function TeamForm({
   useEffect(() => {
     if (!statesResp?.data?.length) return;
     if (mode === 'create') return;
-    if (!initial?.state || !initial?.city) return;
+    if (!initial?.stateId && !initial?.state) return;
     if (form.getValues('stateId')) return;
 
+    // If we have stateId, use it directly
+    if (initial?.stateId) {
+      form.setValue('stateId', String(initial.stateId), { shouldDirty: false, shouldValidate: true });
+      
+      // If we also have cityId, set it
+      if (initial?.cityId) {
+        form.setValue('cityId', String(initial.cityId), { shouldDirty: false, shouldValidate: true });
+      }
+      return;
+    }
+
+    // Fallback to string-based lookup for backward compatibility
     const stateMatch = statesResp.data.find((s) => s.state === initial.state);
     if (!stateMatch) return;
     form.setValue('stateId', String(stateMatch.id), { shouldDirty: false, shouldValidate: true });
@@ -180,9 +198,6 @@ export function TeamForm({
   async function onSubmit(values: RawFormValues) {
     setSubmitting(true);
     try {
-      const stateLabel = stateOptions.find((s) => s.value === values.stateId)?.label || '';
-      const cityLabel = cityOptions.find((c) => c.value === values.cityId)?.label || '';
-
       if (mode === 'create') {
         const res = await apiPost('/api/teams', {
           name: values.name.trim(),
@@ -192,9 +207,9 @@ export function TeamForm({
           status: values.status,
           addressLine1: values.addressLine1.trim(),
           addressLine2: values.addressLine2?.trim() || null,
-          city: cityLabel.trim() || null,
-          state: stateLabel.trim() || null,
-          pincode: values.pincode?.trim() || null,
+          stateId: values.stateId ? Number(values.stateId) : null,
+          cityId: values.cityId ? Number(values.cityId) : null,
+          pincode: values.pincode?.trim() || undefined,
           userMobile: values.userMobile.trim(),
           joiningDate: values.joiningDate ? new Date(values.joiningDate).toISOString() : null,
           leavingDate: values.leavingDate ? new Date(values.leavingDate).toISOString() : null,
@@ -210,9 +225,9 @@ export function TeamForm({
           status: values.status,
           addressLine1: values.addressLine1.trim(),
           addressLine2: values.addressLine2?.trim() || null,
-          city: cityLabel.trim() || null,
-          state: stateLabel.trim() || null,
-          pincode: values.pincode?.trim() || null,
+          stateId: values.stateId ? Number(values.stateId) : null,
+          cityId: values.cityId ? Number(values.cityId) : null,
+          pincode: values.pincode?.trim() || undefined,
           userMobile: values.userMobile.trim(),
           joiningDate: values.joiningDate ? new Date(values.joiningDate).toISOString() : null,
           leavingDate: values.leavingDate ? new Date(values.leavingDate).toISOString() : null,

@@ -44,6 +44,7 @@ type MedicineBillData = {
   id: number;
   billNumber: string;
   billDate: string;
+  discountPercent: number;
   totalAmount: number;
   totalReceivedAmount?: number;
   patient: {
@@ -419,14 +420,14 @@ export default function MedicineBillReceiptsPage() {
               <label className="block text-sm font-medium">Gender</label>
               <p className="text-sm">{medicineBillData.patient.gender}</p>
             </div>
+          </FormRow>
+          <FormRow cols={5}>
             <div>
               <label className="block text-sm font-medium">Bill Date</label>
               <p className="text-sm">
                 {formatDateTime(new Date(medicineBillData.billDate), { year: 'numeric', month: '2-digit', day: '2-digit' })}
               </p>
             </div>
-          </FormRow>
-          <FormRow cols={4}>
             <div>
               <label className="block text-sm font-medium">Total Amount</label>
               <p className="text-sm font-medium">
@@ -478,6 +479,27 @@ export default function MedicineBillReceiptsPage() {
                     <div className="px-4 py-2 font-medium text-sm">{formatIndianCurrency(medicine.amount)}</div>
                   </div>
                 ))}
+                {/* Summary Rows */}
+                <div className="grid grid-cols-4 gap-0 border-t">
+                  <div className="col-span-3 px-4 py-2 font-medium text-sm text-right border-r">Subtotal:</div>
+                  <div className="px-4 py-2 font-medium text-sm">
+                    {formatIndianCurrency(medicineBillData.medicineDetails.reduce((sum, med) => sum + parseFloat(String(med.amount)), 0))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-0 border-t">
+                  <div className="col-span-3 px-4 py-2 font-medium text-sm text-right border-r">
+                    Discount ({medicineBillData.discountPercent}%):
+                  </div>
+                  <div className="px-4 py-2 font-medium text-sm">
+                    {formatIndianCurrency(medicineBillData.medicineDetails.reduce((sum, med) => sum + parseFloat(String(med.amount)), 0) - parseFloat(String(medicineBillData.totalAmount)))}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-0 border-t bg-muted">
+                  <div className="col-span-3 px-4 py-2 font-bold text-sm text-right border-r">Total Amount:</div>
+                  <div className="px-4 py-2 font-bold text-sm">
+                    {formatIndianCurrency(parseFloat(String(medicineBillData.totalAmount)))}
+                  </div>
+                </div>
               </div>
             </div>
           )}

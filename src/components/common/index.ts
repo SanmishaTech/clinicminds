@@ -6,6 +6,7 @@ export * from "./app-select";
 export * from "./combobox-input";
 export * from "./confirm-dialog";
 export * from "./data-table";
+export * from "./editable-combobox-input";
 export * from "./email-input";
 export * from "./filter-bar";
 export * from "./improved-upload-input";

@@ -16,8 +16,8 @@ export const teamSchema = z.object({
   // Team-specific fields
   addressLine1: z.string().min(1, "Address Line 1 is required").max(500, "Address Line 1 must be less than 500 characters"),
   addressLine2: z.string().max(500, "Address Line 2 must be less than 500 characters").nullable().optional(),
-  city: z.string().min(1, "City is required").max(100, "City must be less than 100 characters").optional().nullable(),
-  state: z.string().min(1, "State is required").max(100, "State must be less than 100 characters").optional().nullable(),
+  stateId: z.number().nullable().optional(),
+  cityId: z.number().nullable().optional(),
   pincode: z.string().regex(/^[0-9]{6}$/, "Pincode must be exactly 6 digits").optional().nullable(),
   userMobile: z.string().regex(/^[0-9]{10}$/, "Mobile number must be exactly 10 digits"),
   joiningDate: z.string().nullable().optional(),

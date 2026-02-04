@@ -22,8 +22,8 @@ import { EditButton } from '@/components/common/icon-button';
 type TeamListItem = {
   id: number;
   name: string;
-  city: string;
-  state: string;
+  city: { id: number; city: string } | null;
+  state: { id: number; state: string } | null;
   pincode: string;
   userMobile: string;
   joiningDate: string | null;
@@ -115,12 +115,14 @@ export default function TeamsPage() {
       key: 'city',
       header: 'City',
       sortable: true,
+      accessor: (r) => r.city?.city || '—',
       cellClassName: 'whitespace-nowrap',
     },
     {
       key: 'state',
       header: 'State',
       sortable: true,
+      accessor: (r) => r.state?.state || '—',
       cellClassName: 'whitespace-nowrap',
     },
     {

@@ -16,7 +16,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { PERMISSIONS, ROLES } from '@/config/roles';
 import { MASTER_CONFIG } from '@/config/master';
-import { formatDate } from '@/lib/locales';
+import { formatDate, formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import Link from 'next/link';
 import { EditButton, IconButton } from '@/components/common/icon-button';
@@ -148,7 +148,7 @@ export default function PatientsPage() {
         header: 'Team',
         sortable: true,
         cellClassName: 'whitespace-nowrap',
-        accessor: (r) => r.team?.name || '-',
+        accessor: (r) => r.team?.name || '—',
       },
       {
         key: 'gender',
@@ -167,14 +167,21 @@ export default function PatientsPage() {
         key: 'state',
         header: 'State',
         sortable: true,
-        accessor: (r) => r.state?.state || '-',
+        accessor: (r) => r.state?.state || '—',
         cellClassName: 'whitespace-nowrap',
       },
       {
         key: 'city',
         header: 'City',
         sortable: true,
-        accessor: (r) => r.city?.city || '-',
+        accessor: (r) => r.city?.city || '—',
+        cellClassName: 'whitespace-nowrap',
+      },
+      {
+        key: "balanceAmount",
+        header: "Balance Amount",
+        sortable: true,
+        accessor: (r) => formatIndianCurrency(r.balanceAmount),
         cellClassName: 'whitespace-nowrap',
       },
       {
@@ -192,7 +199,7 @@ export default function PatientsPage() {
         key: 'franchise',
         header: 'Franchise',
         sortable: true,
-        accessor: (r) => r.franchise?.name || '-',
+        accessor: (r) => r.franchise?.name || '—',
         cellClassName: 'whitespace-nowrap',
       });
     }

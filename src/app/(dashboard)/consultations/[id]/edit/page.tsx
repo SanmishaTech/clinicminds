@@ -14,6 +14,7 @@ type ConsultationApiResponse = {
   remarks: string | null;
   casePaperUrl: string | null;
   nextFollowUpDate: string | null;
+  discountPercentage: number | string;
   totalAmount: number | string;
   consultationDetails: {
     serviceId: number;
@@ -59,6 +60,7 @@ export default function EditConsultationPage() {
           remarks: data.remarks || '',
           casePaperUrl: data.casePaperUrl || '',  
           nextFollowUpDate: data.nextFollowUpDate || undefined,
+          discountPercentage: Number(data.discountPercentage) || 0,
           totalAmount: Number(data.totalAmount) || 0,
           consultationDetails: (data.consultationDetails || []).map((d) => ({
             serviceId: d.serviceId,

@@ -84,6 +84,10 @@ export async function GET(req: NextRequest) {
     switch (sort) {
       case "userRole":
         return { user: { role: order } };
+      case "city":
+        return { city: { city: order } };
+      case "state":
+        return { state: { state: order } };
       default:
         return { [sort]: order };
     }
@@ -102,12 +106,18 @@ export async function GET(req: NextRequest) {
       leavingDate: true,
       addressLine1: true,
       addressLine2: true,
-      city: true,
-      state: true,
+      stateId: true,
+      cityId: true,
       pincode: true,
       userMobile: true,
       createdAt: true,
       updatedAt: true,
+      state: {
+        select: { id: true, state: true },
+      },
+      city: {
+        select: { id: true, city: true },
+      },
       user: {
         select: {
           id: true,
@@ -202,12 +212,18 @@ export async function POST(req: NextRequest) {
           leavingDate: true,
           addressLine1: true,
           addressLine2: true,
-          city: true,
-          state: true,
+          stateId: true,
+          cityId: true,
           pincode: true,
           userMobile: true,
           createdAt: true,
           updatedAt: true,
+          state: {
+            select: { id: true, state: true },
+          },
+          city: {
+            select: { id: true, city: true },
+          },
           user: {
             select: { id: true, name: true, email: true, status: true },
           },
@@ -291,8 +307,8 @@ export async function PATCH(req: NextRequest) {
       password: z.string().min(8, "Password must be at least 8 characters").max(255, "Password must be less than 255 characters").optional(),
       addressLine1: z.string().min(1, "Address Line 1 is required").max(500, "Address Line 1 must be less than 500 characters").optional(),
       addressLine2: z.string().max(500, "Address Line 2 must be less than 500 characters").nullable().optional(),
-      city: z.string().min(1, "City is required").max(100, "City must be less than 100 characters").optional(),
-      state: z.string().min(1, "State is required").max(100, "State must be less than 100 characters").optional(),
+      stateId: z.number().nullable().optional(),
+      cityId: z.number().nullable().optional(),
       pincode: z.string().regex(/^[0-9]{6}$/, "Pincode must be exactly 6 digits").optional(),
       userMobile: z.string().regex(/^[0-9]{10}$/, "Mobile number must be exactly 10 digits").optional(),
       email: z.string().email("Invalid email format").max(255, "Email must be less than 255 characters").optional(),
@@ -329,9 +345,26 @@ export async function PATCH(req: NextRequest) {
     if (teamData.joiningDate) data.joiningDate = new Date(teamData.joiningDate);
     if (teamData.leavingDate) data.leavingDate = new Date(teamData.leavingDate);
     
-    // Add other team fields
+    // Handle state and city relations using connect syntax
+    if (teamData.stateId !== undefined) {
+      if (teamData.stateId === null) {
+        data.state = { disconnect: true };
+      } else {
+        data.state = { connect: { id: teamData.stateId } };
+      }
+    }
+    
+    if (teamData.cityId !== undefined) {
+      if (teamData.cityId === null) {
+        data.city = { disconnect: true };
+      } else {
+        data.city = { connect: { id: teamData.cityId } };
+      }
+    }
+    
+    // Add other team fields (excluding stateId, cityId, joiningDate, leavingDate)
     Object.keys(teamData).forEach(key => {
-      if (key !== 'joiningDate' && key !== 'leavingDate' && teamData[key as keyof typeof teamData] !== undefined) {
+      if (key !== 'joiningDate' && key !== 'leavingDate' && key !== 'stateId' && key !== 'cityId' && teamData[key as keyof typeof teamData] !== undefined) {
         data[key] = teamData[key as keyof typeof teamData];
       }
     });
@@ -367,12 +400,18 @@ export async function PATCH(req: NextRequest) {
         leavingDate: true,
         addressLine1: true,
         addressLine2: true,
-        city: true,
-        state: true,
+        stateId: true,
+        cityId: true,
         pincode: true,
         userMobile: true,
         createdAt: true,
         updatedAt: true,
+        state: {
+          select: { id: true, state: true },
+        },
+        city: {
+          select: { id: true, city: true },
+        },
         user: {
           select: { id: true, name: true, email: true, status: true },
         },

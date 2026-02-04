@@ -22,8 +22,8 @@ export default function EditTeamPage() {
           name: string;
           addressLine1: string | null;
           addressLine2: string | null;
-          city: string;
-          state: string;
+          cityId: number | null;
+          stateId: number | null;
           pincode: string;
           userMobile: string;
           joiningDate: string | null;
@@ -36,8 +36,8 @@ export default function EditTeamPage() {
           name: data.name,
           addressLine1: data.addressLine1,
           addressLine2: data.addressLine2,
-          city: data.city,
-          state: data.state,
+          cityId: data.cityId,
+          stateId: data.stateId,
           pincode: data.pincode,
           userMobile: data.userMobile,
           joiningDate: data.joiningDate?.split('T')[0],

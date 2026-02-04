@@ -43,12 +43,22 @@ export default function EditPatientPage() {
           address: string;
           stateId: number | null;
           cityId: number | null;
+          state: {
+            id: number;
+            state: string;
+          } | null;
+          city: {
+            id: number;
+            city: string;
+            stateId: number;
+          } | null;
           pincode: string | null;
           mobile: string;
           mobile2: string | null;
           email: string | null;
           aadharNo: string;
           occupation: string | null;
+          occupationType: string | null;
           maritalStatus: string | null;
           contactPersonName: string | null;
           contactPersonRelation: string | null;
@@ -91,12 +101,15 @@ export default function EditPatientPage() {
           address: data.address,
           stateId: data.stateId,
           cityId: data.cityId,
+          state: data.state,
+          city: data.city,
           pincode: data.pincode,
           mobile: data.mobile,
           mobile2: data.mobile2,
           email: data.email,
           aadharNo: data.aadharNo,
           occupation: data.occupation,
+          occupationType: data.occupationType,
           maritalStatus: data.maritalStatus,
           contactPersonName: data.contactPersonName,
           contactPersonRelation: data.contactPersonRelation,

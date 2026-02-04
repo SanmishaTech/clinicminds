@@ -15,6 +15,7 @@ import { apiGet, apiPost, apiPatch } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
 import { useRouter } from 'next/navigation';
 import { ComboboxInput } from '@/components/common/combobox-input';
+import { EditableComboboxInput } from '@/components/common/editable-combobox-input';
 import { SelectInput } from '@/components/common/select-input';
 import { EmailInput } from '@/components/common/email-input';
 import { ImprovedUploadInput } from '@/components/common';
@@ -74,12 +75,22 @@ export interface PatientFormInitialData {
   address?: string;
   stateId?: number | null;
   cityId?: number | null;
+  state?: {
+    id: number;
+    state: string;
+  } | null;  // state name from relationship
+  city?: {
+    id: number;
+    city: string;
+    stateId: number;
+  } | null;   // city name from relationship
   pincode?: string | null;
   mobile?: string;
   mobile2?: string | null;
   email?: string | null;
   aadharNo?: string;
   occupation?: string | null;
+  occupationType?: string | null;
   maritalStatus?: string | null;
   contactPersonName?: string | null;
   contactPersonRelation?: string | null;
@@ -188,8 +199,8 @@ export function PatientForm({
 
     address: z.string().min(1, 'Address is required'),
 
-    stateId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
-    cityId: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    stateName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    cityName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
 
     pincode: z
       .string()
@@ -231,6 +242,7 @@ export function PatientForm({
       .regex(/^[0-9]{12}$/, 'Aadhar No must be 12 digits'),
 
     occupation: z.string().optional().transform((v) => (v === '' ? undefined : v)),
+    occupationType: z.string().optional().transform((v) => (v === '' ? undefined : v)),
     maritalStatus: z.string().optional().transform((v) => (v === '' ? undefined : v)),
 
     contactPersonName: z.string().optional().transform((v) => (v === '' ? undefined : v)),
@@ -270,6 +282,16 @@ export function PatientForm({
 
   type RawFormValues = z.infer<typeof schema>;
 
+ const { data: statesResp } = useSWR<StatesResponse>(
+    '/api/states?page=1&perPage=100&sort=state&order=asc',
+    apiGet
+  );
+
+  const { data: citiesResp } = useSWR<CitiesResponse>(
+    '/api/cities?page=1&perPage=100&sort=city&order=asc',
+    apiGet
+  );
+
   const form = useForm<RawFormValues>({
     resolver: zodResolver(schema),
     mode: 'onChange',
@@ -288,14 +310,43 @@ export function PatientForm({
       weight: initial?.weight || '',
       bmi: initial?.bmi || '',
       address: initial?.address || '',
-      stateId: initial?.stateId ? String(initial.stateId) : '',
-      cityId: initial?.cityId ? String(initial.cityId) : '',
+      stateName: (() => {
+        if (initial?.stateId && statesResp?.data) {
+          const state = statesResp.data.find(s => s.id === initial.stateId);
+          return state?.state || '';
+        }
+        // Handle case where state is returned as an object from API
+        if (initial?.state && typeof initial.state === 'object') {
+          return initial.state.state || '';
+        }
+        // Handle case where state is returned as a string (backward compatibility)
+        if (initial?.state && typeof initial.state === 'string') {
+          return initial.state;
+        }
+        return '';
+      })(),
+      cityName: (() => {
+        if (initial?.cityId && citiesResp?.data) {
+          const city = citiesResp.data.find(c => c.id === initial.cityId);
+          return city?.city || '';
+        }
+        // Handle case where city is returned as an object from API
+        if (initial?.city && typeof initial.city === 'object') {
+          return initial.city.city || '';
+        }
+        // Handle case where city is returned as a string (backward compatibility)
+        if (initial?.city && typeof initial.city === 'string') {
+          return initial.city;
+        }
+        return '';
+      })(),
       pincode: initial?.pincode || '',
       mobile: initial?.mobile || '',
       mobile2: initial?.mobile2 || '',
       email: initial?.email || '',
       aadharNo: initial?.aadharNo || '',
       occupation: initial?.occupation || '',
+      occupationType: initial?.occupationType || '',
       maritalStatus: initial?.maritalStatus || undefined,
       contactPersonName: initial?.contactPersonName || '',
       contactPersonRelation: initial?.contactPersonRelation || '',
@@ -323,8 +374,8 @@ export function PatientForm({
   const dateOfBirthValue = form.watch('dateOfBirth');
   const heightValue = form.watch('height');
   const weightValue = form.watch('weight');
-  const stateIdValue = form.watch('stateId');
-  const cityIdValue = form.watch('cityId');
+  const stateNameValue = form.watch('stateName');
+  const cityNameValue = form.watch('cityName');
   const medicalInsuranceValue = form.watch('medicalInsurance');
   const isCreate = mode === 'create';
 
@@ -352,15 +403,7 @@ export function PatientForm({
     form.setValue('bmi', next, { shouldDirty: true, shouldValidate: true });
   }, [heightValue, weightValue, form]);
 
-  const { data: statesResp } = useSWR<StatesResponse>(
-    '/api/states?page=1&perPage=100&sort=state&order=asc',
-    apiGet
-  );
-
-  const { data: citiesResp } = useSWR<CitiesResponse>(
-    '/api/cities?page=1&perPage=100&sort=city&order=asc',
-    apiGet
-  );
+ 
 
   const { data: teamsResp } = useSWR<TeamsResponse>(
     '/api/teams?page=1&perPage=100&sort=name&order=asc',
@@ -373,12 +416,19 @@ export function PatientForm({
   );
 
   const stateOptions = useMemo(() => {
-    return (statesResp?.data || []).map((s) => ({ value: String(s.id), label: s.state }));
+    return (statesResp?.data || []).map((s) => ({ value: s.state, label: s.state }));
   }, [statesResp]);
 
   const cityOptions = useMemo(() => {
-    return (citiesResp?.data || []).map((c) => ({ value: String(c.id), label: c.city }));
-  }, [citiesResp]);
+    if (!stateNameValue || typeof stateNameValue !== 'string') return [];
+    const selectedState = statesResp?.data?.find(s => 
+      s.state.toLowerCase() === stateNameValue.toLowerCase()
+    );
+    if (!selectedState) return [];
+    return (citiesResp?.data || [])
+      .filter(c => c.stateId === selectedState.id)
+      .map((c) => ({ value: c.city, label: c.city }));
+  }, [citiesResp, stateNameValue, statesResp]);
 
   const teamOptions = useMemo(() => {
     return (teamsResp?.data || []).map((t) => ({ value: String(t.id), label: t.name }));
@@ -388,15 +438,31 @@ export function PatientForm({
     return (labsResp?.data || []).map((l) => ({ value: String(l.id), label: l.name }));
   }, [labsResp]);
 
+  // No need for state-city validation since they are now independent string fields
+
+  // Clear city when state changes to prevent invalid state-city combinations
   useEffect(() => {
-    if (!stateIdValue) {
-      if (cityIdValue) form.setValue('cityId', '');
-      return;
+    if (stateNameValue && typeof stateNameValue === 'string') {
+      const currentCity = form.getValues('cityName');
+      if (currentCity && typeof currentCity === 'string') {
+        // Check if current city belongs to the selected state
+        const selectedState = statesResp?.data?.find(s => 
+          s.state.toLowerCase() === stateNameValue.toLowerCase()
+        );
+        const cityBelongsToState = selectedState && citiesResp?.data?.some(c => 
+          c.city.toLowerCase() === currentCity.toLowerCase() && c.stateId === selectedState.id
+        );
+        
+        // Clear city if it doesn't belong to the selected state
+        if (!cityBelongsToState) {
+          form.setValue('cityName', '', { shouldDirty: true, shouldValidate: true });
+        }
+      }
+    } else {
+      // Clear city when state is cleared
+      form.setValue('cityName', '', { shouldDirty: true, shouldValidate: true });
     }
-    if (!cityIdValue) return;
-    const exists = cityOptions.some((c) => c.value === cityIdValue);
-    if (!exists) form.setValue('cityId', '');
-  }, [stateIdValue, cityIdValue, cityOptions, form]);
+  }, [stateNameValue, form, statesResp, citiesResp]);
 
   useEffect(() => {
     if (medicalInsuranceValue) return;
@@ -412,6 +478,36 @@ export function PatientForm({
     setSubmitting(true);
     try {
       const hasInsurance = values.medicalInsurance ?? false;
+      
+      // Handle state lookup/create logic
+      let stateId: number | null = null;
+      let stateCreate: string | undefined = undefined;
+      
+      if (values.stateName) {
+        const existingState = statesResp?.data?.find(s => s.state.toLowerCase() === values.stateName!.toLowerCase());
+        if (existingState) {
+          stateId = existingState.id;
+        } else {
+          stateCreate = values.stateName;
+        }
+      }
+      
+      // Handle city lookup/create logic (only if state is provided)
+      let cityId: number | null = null;
+      let cityCreate: string | undefined = undefined;
+      
+      if (values.cityName && (stateId || stateCreate)) {
+        const existingCity = citiesResp?.data?.find(c => 
+          c.city.toLowerCase() === values.cityName!.toLowerCase() && 
+          (stateId ? c.stateId === stateId : false)
+        );
+        if (existingCity) {
+          cityId = existingCity.id;
+        } else {
+          cityCreate = values.cityName;
+        }
+      }
+
       const payload = {
         teamId: values.teamId ? Number(values.teamId) : null,
         firstName: values.firstName,
@@ -426,14 +522,17 @@ export function PatientForm({
         bmi: values.bmi || null,
         referredBy: values.referredBy || null,
         address: values.address,
-        stateId: values.stateId ? Number(values.stateId) : undefined,
-        cityId: values.cityId ? Number(values.cityId) : undefined,
+        stateId: stateId,
+        stateCreate: stateCreate,
+        cityId: cityId,
+        cityCreate: cityCreate,
         pincode: values.pincode || null,
         mobile: values.mobile,
         mobile2: values.mobile2 || null,
         email: values.email || null,
         aadharNo: values.aadharNo,
         occupation: values.occupation || null,
+        occupationType: values.occupationType || null,
         maritalStatus: values.maritalStatus || null,
         contactPersonName: values.contactPersonName || null,
         contactPersonRelation: values.contactPersonRelation || null,
@@ -588,23 +687,24 @@ export function PatientForm({
                 <TextareaInput control={control} name='address' label='Address' placeholder='Address' rows={3} required />
               </FormRow>
               <FormRow cols={3}>
-                <ComboboxInput
+                <EditableComboboxInput
                   control={control as any}
-                  name={'stateId' as any}
+                  name={'stateName' as any}
                   label='State'
                   options={stateOptions}
-                  placeholder='Select state (optional)'
-                  searchPlaceholder='Search states...'
-                  emptyText='No state found.'
+                  placeholder='Select or type state'
+                  searchPlaceholder='Search or type state...'
+                  emptyText='No state found. Type to add custom state.'
                 />
-                <ComboboxInput
+                <EditableComboboxInput
                   control={control as any}
-                  name={'cityId' as any}
+                  name={'cityName' as any}
                   label='City'
                   options={cityOptions}
-                  placeholder={stateIdValue ? 'Select city (optional)' : 'Select state first'}
-                  searchPlaceholder='Search cities...'
-                  emptyText={stateIdValue ? 'No city found.' : 'Select a state first.'}
+                  placeholder={stateNameValue ? 'Select or type city' : 'Select state first'}
+                  searchPlaceholder={stateNameValue ? 'Search or type city...' : 'Select state first'}
+                  emptyText={stateNameValue ? 'No city found. Type to add custom city.' : 'Select state first'}
+                  disabled={!stateNameValue}
                 />
                 <TextInput control={control} maxLength={6} name='pincode' label='Pincode' placeholder='Pincode'
                  onInput={(e) => {
@@ -643,8 +743,11 @@ export function PatientForm({
                 />
                 <EmailInput control={control} name='email' label='Email' placeholder='email@example.com' />
               </FormRow>
-              <FormRow cols={3}>
+              <FormRow cols={2}>
                 <TextInput control={control} name='occupation' label='Occupation' placeholder='Occupation' />
+                <TextInput control={control} name='occupationType' label='Occupation Type' placeholder='Occupation Type' />
+              </FormRow>
+              <FormRow cols={2}>
                 <SelectInput
                   control={control}
                   name='maritalStatus'

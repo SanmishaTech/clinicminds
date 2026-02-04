@@ -52,6 +52,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         leavingDate: true,
         addressLine1: true,
         addressLine2: true,
+        cityId: true,
+        stateId: true,
         city: true,
         state: true,
         pincode: true,

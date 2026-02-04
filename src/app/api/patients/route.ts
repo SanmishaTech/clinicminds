@@ -31,8 +31,10 @@ type PatientListItem = {
   gender: string;
   mobile: string;
   createdAt: Date;
-  state: { id: number; state: string };
-  city: { id: number; city: string };
+  state: string | null;
+  city: string | null;
+  stateId: number | null;
+  cityId: number | null;
 };
 
 export async function GET(req: NextRequest) {
@@ -149,9 +151,12 @@ export async function GET(req: NextRequest) {
         gender: true,
         mobile: true,
         createdAt: true,
+        stateId: true,
+        cityId: true,
         state: { select: { id: true, state: true } },
         city: { select: { id: true, city: true } },
         isReferredToHo: true,
+        balanceAmount: true,
         franchise: { select: { id: true, name: true } },
       },
     });
@@ -225,13 +230,16 @@ export async function POST(req: NextRequest) {
     bmi,
     address,
     stateId,
+    stateCreate,
     cityId,
+    cityCreate,
     pincode,
     email,
     mobile,
     mobile2,
     aadharNo,
     occupation,
+    occupationType,
     maritalStatus,
     contactPersonName,
     contactPersonRelation,
@@ -263,14 +271,17 @@ export async function POST(req: NextRequest) {
       weight?: string | null;
       bmi?: string | null;
       address: string;
-      stateId: number | string;
-      cityId: number | string;
+      stateId?: number | null;
+      stateCreate?: string | null;
+      cityId?: number | null;
+      cityCreate?: string | null;
       pincode?: string | null;
       email?: string | null;
       mobile: string;
       mobile2?: string | null;
       aadharNo: string;
       occupation?: string | null;
+      occupationType?: string | null;
       maritalStatus?: string | null;
       contactPersonName?: string | null;
       contactPersonRelation?: string | null;
@@ -328,8 +339,19 @@ export async function POST(req: NextRequest) {
   const parsedBalance = balanceAmount === null || balanceAmount === undefined || balanceAmount === "" ? 0 : Number(balanceAmount);
   if (Number.isNaN(parsedBalance)) return ApiError("Invalid balance amount", 400);
 
-  const parsedTeamId = teamId === null || teamId === undefined || teamId === "" ? null : Number(teamId);
+  const parsedTeamId = teamId === null || teamId === undefined ? null : Number(teamId);
   if (parsedTeamId !== null && Number.isNaN(parsedTeamId)) return ApiError("Invalid team", 400);
+
+  const parsedStateId = stateId === null || stateId === undefined ? null : Number(stateId);
+  if (parsedStateId !== null && Number.isNaN(parsedStateId)) return ApiError("Invalid state", 400);
+
+  const parsedCityId = cityId === null || cityId === undefined ? null : Number(cityId);
+  if (parsedCityId !== null && Number.isNaN(parsedCityId)) return ApiError("Invalid city", 400);
+
+  // Validate that cityCreate is only provided if stateId or stateCreate is provided
+  if (cityCreate && !parsedStateId && !stateCreate) {
+    return ApiError("City can only be created when state is provided", 400);
+  }
 
   const parsedMedicalInsurance =
     medicalInsurance === true || medicalInsurance === "true"
@@ -352,11 +374,28 @@ export async function POST(req: NextRequest) {
     const dateKey = dateKeyUtc(now);
 
     const created = await prisma.$transaction(async (tx) => {
-      // Validate city belongs to state only if both stateId and cityId are provided
-      if (stateId && cityId) {
-        const cityRow = await tx.city.findUnique({ where: { id: Number(cityId) }, select: { id: true, stateId: true } });
-        if (!cityRow) throw new globalThis.Error("City not found");
-        if (cityRow.stateId !== Number(stateId)) throw new globalThis.Error("City does not belong to selected state");
+      let finalStateId = parsedStateId;
+      let finalCityId = parsedCityId;
+
+      // Create state if stateCreate is provided
+      if (stateCreate) {
+        const newState = await (tx as any).state.create({
+          data: { state: stateCreate.trim() },
+          select: { id: true, state: true },
+        });
+        finalStateId = newState.id;
+      }
+
+      // Create city if cityCreate is provided (only after we have finalStateId)
+      if (cityCreate && finalStateId) {
+        const newCity = await (tx as any).city.create({
+          data: {
+            city: cityCreate.trim(),
+            stateId: finalStateId,
+          },
+          select: { id: true, city: true },
+        });
+        finalCityId = newCity.id;
       }
 
       const seq = await (tx as any).patientSequence.upsert({
@@ -384,14 +423,15 @@ export async function POST(req: NextRequest) {
           weight: typeof weight === "string" ? weight : null,
           bmi: typeof bmi === "string" ? bmi : null,
           address: address.trim(),
-          state: stateId ? { connect: { id: Number(stateId) } } : undefined,
-          city: cityId ? { connect: { id: Number(cityId) } } : undefined,
+          state: finalStateId ? { connect: { id: finalStateId } } : undefined,
+          city: finalCityId ? { connect: { id: finalCityId } } : undefined,
           pincode: pincode || null,
           mobile: mobile.trim(),
           mobile2: mobile2 ? mobile2.trim() : null,
           email: email || null,
           aadharNo: aadharNo.trim(),
           occupation: occupation || null,
+          occupationType: occupationType || null,
           maritalStatus: maritalStatus || null,
           contactPersonName: contactPersonName || null,
           contactPersonRelation: contactPersonRelation || null,
@@ -425,8 +465,8 @@ export async function POST(req: NextRequest) {
           gender: true,
           mobile: true,
           createdAt: true,
-          state: { select: { id: true, state: true } },
-          city: { select: { id: true, city: true } },
+          stateId: true,
+          cityId: true,
           lab: { select: { id: true, name: true } },
         },
       });
@@ -439,8 +479,6 @@ export async function POST(req: NextRequest) {
     if (err?.code === "P2002") return ApiError("Patient already exists", 409);
     if (err?.code === "P2021") return ApiError("Database not migrated for patients. Run Prisma migrate.", 500);
     const msg = (err?.message as string) || "Failed to create patient";
-    if (msg === "City not found") return ApiError("City not found", 404);
-    if (msg === "City does not belong to selected state") return ApiError("City does not belong to selected state", 400);
     return ApiError(msg);
   }
 }
@@ -503,13 +541,16 @@ export async function PATCH(req: NextRequest) {
     bmi,
     address,
     stateId,
+    stateCreate,
     cityId,
+    cityCreate,
     pincode,
     email,
     mobile,
     mobile2,
     aadharNo,
     occupation,
+    occupationType,
     maritalStatus,
     contactPersonName,
     contactPersonRelation,
@@ -543,14 +584,17 @@ export async function PATCH(req: NextRequest) {
       weight?: string | null;
       bmi?: string | null;
       address?: string;
-      stateId?: number | string;
-      cityId?: number | string;
+      stateId?: number | null;
+      stateCreate?: string | null;
+      cityId?: number | null;
+      cityCreate?: string | null;
       pincode?: string | null;
       email?: string | null;
       mobile?: string;
       mobile2?: string | null;
       aadharNo?: string;
       occupation?: string | null;
+      occupationType?: string | null;
       maritalStatus?: string | null;
       contactPersonName?: string | null;
       contactPersonRelation?: string | null;
@@ -583,8 +627,10 @@ export async function PATCH(req: NextRequest) {
       weight?: string | null;
       bmi?: string | null;
       address?: string;
-      stateId?: number | string;
-      cityId?: number | string;
+      stateId?: number | string | null;
+      stateCreate?: string | null;
+      cityId?: number | string | null;
+      cityCreate?: string | null;
       pincode?: string | null;
       email?: string | null;
       mobile?: string;
@@ -618,11 +664,12 @@ export async function PATCH(req: NextRequest) {
   }
 
   if (teamId !== undefined) {
-    if (teamId === null || teamId === "") data.teamId = null;
-    else {
+    if (teamId === null || teamId === "") {
+      data.team = { disconnect: true };
+    } else {
       const n = Number(teamId);
       if (Number.isNaN(n)) return ApiError("Invalid team", 400);
-      data.teamId = n;
+      data.team = { connect: { id: n } };
     }
   }
 
@@ -689,6 +736,7 @@ export async function PATCH(req: NextRequest) {
     data.aadharNo = a;
   }
   if (typeof occupation === "string" || occupation === null) data.occupation = occupation || null;
+  if (typeof occupationType === "string" || occupationType === null) data.occupationType = occupationType || null;
   if (typeof maritalStatus === "string" || maritalStatus === null) data.maritalStatus = maritalStatus || null;
   if (typeof contactPersonName === "string" || contactPersonName === null) data.contactPersonName = contactPersonName || null;
   if (typeof contactPersonRelation === "string" || contactPersonRelation === null) data.contactPersonRelation = contactPersonRelation || null;
@@ -728,11 +776,12 @@ export async function PATCH(req: NextRequest) {
     }
   }
   if (labId !== undefined) {
-    if (labId === null || labId === "") data.labId = null;
-    else {
+    if (labId === null || labId === "") {
+      data.lab = { disconnect: true };
+    } else {
       const n = Number(labId);
       if (Number.isNaN(n)) return ApiError("Invalid lab ID", 400);
-      data.labId = n;
+      data.lab = { connect: { id: n } };
     }
   }
   if (patientReports !== undefined) {
@@ -743,34 +792,63 @@ export async function PATCH(req: NextRequest) {
   }
   if (typeof referredBy === "string" || referredBy === null) data.referredBy = referredBy || null;
 
-  const nextStateId = stateId !== undefined ? Number(stateId) : undefined;
-  const nextCityId = cityId !== undefined ? Number(cityId) : undefined;
+  // Handle state and city updates with create logic
+  if (stateId !== undefined || stateCreate !== undefined || cityId !== undefined || cityCreate !== undefined) {
+    // Validate that cityCreate is only provided if stateId or stateCreate is provided
+    if (cityCreate && !stateId && !stateCreate) {
+      return ApiError("City can only be created when state is provided", 400);
+    }
 
-  if (stateId !== undefined) {
-    if (Number.isNaN(nextStateId)) return ApiError("Invalid state", 400);
-    data.stateId = nextStateId;
-  }
-  if (cityId !== undefined) {
-    if (Number.isNaN(nextCityId)) return ApiError("Invalid city", 400);
-    data.cityId = nextCityId;
+    // stateId and cityId are handled in the transaction with relation syntax
   }
 
   if (Object.keys(data).length === 0) return ApiError("Nothing to update", 400);
 
   try {
     const updated = await prisma.$transaction(async (tx) => {
-      const effectiveStateId =
-        (data.stateId as number | undefined) ??
-        (await (tx as any).patient.findUnique({ where: { id: Number(id) }, select: { stateId: true } }))?.stateId;
-      const effectiveCityId =
-        (data.cityId as number | undefined) ??
-        (await (tx as any).patient.findUnique({ where: { id: Number(id) }, select: { cityId: true } }))?.cityId;
+      let finalStateId = stateId !== undefined ? (stateId === null || (typeof stateId === "string" && stateId === "") ? null : Number(stateId)) : undefined;
+      let finalCityId = cityId !== undefined ? (cityId === null || (typeof cityId === "string" && cityId === "") ? null : Number(cityId)) : undefined;
 
-      // Validate city belongs to state only when both stateId and cityId are provided
-      if (effectiveStateId && effectiveCityId && (stateId !== undefined || cityId !== undefined)) {
-        const cityRow = await tx.city.findUnique({ where: { id: effectiveCityId }, select: { id: true, stateId: true } });
-        if (!cityRow) throw new globalThis.Error("City not found");
-        if (cityRow.stateId !== effectiveStateId) throw new globalThis.Error("City does not belong to selected state");
+      // Create state if stateCreate is provided
+      if (stateCreate) {
+        const newState = await (tx as any).state.create({
+          data: { state: stateCreate.trim() },
+          select: { id: true, state: true },
+        });
+        finalStateId = newState.id;
+      }
+
+      // Create city if cityCreate is provided (only after we have finalStateId)
+      if (cityCreate && (finalStateId || stateId)) {
+        const targetStateId = finalStateId || Number(stateId);
+        if (!targetStateId) {
+          return ApiError("City can only be created when state is provided", 400);
+        }
+        const newCity = await (tx as any).city.create({
+          data: {
+            city: cityCreate.trim(),
+            stateId: targetStateId,
+          },
+          select: { id: true, city: true },
+        });
+        finalCityId = newCity.id;
+      }
+
+      // Update the data object with relation syntax
+      if (finalStateId !== undefined) {
+        if (finalStateId === null) {
+          data.state = { disconnect: true };
+        } else {
+          data.state = { connect: { id: finalStateId } };
+        }
+      }
+      
+      if (finalCityId !== undefined) {
+        if (finalCityId === null) {
+          data.city = { disconnect: true };
+        } else {
+          data.city = { connect: { id: finalCityId } };
+        }
       }
 
       return (tx as any).patient.update({
@@ -786,8 +864,8 @@ export async function PATCH(req: NextRequest) {
           gender: true,
           mobile: true,
           createdAt: true,
-          state: { select: { id: true, state: true } },
-          city: { select: { id: true, city: true } },
+          stateId: true,
+          cityId: true,
           lab: { select: { id: true, name: true } },
         },
       });
@@ -820,8 +898,6 @@ export async function PATCH(req: NextRequest) {
     if (err?.code === "P2025") return ApiError("Patient not found", 404);
     const msg = (err?.message as string) || "Failed to update patient";
     if (msg === "Patient not found") return ApiError("Patient not found", 404);
-    if (msg === "City not found") return ApiError("City not found", 404);
-    if (msg === "City does not belong to selected state") return ApiError("City does not belong to selected state", 400);
     return ApiError(msg);
   }
 }

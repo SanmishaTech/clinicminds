@@ -143,6 +143,7 @@ export async function GET(req: NextRequest) {
         remarks: true,
         casePaperUrl: true,
         nextFollowUpDate: true,
+        discountPercentage: true,
         totalAmount: true,
         totalReceivedAmount: true,
         createdAt: true,
@@ -368,6 +369,7 @@ export async function POST(req: NextRequest) {
             remarks: data.remarks,
             casePaperUrl: data.casePaperUrl,
             nextFollowUpDate: data.nextFollowUpDate ? new Date(data.nextFollowUpDate) : null,
+            discountPercentage: data.discountPercentage || 0,
             totalAmount: data.totalAmount,
           },
           select: {
@@ -580,6 +582,7 @@ export async function POST(req: NextRequest) {
             remarks: data.remarks,
             casePaperUrl: data.casePaperUrl,
             nextFollowUpDate: data.nextFollowUpDate ? new Date(data.nextFollowUpDate) : null,
+            discountPercentage: data.discountPercentage || null,
             totalAmount: data.totalAmount,
           },
           select: {
@@ -721,6 +724,8 @@ export async function PATCH(req: NextRequest) {
       if (parsed.nextFollowUpDate !== undefined) {
         data.nextFollowUpDate = parsed.nextFollowUpDate ? new Date(parsed.nextFollowUpDate) : null;
       }
+      if (parsed.discountPercentage !== undefined) data.discountPercentage = parsed.discountPercentage;
+      if (parsed.totalAmount !== undefined) data.totalAmount = parsed.totalAmount;
 
       const consultation = await tx.consultation.update({
         where: { id: Number(id) },
@@ -733,6 +738,8 @@ export async function PATCH(req: NextRequest) {
           remarks: true,
           casePaperUrl: true,
           nextFollowUpDate: true,
+          discountPercentage: true,
+          totalAmount: true,
           createdAt: true,
           updatedAt: true,
         },

@@ -122,6 +122,7 @@ model State {
 
   cities City[]
   patients Patient[]
+  teams Team[]
 
   @@map("states")
 }
@@ -136,6 +137,7 @@ model City {
   // Relations
   state            State?    @relation(fields: [stateId], references: [id])
   patients         Patient[]
+  teams            Team[]
 
   @@unique([city, stateId])
   @@index([stateId])
@@ -371,6 +373,7 @@ model Patient {
   email                         String?
   aadharNo                      String?
   occupation                    String?
+  occupationType                String?
   maritalStatus                 String?
   contactPersonName             String?
   contactPersonRelation         String?
@@ -397,10 +400,10 @@ model Patient {
 
   franchise                     Franchise? @relation(fields: [franchiseId], references: [id], onDelete: SetNull)
   team                          Team? @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  state                         State? @relation(fields: [stateId], references: [id], onDelete: SetNull)
+  city                          City? @relation(fields: [cityId], references: [id], onDelete: SetNull)
   appointments                  Appointment[]
   medicineBills                 MedicineBill[]
-  state State? @relation(fields: [stateId], references: [id])
-  city  City? @relation(fields: [cityId], references: [id])
 
   @@index([patientNo])
   @@index([firstName])
@@ -497,21 +500,23 @@ model Team{
   leavingDate   DateTime?
   addressLine1  String   @db.Text
   addressLine2  String?  @db.Text
-  city          String?
-  state         String?
+  stateId       Int?
+  cityId        Int?
   pincode       String?
   userMobile    String
   userId        Int    @unique
   user          User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   franchiseId   Int
   franchise     Franchise @relation(fields: [franchiseId], references: [id], onDelete: Cascade)
+  state         State? @relation(fields: [stateId], references: [id], onDelete: SetNull)
+  city          City? @relation(fields: [cityId], references: [id], onDelete: SetNull)
   patients      Patient[]
   appointments  Appointment[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@index([city])                    // For filtering by city
-  @@index([state])                   // For filtering by state
+  @@index([cityId])                    // For filtering by city
+  @@index([stateId])                   // For filtering by state
   @@index([userMobile])              // For searching by user mobile
   @@index([joiningDate])             // For sorting by joining date
   @@index([leavingDate])             // For sorting by leaving date
@@ -547,6 +552,7 @@ model Consultation{
   diagnosis             String?   @db.Text
   casePaperUrl          String?   @db.Text
   nextFollowUpDate      DateTime?
+  discountPercentage    Decimal?  @db.Decimal(10, 2)
   totalAmount           Decimal   @db.Decimal(10, 2)
   totalReceivedAmount   Decimal?  @db.Decimal(10, 2)
   consultationDetails   ConsultationDetail[]

@@ -23,6 +23,7 @@ export const createConsultationSchema = z.object({
   remarks: z.string().optional().nullable(),
   casePaperUrl: z.string().optional().nullable(),
   nextFollowUpDate: z.string().datetime().optional().nullable(),
+  discountPercentage: z.number().nonnegative().max(100).optional().nullable(),
   totalAmount: z.number().nonnegative(),
   consultationDetails: z
     .array(consultationDetailSchema)
@@ -51,6 +52,8 @@ export const updateConsultationSchema = z.object({
   remarks: z.string().optional().nullable(),
   casePaperUrl: z.string().optional().nullable(),
   nextFollowUpDate: z.string().datetime().optional().nullable(),
+  discountPercentage: z.number().nonnegative().max(100).optional().nullable(),
+  totalAmount: z.number().nonnegative().optional(),
 });
 
 export type ConsultationDetailInput = z.infer<typeof consultationDetailSchema>;

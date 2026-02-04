@@ -60,6 +60,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         remarks: true,
         casePaperUrl: true,
         nextFollowUpDate: true,
+        discountPercentage: true,
         totalAmount: true,
         totalReceivedAmount: true,
         createdAt: true,

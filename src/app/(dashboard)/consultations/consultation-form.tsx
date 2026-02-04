@@ -12,6 +12,7 @@ import { AppButton } from '@/components/common/app-button';
 import { AppCheckbox } from '@/components/common/app-checkbox';
 import { FormSection, FormRow } from '@/components/common/app-form';
 import { Form } from '@/components/ui/form';
+import { FormMessage } from '@/components/ui/form';
 import { formatIndianCurrency } from '@/lib/locales';
 import { TextInput } from '@/components/common/text-input';
 import { TextareaInput } from '@/components/common/textarea-input';
@@ -30,6 +31,7 @@ export interface ConsultationFormInitialData {
   remarks?: string | null;
   casePaperUrl?: string | null;
   nextFollowUpDate?: string | null;
+  discountPercentage?: number;
   totalAmount?: number;
   consultationDetails?: {
     serviceId: number;
@@ -113,6 +115,14 @@ const consultationFormSchema = z
   remarks: z.string().optional(),
   casePaperUrl: z.string().optional(),
   nextFollowUpDate: z.string().optional(),
+  discountPercentage: z
+    .union([z.string(), z.null(), z.undefined()])
+    .optional()
+    .refine((v) => {
+      if (v === null || v === undefined || v === '') return true; // Allow null/undefined/empty
+      const num = parseFloat(v);
+      return !isNaN(num) && num >= 0 && num <= 100;
+    }, 'Discount must be between 0 and 100'),
   consultationDetails: z
     .array(
       z.object({
@@ -277,6 +287,7 @@ export function ConsultationForm({
       nextFollowUpDate: initial?.nextFollowUpDate 
         ? new Date(initial.nextFollowUpDate).toISOString().split('T')[0]
         : '',
+      discountPercentage: (initial?.discountPercentage ?? 0).toString(),
       consultationDetails: initial?.consultationDetails?.map((d) => ({
         serviceId: d.serviceId.toString(),
         description: d.description || '',
@@ -351,9 +362,39 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
   const watchedEntryMode = useWatch({ control, name: 'entryMode' });
   const watchedPackageId = useWatch({ control, name: 'packageId' });
   const watchedReceiptAmount = useWatch({ control, name: 'receipt.amount' });
+  const watchedDiscountPercentage = useWatch({ control, name: 'discountPercentage' });
   const currentTotalAmount = useWatch({ control, name: 'totalAmount' });
 
   const isPackageMode = mode === 'create' && watchedEntryMode === 'package';
+
+  // Calculate totals with discount
+  const totals = useMemo(() => {
+    const details = watchedDetails || [];
+    const medicines = watchedMedicines || [];
+    
+    const servicesTotal = details.reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    const medicinesTotal = medicines.reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0;
+      return sum + amount;
+    }, 0);
+    
+    const subtotal = servicesTotal + medicinesTotal;
+    const discountPercentNum = Math.min(100, Math.max(0, parseFloat(watchedDiscountPercentage || '0') || 0));
+    const discountAmount = subtotal * (discountPercentNum / 100);
+    const total = Math.max(0, subtotal - discountAmount);
+
+    return { servicesTotal, medicinesTotal, subtotal, discountPercentNum, discountAmount, total };
+  }, [watchedDetails, watchedMedicines, watchedDiscountPercentage]);
+
+  // Update individual totals when they change
+  useEffect(() => {
+    setServicesTotal(totals.servicesTotal);
+    setMedicinesTotal(totals.medicinesTotal);
+  }, [totals.servicesTotal, totals.medicinesTotal]);
 
   // Check if total amount is 0 to disable receipt fields
   const isTotalAmountZero = parseFloat(currentTotalAmount || '0') === 0;
@@ -369,6 +410,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
     // Only watch specific fields that affect validation
     watchedDetails?.map(d => `${d.serviceId}-${d.rate}-${d.amount}`).join('|'),
     watchedMedicines?.map(m => `${m.medicineId}-${m.qty}-${m.mrp}-${m.amount}`).join('|'),
+    watchedDiscountPercentage,
     watchedReceiptAmount,
     trigger
   ]);
@@ -385,31 +427,12 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
     }
   }, [watchedReceiptAmount, currentTotalAmount, setValue]);
 
+  // Update total amount when details, medicines, or discount changes
   useEffect(() => {
-    const calculateTotal = () => {
-      const details = form.getValues('consultationDetails') || [];
-      const medicines = form.getValues('consultationMedicines') || [];
-      
-      const totalDetails = details.reduce((sum, item) => {
-        const amount = parseFloat(item.amount) || 0;
-        return sum + amount;
-      }, 0);
-
-      const totalMedicines = medicines.reduce((sum, item) => {
-        const amount = parseFloat(item.amount) || 0;
-        return sum + amount;
-      }, 0);
-
-      const total = totalDetails + totalMedicines;
-      
-      // Update individual totals
-      setServicesTotal(totalDetails);
-      setMedicinesTotal(totalMedicines);
-      setValue('totalAmount', total.toFixed(2));
-    };
-
-    calculateTotal();
-  }, [watchedDetails, watchedMedicines, setValue, form]);
+    setValue('totalAmount', totals.total.toFixed(2));
+    // Trigger validation after setting total amount
+    trigger();
+  }, [totals.total, setValue, trigger]);
 
   function updateDetailAmount(index: number, field: 'rate', value: string) {
     const details = [...(watchedDetails || [])];
@@ -423,27 +446,6 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
 
     setValue(`consultationDetails.${index}.rate`, row.rate);
     setValue(`consultationDetails.${index}.amount`, row.amount);
-    
-    // Immediately recalculate total
-    const allDetails = form.getValues('consultationDetails') || [];
-    const allMedicines = form.getValues('consultationMedicines') || [];
-    
-    const totalDetails = allDetails.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-
-    const totalMedicines = allMedicines.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-
-    const total = totalDetails + totalMedicines;
-    
-    // Update individual totals
-    setServicesTotal(totalDetails);
-    setMedicinesTotal(totalMedicines);
-    setValue('totalAmount', total.toFixed(2));
   }
 
   function updateMedicineAmount(index: number, field: 'qty' | 'mrp', value: string) {
@@ -461,27 +463,6 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
     setValue(`consultationMedicines.${index}.qty`, row.qty);
     setValue(`consultationMedicines.${index}.mrp`, row.mrp);
     setValue(`consultationMedicines.${index}.amount`, row.amount);
-    
-    // Immediately recalculate total
-    const allDetails = form.getValues('consultationDetails') || [];
-    const allMedicines = form.getValues('consultationMedicines') || [];
-    
-    const totalDetails = allDetails.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-
-    const totalMedicines = allMedicines.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0;
-      return sum + amount;
-    }, 0);
-
-    const total = totalDetails + totalMedicines;
-    
-    // Update individual totals
-    setServicesTotal(totalDetails);
-    setMedicinesTotal(totalMedicines);
-    setValue('totalAmount', total.toFixed(2));
   }
 
   useEffect(() => {
@@ -603,6 +584,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
         remarks: values.remarks || null,
         casePaperUrl: values.casePaperUrl || null,
         nextFollowUpDate: values.nextFollowUpDate ? new Date(values.nextFollowUpDate).toISOString() : null,
+        discountPercentage: Math.min(100, Math.max(0, parseFloat(values.discountPercentage || '0') || 0)),
         totalAmount: parseFloat(values.totalAmount),
         consultationDetails: values.consultationDetails
           ?.filter((d) => d.serviceId && d.serviceId.trim().length > 0)
@@ -1109,7 +1091,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                     onChange={(e) =>
                                       updateMedicineAmount(index, 'mrp', e.target.value)
                                     }
-                                    disabled={isPackageMode || !watchedMedicines?.[index]?.medicineId}
+                                    disabled
                                   />
                                 </div>
                               )}
@@ -1162,50 +1144,127 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                   </FormSection>
                   ))}
 
-                    {/* Total Amount */}
-                    <FormRow cols={12}>
+                    {/* Discount Input and Total Amount Breakdown */}
+                    <FormRow className='grid-cols-12'>
                        <div className="col-span-12 flex justify-end">
-                          <div className="text-right space-y-2">
-                            <div className="flex justify-between gap-8">
-                              <div className="text-sm text-muted-foreground">
-                                Services Total
-                              </div>
-                              <div className="text-sm font-medium">
-                                {new Intl.NumberFormat("en-IN", {
-                                    style: "currency",
-                                    currency: "INR",
-                                    minimumFractionDigits: 2,
-                                  }).format(servicesTotal)
-                                }
-                              </div>
+                          <div className='w-full max-w-[280px] space-y-3'>
+                            {/* Discount Percentage Input */}
+                            <div>
+                              <div className='text-sm text-muted-foreground'>Discount (%)</div>
+                              <Controller
+                                control={control}
+                                name='discountPercentage'
+                                render={({ field }) => (
+                                  <div>
+                                    <Input
+                                      {...field}
+                                      type='number'
+                                      min='0'
+                                      max='100'
+                                      step='0.01'
+                                      placeholder='Discount %'
+                                      className='w-full h-10 border'
+                                      value={field.value || ''}
+                                      onChange={(e) => {
+                                        const raw = e.target.value;
+                                        if (raw === '') {
+                                          field.onChange('');
+                                          return;
+                                        }
+                                        const num = parseFloat(raw);
+                                        if (Number.isNaN(num)) {
+                                          field.onChange('');
+                                          return;
+                                        }
+                                        const clamped = Math.min(100, Math.max(0, num));
+                                        field.onChange(String(clamped));
+                                      }}
+                                      onBlur={(e) => {
+                                        const raw = e.target.value;
+                                        if (raw === '') {
+                                          field.onBlur();
+                                          return;
+                                        }
+                                        const num = parseFloat(raw);
+                                        const clamped = Number.isNaN(num) ? 0 : Math.min(100, Math.max(0, num));
+                                        field.onChange(String(clamped));
+                                        field.onBlur();
+                                      }}
+                                    />
+                                    <FormMessage />
+                                  </div>
+                                )}
+                              />
                             </div>
-                            <div className="flex justify-between gap-8">
-                              <div className="text-sm text-muted-foreground">
-                                Medicines Total
-                              </div>
-                              <div className="text-sm font-medium">
-                                {new Intl.NumberFormat("en-IN", {
-                                    style: "currency",
-                                    currency: "INR",
-                                    minimumFractionDigits: 2,
-                                  }).format(medicinesTotal)
-                                }
-                              </div>
-                            </div>
-                            <div className="border-t pt-2">
+
+                            {/* Total Breakdown */}
+                            <div className="border rounded-lg p-3 space-y-2">
                               <div className="flex justify-between gap-8">
                                 <div className="text-sm text-muted-foreground">
-                                  Total Amount
+                                  Medicines Total
                                 </div>
-                                <div className="text-lg font-bold text-foreground">
+                                <div className="text-sm font-medium">
                                   {new Intl.NumberFormat("en-IN", {
                                       style: "currency",
                                       currency: "INR",
                                       minimumFractionDigits: 2,
-                                    }).format(
-                                      parseFloat(form.getValues('totalAmount')) || 0
-                                    )
+                                    }).format(medicinesTotal)
                                   }
+                                </div>
+                              </div>
+                              <div className="flex justify-between gap-8">
+                                <div className="text-sm text-muted-foreground">
+                                  Services Total
+                                </div>
+                                <div className="text-sm font-medium">
+                                  {new Intl.NumberFormat("en-IN", {
+                                      style: "currency",
+                                      currency: "INR",
+                                      minimumFractionDigits: 2,
+                                    }).format(servicesTotal)
+                                  }
+                                </div>
+                              </div>
+                              <div className="border-t pt-2">
+                                <div className="flex justify-between gap-8">
+                                  <div className="text-sm font-medium">
+                                    Subtotal
+                                  </div>
+                                  <div className="text-sm font-semibold">
+                                    {new Intl.NumberFormat('en-IN', {
+                                      style: 'currency',
+                                      currency: 'INR',
+                                      minimumFractionDigits: 2,
+                                    }).format(totals.subtotal)}
+                                  </div>
+                                </div>
+                              </div>
+                              {totals.discountPercentNum > 0 && (
+                                <div className="flex justify-between gap-8">
+                                  <div className="text-sm text-muted-foreground">
+                                    Discount ({totals.discountPercentNum}%)
+                                  </div>
+                                  <div className="text-sm font-medium">
+                                    -{new Intl.NumberFormat('en-IN', {
+                                      style: 'currency',
+                                      currency: 'INR',
+                                      minimumFractionDigits: 2,
+                                    }).format(totals.discountAmount)}
+                                  </div>
+                                </div>
+                              )}
+                              <div className="border-t pt-2">
+                                <div className="flex justify-between gap-8">
+                                  <div className="text-sm font-medium">
+                                    Total Amount
+                                  </div>
+                                  <div className="text-lg font-bold text-foreground">
+                                    {new Intl.NumberFormat('en-IN', {
+                                      style: 'currency',
+                                      currency: 'INR',
+                                      minimumFractionDigits: 2,
+                                    }).format(totals.total)}
+                                  </div>
                                 </div>
                               </div>
                             </div>
