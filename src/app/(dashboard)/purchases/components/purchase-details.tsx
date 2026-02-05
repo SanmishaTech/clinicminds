@@ -90,17 +90,17 @@ export default function PurchaseDetailsPage() {
       // Header with App Name
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
-      doc.text('ClinicMinds', pageWidth / 2, y, { align: 'center' });
+      doc.text(process.env.NEXT_PUBLIC_APP_NAME || 'ANKURAM', pageWidth / 2, y, { align: 'center' });
       y += 10;
       doc.setFontSize(16);
-      doc.text('PURCHASE INVOICE', pageWidth / 2, y, { align: 'center' });
+      doc.text('INVOICE', pageWidth / 2, y, { align: 'center' });
       y += 12;
 
       // Invoice and Franchise Info
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       
-      doc.text(`Invoice #: ${saleData.invoiceNo}`, margin, y);
+      doc.text(`Invoice Number: ${saleData.invoiceNo}`, margin, y);
       doc.text(`Date: ${formatDate(saleData.invoiceDate)}`, pageWidth - 60, y);
       y += 8;
       
@@ -109,7 +109,7 @@ export default function PurchaseDetailsPage() {
       y += 5;
 
       // Table headers
-      const headers = ['Medicine', 'Batch', 'Expiry', 'Rate', 'Qty', 'Amount'];
+      const headers = ['Medicine', 'Batch', 'Expiry Date', 'Rate', 'Quantity', 'Amount'];
       const colWidths = [100, 35, 30, 25, 30, 40];
       const rowH = 8;
 
@@ -151,16 +151,16 @@ export default function PurchaseDetailsPage() {
           ]);
         });
         
-        // Medicines subtotal
-        const medicinesSubtotal = saleData.saleDetails.reduce((sum, detail) => sum + detail.amount, 0);
+        // Medicines subtotal (calculated from saleDetails)
+        const medicinesSubtotal = saleData.saleDetails.reduce((sum, detail) => sum + parseFloat(detail.amount.toString()), 0);
         y = drawRow(['', '', '', '', 'Subtotal:', formatPdfCurrency(medicinesSubtotal)], false, true);
         
         // Discount calculation
         const discountAmount = (medicinesSubtotal * saleData.discountPercent) / 100;
         y = drawRow(['', '', '', '', `Discount (${saleData.discountPercent}%)`, `-${formatPdfCurrency(discountAmount)}`], false, true);
         
-        // Grand Total
-        const grandTotal = medicinesSubtotal - discountAmount;
+        // Grand Total (should match saleData.totalAmount)
+        const grandTotal = parseFloat(saleData.totalAmount.toString());
         y = drawRow(['', '', '', '', 'Grand Total:', formatPdfCurrency(grandTotal)], false, true);
       }
 
@@ -170,7 +170,7 @@ export default function PurchaseDetailsPage() {
       doc.text('This is a computer-generated invoice.', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       // Save PDF
-      const filenameBase = `purchase-invoice-${saleData.invoiceNo}`;
+      const filenameBase = `invoice-${saleData.invoiceNo}`;
       const dateStr = formatDateTime(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' });
       doc.save(`${filenameBase}-${dateStr}.pdf`);
     } catch (e) {
@@ -274,7 +274,7 @@ export default function PurchaseDetailsPage() {
                       <div className="px-4 py-3 font-medium text-sm border-r">Medicine</div>
                       <div className="px-4 py-3 font-medium text-sm border-r">Brand</div>
                       <div className="px-4 py-3 font-medium text-sm border-r">Batch No</div>
-                      <div className="px-4 py-3 font-medium text-sm border-r">Expiry</div>
+                      <div className="px-4 py-3 font-medium text-sm border-r">Expiry Date</div>
                       <div className="px-4 py-3 font-medium text-sm border-r">Rate</div>
                       <div className="px-4 py-3 font-medium text-sm border-r">Quantity</div>
                       <div className="px-4 py-3 font-medium text-sm">Amount</div>
@@ -304,6 +304,30 @@ export default function PurchaseDetailsPage() {
                         </div>
                       </div>
                     ))}
+                    <div className="grid grid-cols-7 gap-0 border-t">
+                      <div className="col-span-6 px-4 py-2 font-medium text-sm text-right border-r">Subtotal:</div>
+                      <div className="px-4 py-2 font-medium text-sm">
+                        {formatIndianCurrency(
+                          saleData.saleDetails.reduce((sum, detail) => sum + parseFloat(detail.amount.toString()), 0)
+                        )}
+                      </div>
+                    </div>
+                    {saleData.discountPercent > 0 && (
+                      <div className="grid grid-cols-7 gap-0 border-t">
+                        <div className="col-span-6 px-4 py-2 font-medium text-sm text-right border-r">Discount ({saleData.discountPercent}%):</div>
+                        <div className="px-4 py-2 font-medium text-sm">
+                          -{formatIndianCurrency(
+                            (saleData.saleDetails.reduce((sum, detail) => sum + parseFloat(detail.amount.toString()), 0) * saleData.discountPercent) / 100
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-7 gap-0 border-t-2 bg-muted">
+                      <div className="col-span-6 px-4 py-2 font-bold text-base text-right border-r">Total Amount:</div>
+                      <div className="px-4 py-2 font-bold text-base">
+                        {formatIndianCurrency(saleData.totalAmount)}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

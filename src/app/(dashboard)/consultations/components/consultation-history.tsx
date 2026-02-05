@@ -24,6 +24,7 @@ type Appointment = {
 type ConsultationHistory = {
   id: number;
   appointmentDateTime: string;
+  type: string;
   complaint: string | null;
   diagnosis: string | null;
   remarks: string | null;
@@ -65,6 +66,7 @@ export function ConsultationHistory({ appointmentId }: ConsultationHistoryProps)
         const transformedHistory = (historyData.data || []).map((consultation: any) => ({
           id: consultation.id,
           appointmentDateTime: consultation.appointment.appointmentDateTime,
+          type: consultation.appointment.type,
           complaint: consultation.complaint,
           diagnosis: consultation.diagnosis,
           remarks: consultation.remarks,
@@ -157,10 +159,10 @@ export function ConsultationHistory({ appointmentId }: ConsultationHistoryProps)
 
                     {consultation.consultationDetails.length > 0 && (
                       <div>
-                        <h4 className="font-semibold mb-2">Services</h4>
+                        <h4 className="font-semibold mb-2">{consultation.type === 'PROCEDURE' ? 'Procedures' : 'Services'}</h4>
                         <div className="border rounded">
                           <div className="grid grid-cols-2 gap-0 bg-muted border-b">
-                            <div className="px-4 py-2 font-medium text-sm border-r">Service</div>
+                            <div className="px-4 py-2 font-medium text-sm border-r">{consultation.type === 'PROCEDURE' ? 'Procedure' : 'Service'}</div>
                             <div className="px-4 py-2 font-medium text-sm">Description</div>
                           </div>
                           {consultation.consultationDetails.map((detail, index) => (

@@ -12,7 +12,6 @@ import { AppButton } from '@/components/common/app-button';
 import { AppSelect } from '@/components/common/app-select';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { DeleteButton } from '@/components/common/delete-button';
-import { TransferDropdown } from '@/components/patients/transfer-dropdown';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { PERMISSIONS, ROLES } from '@/config/roles';
@@ -50,7 +49,7 @@ const GENDER_LABEL: Record<string, string> = Object.fromEntries(
   MASTER_CONFIG.gender.map((g) => [g.value, g.label])
 );
 
-export default function PatientsPage() {
+export default function ReferredPatientsPage() {
   const [qp, setQp] = useQueryParamsState({
     page: 1,
     perPage: 10,
@@ -70,10 +69,6 @@ export default function PatientsPage() {
     sort: string;
     order: 'asc' | 'desc';
   };
-
-  const [referredOnly, setReferredOnly] = useState(false);
-
-  // Transfer functionality is now handled by TransferDropdown
 
   const [searchDraft, setSearchDraft] = useState(search);
   const [teamDraft, setTeamDraft] = useState(team);
@@ -108,6 +103,7 @@ export default function PatientsPage() {
   const { user } = useCurrentUser();
   const isAdmin = role === ROLES.ADMIN;
 
+  // Always use referredOnly=true for this page
   const query = useMemo(() => {
     const sp = new URLSearchParams();
     sp.set('page', String(page));
@@ -117,11 +113,12 @@ export default function PatientsPage() {
     if (gender) sp.set('gender', gender);
     if (sort) sp.set('sort', sort);
     if (order) sp.set('order', order);
-    if (role === 'Admin' && referredOnly) sp.set('referredOnly', 'true');
+    sp.set('referredOnly', 'true');
     return `/api/patients?${sp.toString()}`;
-  }, [page, perPage, search, team, gender, sort, order, referredOnly, role]);
+  }, [page, perPage, search, team, gender, sort, order]);
 
   const { data, error, isLoading, mutate } = useSWR<PatientsResponse>(query, apiGet);
+
   if (error) {
     toast.error((error as Error).message || 'Failed to load patients');
   }
@@ -184,22 +181,14 @@ export default function PatientsPage() {
         cellClassName: 'whitespace-nowrap',
       },
       {
-        key: "balanceAmount",
-        header: "Balance Amount",
-        sortable: true,
-        accessor: (r) => formatIndianCurrency(r.balanceAmount),
-        cellClassName: 'whitespace-nowrap',
-      },
-      {
         key: 'createdAt',
         header: 'Created',
         sortable: true,
-        accessor: (r) => formatDate(r.createdAt),
-        cellClassName: 'text-muted-foreground whitespace-nowrap',
+        accessor: (r) => formatDate(new Date(r.createdAt), { year: 'numeric', month: 'short', day: 'numeric' }),
+        cellClassName: 'whitespace-nowrap',
       },
     ];
 
-    // Add franchise column for Admin users
     if (isAdmin) {
       baseColumns.splice(1, 0, {
         key: 'franchise',
@@ -211,7 +200,7 @@ export default function PatientsPage() {
     }
 
     return baseColumns;
-  }, [isAdmin]);
+  }, [isAdmin, can]);
 
   const sortState: SortState = { field: sort, order };
 
@@ -239,20 +228,10 @@ export default function PatientsPage() {
   }
 
   return (
-    <>
-      <AppCard>
-        <AppCard.Header>
-          <AppCard.Title>Patients</AppCard.Title>
-          <AppCard.Description>Manage patients.</AppCard.Description>
-          {can(PERMISSIONS.CREATE_PATIENTS) && !isAdmin && (
-            <AppCard.Action>
-              <Link href='/patients/new'>
-                <AppButton size='sm' iconName='Plus' type='button'>
-                  Add
-              </AppButton>
-            </Link>
-          </AppCard.Action>
-        )}
+    <AppCard>
+      <AppCard.Header>
+        <AppCard.Title>Referred Patients</AppCard.Title>
+        <AppCard.Description>View patients referred to Head Office.</AppCard.Description>
       </AppCard.Header>
       <AppCard.Content>
         <FilterBar title='Search & Filter'>
@@ -283,17 +262,6 @@ export default function PatientsPage() {
             ))}
           </AppSelect>
 
-          {isAdmin && (
-            <AppButton
-              size='sm'
-              variant={referredOnly ? 'default' : 'secondary'}
-              onClick={() => setReferredOnly(!referredOnly)}
-              className='min-w-[120px]'
-            >
-              {referredOnly ? 'All Patients' : 'Referred Only'}
-            </AppButton>
-          )}
-
           <AppButton
             size='sm'
             onClick={applyFilters}
@@ -315,52 +283,23 @@ export default function PatientsPage() {
         </FilterBar>
 
         <DataTable
-          columns={columns}
-          data={data?.data || []}
-          loading={isLoading}
-          sort={sortState}
-          onSortChange={(s) => toggleSort(s.field)}
-          stickyColumns={1}
-          renderRowActions={(p) => {
-            if (!can(PERMISSIONS.EDIT_PATIENTS) && !can(PERMISSIONS.DELETE_PATIENTS)) return null;
-            return (
-              <div className='flex'>
-                {can(PERMISSIONS.EDIT_PATIENTS) && (
-                  <Link href={`/patients/${p.id}/medical-history`}>
-                    <IconButton iconName='FileText' tooltip='Medical History' aria-label='Medical History' />
-                  </Link>
-                )}
-                <TransferDropdown 
-                  patient={p} 
-                  onTransferComplete={() => mutate()}
-                />
-                {can(PERMISSIONS.EDIT_PATIENTS) && !isAdmin && (
-                  <IconButton 
-                    iconName='ArrowUp' 
-                    tooltip={p.isReferredToHo ? 'Already referred to Head Office' : 'Refer to Head Office'} 
-                    aria-label='Refer to Head Office'
-                    onClick={() => !p.isReferredToHo && handleReferral(p.id, p.patientNo)}
-                    disabled={p.isReferredToHo}
-                    className={p.isReferredToHo ? 'opacity-50 cursor-not-allowed' : ''}
-                  />
-                )}
-                {can(PERMISSIONS.EDIT_PATIENTS) && !isAdmin && (
-                  <Link href={`/patients/${p.id}/edit`}>
-                    <EditButton tooltip='Edit Patient' aria-label='Edit Patient' />
-                  </Link>
-                )}
-                {can(PERMISSIONS.DELETE_PATIENTS) && (
-                  <DeleteButton
-                    onDelete={() => handleDelete(p.id)}
-                    itemLabel='patient'
-                    title='Delete patient?'
-                    description={`This will permanently remove patient: ${p.firstName} ${p.middleName} ${p.lastName}. This action cannot be undone.`}
-                  />
-                )}
-              </div>
-            );
-          }}
-        />
+              data={data?.data || []}
+              columns={columns}
+              loading={isLoading}
+              sort={sortState}
+              onSortChange={(s) => toggleSort(s.field)}
+              stickyColumns={1}
+              renderRowActions={(r) => {
+                if (!can(PERMISSIONS.EDIT_PATIENTS) && !can(PERMISSIONS.DELETE_PATIENTS)) return null;
+                return (
+                  <div className='flex gap-1'>
+                    <Link href={`/patients/${r.id}`}>
+                      <EditButton size='sm' />
+                    </Link>
+                  </div>
+                );
+              }}
+            />
       </AppCard.Content>
       <AppCard.Footer className='justify-end'>
         <Pagination
@@ -376,7 +315,5 @@ export default function PatientsPage() {
         />
       </AppCard.Footer>
     </AppCard>
-
-    </>
   );
 }

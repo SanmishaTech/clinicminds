@@ -172,6 +172,7 @@ export function AppointmentForm({
                   options={patientOptions}
                   required
                   placeholder="Select patient"
+                  emptyText="No Patients found"
                   disabled={!isCreate}
                   stickyActionButton={isCreate ? {
                     label: "Create New Patient",

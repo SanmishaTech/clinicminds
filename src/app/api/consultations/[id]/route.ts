@@ -70,6 +70,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
             id: true,
             appointmentDateTime: true,
             visitPurpose: true,
+            type: true,
             patient: {
               select: {
                 id: true,
@@ -143,7 +144,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
     });
 
     if (!record) return Error('Consultation not found', 404);
-    return Success(record);
+  
+  // Map receipts to consultationReceipts for frontend compatibility
+  const response = {
+    ...record,
+    consultationReceipts: record.receipts
+  };
+  
+  return Success(response);
   } catch (e) {
     console.error('Error fetching consultation:', e);
     return Error('Failed to fetch consultation');

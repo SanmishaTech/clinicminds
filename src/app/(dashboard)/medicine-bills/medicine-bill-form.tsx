@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { apiGet, apiPost } from '@/lib/api-client';
 import { toast } from '@/lib/toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
 import { AppCheckbox } from '@/components/common/app-checkbox';
@@ -90,8 +90,15 @@ const medicineBillSchema = z.object({
 
 type MedicineBillFormData = z.infer<typeof medicineBillSchema>;
 
-export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess = "/medicine-bills" }: MedicineBillFormProps) {
+export function MedicineBillForm({
+  mode,
+  initial,
+  onSuccess,
+  redirectOnSuccess = '/medicine-bills',
+}: MedicineBillFormProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlPatientId = searchParams.get('patientId');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,7 +109,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
     mode: 'onChange',
     reValidateMode: 'onChange',
     defaultValues: {
-      patientId: initial?.patientId?.toString() || undefined,
+      patientId: initial?.patientId?.toString() || urlPatientId || undefined,
       discountPercent: "0",
       totalAmount: initial?.totalAmount || 0,
       medicineBillDetails: initial?.medicineBillDetails?.length ? initial.medicineBillDetails.map(detail => ({
@@ -303,7 +310,7 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
   }
 
   // Show loading state while data is being fetched
-  if (!medicines.length || !patients.length) {
+  if (!medicines.length) {
     return <div className='p-6'>Loading...</div>;
   }
 
@@ -323,8 +330,13 @@ export function MedicineBillForm({ mode, initial, onSuccess, redirectOnSuccess =
                   name='patientId'
                   label='Patient'
                   placeholder='Select patient'
+                  emptyText='No Patients found'
                   options={patientOptions}
                   required
+                  stickyActionButton={{
+                    label: 'Create New Patient',
+                    href: '/patients/new?redirectTo=medicine-bills'
+                  }}
                 />
               </FormRow>
             </FormSection>

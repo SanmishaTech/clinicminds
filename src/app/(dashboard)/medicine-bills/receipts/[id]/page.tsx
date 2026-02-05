@@ -161,10 +161,10 @@ export default function MedicineBillReceiptsPage() {
       // Header with App Name
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
-      doc.text('ClinicMinds', pageWidth / 2, y, { align: 'center' });
+      doc.text(process.env.NEXT_PUBLIC_APP_NAME || 'ANKURAM', pageWidth / 2, y, { align: 'center' });
       y += 10;
       doc.setFontSize(16);
-      doc.text('MEDICINE BILL INVOICE', pageWidth / 2, y, { align: 'center' });
+      doc.text('INVOICE', pageWidth / 2, y, { align: 'center' });
       y += 12;
 
       // Invoice and Patient Info
@@ -174,12 +174,14 @@ export default function MedicineBillReceiptsPage() {
       const billNumber = medicineBillData.billNumber;
       const patientName = `${medicineBillData.patient.firstName} ${medicineBillData.patient.middleName} ${medicineBillData.patient.lastName}`.trim();
       
-      doc.text(`Bill #: ${billNumber}`, margin, y);
+      doc.text(`Invoice Number: ${billNumber}`, margin, y);
       doc.text(`Date: ${formatDate(medicineBillData.billDate)}`, pageWidth - 60, y);
       y += 8;
       
       doc.text(`Patient: ${patientName}`, margin, y);
-      doc.text(`Mobile: ${medicineBillData.patient.mobile}`, pageWidth - 80, y);
+      y += 8;
+      
+      doc.text(`Mobile Number: ${medicineBillData.patient.mobile}`, margin, y);
       y += 8;
       
       doc.text(`Gender: ${medicineBillData.patient.gender}`, margin, y);
@@ -228,7 +230,7 @@ export default function MedicineBillReceiptsPage() {
         });
         
         // Medicines subtotal
-        const medicinesSubtotal = medicineBillData.medicineDetails.reduce((sum, medicine) => sum + medicine.amount, 0);
+        const medicinesSubtotal = medicineBillData.medicineDetails.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0);
         y = drawRow(['', 'Subtotal:', '', formatPdfCurrency(medicinesSubtotal)], false, true);
       }
 

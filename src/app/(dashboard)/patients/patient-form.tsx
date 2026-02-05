@@ -124,6 +124,7 @@ export interface PatientFormProps {
 const GENDER_OPTIONS = MASTER_CONFIG.gender.map((g) => ({ value: g.value, label: g.label }));
 const BLOOD_GROUP_OPTIONS = MASTER_CONFIG.bloodGroup.map((b) => ({ value: b.value, label: b.label }));
 const MARITAL_STATUS_OPTIONS = MASTER_CONFIG.maritalStatus.map((m) => ({ value: m.value, label: m.label }));
+const OCCUPATION_TYPE_OPTIONS = MASTER_CONFIG.occupationType.map((o) => ({ value: o.value, label: o.label }));
 
 export function PatientForm({
   mode,
@@ -745,7 +746,7 @@ export function PatientForm({
               </FormRow>
               <FormRow cols={2}>
                 <TextInput control={control} name='occupation' label='Occupation' placeholder='Occupation' />
-                <TextInput control={control} name='occupationType' label='Occupation Type' placeholder='Occupation Type' />
+                <ComboboxInput control={control} name='occupationType' label='Occupation Type' options={OCCUPATION_TYPE_OPTIONS} />
               </FormRow>
               <FormRow cols={2}>
                 <SelectInput

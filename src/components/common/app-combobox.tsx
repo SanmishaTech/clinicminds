@@ -87,7 +87,6 @@ export function AppCombobox({
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList>
-            <CommandEmpty>{emptyText}</CommandEmpty>
             {stickyActionButton && (
               <div className="sticky top-0 bg-background border-b p-2">
                 <Button
@@ -104,6 +103,7 @@ export function AppCombobox({
                 </Button>
               </div>
             )}
+            <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>
               {options.map((option) => (
                 <CommandItem

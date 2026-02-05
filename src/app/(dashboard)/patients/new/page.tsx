@@ -17,10 +17,12 @@ export default function NewPatientPage() {
     if (role === ROLES.ADMIN) router.replace('/patients');
   }, [role, router]);
   
-  // If coming from appointments, redirect back with patient ID
+  // If coming from appointments or medicine-bills, redirect back with patient ID
   const handleSuccess = (result: any) => {
     if (redirectTo === 'appointments' && result?.id) {
       window.location.href = `/appointments/new?patientId=${result.id}`;
+    } else if (redirectTo === 'medicine-bills' && result?.id) {
+      window.location.href = `/medicine-bills/new?patientId=${result.id}`;
     }
   };
 
@@ -30,7 +32,7 @@ export default function NewPatientPage() {
     <PatientForm 
       mode='create' 
       onSuccess={handleSuccess}
-      redirectOnSuccess={redirectTo === 'appointments' ? '#' : '/patients'}
+      redirectOnSuccess={(redirectTo === 'appointments' || redirectTo === 'medicine-bills') ? '#' : '/patients'}
     />
   );
 }

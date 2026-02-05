@@ -16,6 +16,8 @@ export const PAGE_ACCESS_RULES: { prefix: string; permissions: string[] }[] = [
   { prefix: "/patients/", permissions: [PERMISSIONS.EDIT_PATIENTS] },
   { prefix: "/patients", permissions: [PERMISSIONS.READ_PATIENTS] },
 
+  { prefix: "/referred-patients", permissions: [PERMISSIONS.READ_REFERRED_PATIENTS] },
+
   { prefix: "/franchises/new", permissions: [PERMISSIONS.CREATE_FRANCHISES] },
   { prefix: "/franchises/", permissions: [PERMISSIONS.EDIT_FRANCHISES] },
   { prefix: "/franchises", permissions: [PERMISSIONS.READ_FRANCHISES] },

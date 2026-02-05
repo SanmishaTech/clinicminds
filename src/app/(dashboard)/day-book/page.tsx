@@ -128,7 +128,12 @@ export default function DayBookPage() {
       key: 'transactionType',
       header: 'Type',
       sortable: true,
-      accessor: (r) => r.transactionType === 'CONSULTATION' ? 'Consultation' : 'Medicine Bill',
+      accessor: (r) => {
+        if (r.transactionType === 'CONSULTATION') {
+          return r.consultationData?.type === 'PROCEDURE' ? 'Procedure' : 'Consultation';
+        }
+        return 'Medicine Bill';
+      },
       cellClassName: 'whitespace-nowrap font-medium',
     },
     {
@@ -171,7 +176,7 @@ export default function DayBookPage() {
       header: 'Remark',
       sortable: false,
       accessor: (r) => r.remarks || '—',
-      cellClassName: 'max-w-xs truncate',
+      cellClassName: 'max-w-64 truncate',
     },
     {
       key: 'totalAmount',
@@ -266,7 +271,7 @@ export default function DayBookPage() {
                   </Link>
                   <Link href={
                     row.transactionType === 'CONSULTATION' 
-                      ? `/consultations/${row.originalId}/edit`
+                      ? `/consultations/${row.originalId}`
                       : `/medicine-bills/${row.originalId}`
                   }>
                     <IconButton

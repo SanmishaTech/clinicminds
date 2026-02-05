@@ -1,44 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Form } from '@/components/ui/form';
-import { z } from 'zod';
-import { toast } from '@/lib/toast';
-import { apiGet, apiPost } from '@/lib/api-client';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { apiGet } from '@/lib/api-client';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
-import { TextInput } from '@/components/common/text-input';
-import TextareaInput from '@/components/common/textarea-input';
-import { ComboboxInput } from '@/components/common/combobox-input';
-import { FormSection, FormRow } from '@/components/common/app-form';
-import { DataTable, Column } from '@/components/common/data-table';
-import { formatIndianCurrency, formatDate, formatDateTime } from '@/lib/locales';
-import { useParams, useRouter } from 'next/navigation';
+import { FormRow } from '@/components/common/app-form';
+import { formatIndianCurrency, formatDateTime } from '@/lib/locales';
 import { ConsultationInvoicePDF } from '@/components/consultation/consultation-invoice-pdf';
-
-const paymentModeOptions = [
-  { value: 'CASH', label: 'Cash' },
-  { value: 'UPI', label: 'UPI' },
-  { value: 'CHEQUE', label: 'Cheque' },
-];
-
-const receiptSchema = z.object({
-  date: z.string(),
-  paymentMode: z.enum(['CASH', 'UPI', 'CHEQUE']),
-  payerName: z.string().optional(),
-  contactNumber: z.string().optional(),
-  utrNumber: z.string().optional(),
-  upiName: z.string().optional(),
-  bankName: z.string().optional(),
-  amount: z.string().min(1, "Amount is required"),
-  chequeNumber: z.string().optional(),
-  chequeDate: z.string().optional(),
-  notes: z.string().optional(),
-});
-
-type ReceiptFormData = z.infer<typeof receiptSchema>;
 
 type ConsultationData = {
   id: number;
@@ -50,6 +19,7 @@ type ConsultationData = {
   diagnosis?: string;
   remarks?: string;
   nextFollowUpDate?: string;
+  casePaperUrl?: string;
   createdAt: string;
   updatedAt: string;
   appointment: {
@@ -110,181 +80,72 @@ type ConsultationData = {
     chequeNumber?: string;
     chequeDate?: string;
     notes?: string;
+    createdAt: string;
   }>;
 };
 
-type ReceiptItem = {
-  id: number;
-  receiptNumber: string;
-  date: string;
-  paymentMode: string;
-  payerName: string;
-  contactNumber?: string;
-  utrNumber?: string;
-  amount: string;
-  chequeNumber?: string;
-  chequeDate?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export default function ReceiptPage() {
+export default function ConsultationDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const consultationId = parseInt(params.id as string);
+  const consultationId = params?.id ? Number(params.id) : null;
   
-  const [receipts, setReceipts] = useState<ReceiptItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [consultationData, setConsultationData] = useState<ConsultationData | null>(null);
-  const form = useForm<ReceiptFormData>({
-    resolver: zodResolver(receiptSchema),
-    mode: 'onChange',
-    reValidateMode: 'onChange',
-    defaultValues: {
-      date: new Date().toISOString().split('T')[0],
-    },
-  });
-
-  const { control, handleSubmit, watch, reset, setValue } = form;
-
-  const selectedPaymentMode = watch('paymentMode');
-  const receiptAmount = watch('amount');
-
-  // Check if receipt amount exceeds balance
+  const [isLoading, setIsLoading] = useState(false);
+  console.log(consultationData);
   useEffect(() => {
-    if (receiptAmount && currentBalance > 0) {
-      const amount = parseFloat(receiptAmount);
-      if (amount > currentBalance) {
-        toast.error('Receipt amount cannot exceed balance amount');
-        setValue('amount', currentBalance.toString());
+    const fetchConsultationDetails = async () => {
+      if (!consultationId) return;
+
+      setIsLoading(true);
+      try {
+        const response = await apiGet(`/api/consultations/${consultationId}`);
+        setConsultationData(response as ConsultationData);
+      } catch (error) {
+        console.error('Failed to fetch consultation details:', error);
+      } finally {
+        setIsLoading(false);
       }
-    }
-  }, [receiptAmount, setValue]);
+    };
 
-  // Fetch consultation data
-  const fetchConsultationData = async () => {
-    try {
-      setLoading(true);
-      const response = await apiGet(`/api/consultations/${consultationId}`) as ConsultationData;
-      console.log(response);
-      setConsultationData(response);
-    } catch (error) {
-      toast.error('Failed to fetch consultation data');
-      router.back();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch receipts for this consultation
-  const fetchReceipts = async () => {
-    try {
-      setLoading(true);
-      const response = await apiGet(`/api/consultation-receipts?consultationId=${consultationId}&sort=date&order=desc`) as { data: ReceiptItem[] };
-      setReceipts(response.data || []);
-    } catch (error) {
-      toast.error('Failed to fetch receipts');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (consultationId) {
-      fetchConsultationData();
-      fetchReceipts();
-    }
+    fetchConsultationDetails();
   }, [consultationId]);
 
-  const onSubmit = async (values: ReceiptFormData) => {
-    try {
-      setSubmitting(true);
-      
-      const receiptAmount = parseFloat(values.amount || '0');
-      
-      // Forceful check: Ensure receipt amount doesn't exceed balance amount
-      if (receiptAmount > currentBalance) {
-        toast.error('Receipt amount cannot exceed balance amount');
-        return;
-      }
-      
-      const receiptData = {
-        consultationId,
-        date: values.date ? new Date(values.date).toISOString() : new Date().toISOString(),
-        paymentMode: values.paymentMode || '',
-        payerName: values.payerName || '',
-        contactNumber: values.contactNumber || '',
-        utrNumber: values.utrNumber || '',
-        upiName: values.upiName || '',
-        bankName: values.bankName || '',
-        amount: receiptAmount,
-        chequeNumber: values.chequeNumber || '',
-        chequeDate: values.chequeDate ? new Date(values.chequeDate).toISOString() : null,
-        notes: values.notes || '',
-      };
-
-      await apiPost('/api/consultation-receipts', receiptData);
-      toast.success('Receipt created successfully');
-      router.push('/day-book');
-    } catch (error) {
-      toast.error('Failed to create receipt');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const receiptColumns: Column<ReceiptItem>[] = [
-    {
-      key: 'receiptNumber',
-      header: 'Receipt No',
-      sortable: false,
-      accessor: (r) => r.receiptNumber,
-      cellClassName: 'font-medium whitespace-nowrap',
-    },
-    {
-      key: 'date',
-      header: 'Date',
-      sortable: false,
-      accessor: (r) => formatDate(r.date),
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'paymentMode',
-      header: 'Payment Mode',
-      sortable: false,
-      accessor: (r) => r.paymentMode,
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'payerName',
-      header: 'Payer Name',
-      sortable: false,
-      accessor: (r) => r.payerName,
-      cellClassName: 'whitespace-nowrap',
-    },
-    {
-      key: 'amount',
-      header: 'Amount',
-      sortable: false,
-      accessor: (r) => formatIndianCurrency(parseFloat(r.amount)),
-      cellClassName: 'whitespace-nowrap font-medium',
-    },
-  ];
-
-  if (loading && !consultationData) {
+  if (!consultationId) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">Loading consultation data...</div>
+      <div className="container mx-auto p-6">
+        <AppCard>
+          <AppCard.Content>
+            <div className="text-center py-8 text-red-600">
+              Invalid consultation ID
+            </div>
+          </AppCard.Content>
+        </AppCard>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto p-6">
+        <AppCard>
+          <AppCard.Content>
+            <div className="text-center py-8">Loading consultation details...</div>
+          </AppCard.Content>
+        </AppCard>
       </div>
     );
   }
 
   if (!consultationData) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">Consultation not found</div>
+      <div className="container mx-auto p-6">
+        <AppCard>
+          <AppCard.Content>
+            <div className="text-center py-8 text-gray-500">
+              Consultation not found
+            </div>
+          </AppCard.Content>
+        </AppCard>
       </div>
     );
   }
@@ -372,12 +233,20 @@ export default function ReceiptPage() {
   );
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      
-      {/* Consultation Information */}
+    <div className="container mx-auto p-6">
       <AppCard>
         <AppCard.Header>
           <AppCard.Title>Consultation Information</AppCard.Title>
+          <AppCard.Description>View detailed information about this consultation</AppCard.Description>
+          <AppCard.Action>
+            <AppButton
+              variant="secondary"
+              onClick={() => router.back()}
+              iconName="ArrowLeft"
+            >
+              Back
+            </AppButton>
+          </AppCard.Action>
         </AppCard.Header>
         <AppCard.Content>
           <FormRow cols={4}>
@@ -429,13 +298,54 @@ export default function ReceiptPage() {
             </div>
             <AppButton
              type='button'
-            //  disabled={currentBalance !== 0}
              iconName='Download'
              size='sm'
              onClick={generateInvoicePDF}
              >
               Download Invoice
             </AppButton>
+          </FormRow>
+
+          {/* Additional Consultation Information */}
+          <FormRow cols={4}>
+            <div>
+              <label className="block text-sm font-medium">Complaint</label>
+              <p className="text-sm">{consultationData.complaint || '—'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Diagnosis</label>
+              <p className="text-sm">{consultationData.diagnosis || '—'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Remarks</label>
+              <p className="text-sm">{consultationData.remarks || '—'}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Next FollowUp Date</label>
+              <p className="text-sm">
+                {consultationData.nextFollowUpDate 
+                  ? formatDateTime(new Date(consultationData.nextFollowUpDate), { year: 'numeric', month: '2-digit', day: '2-digit' })
+                  : '—'
+                }
+              </p>
+            </div>
+          </FormRow>
+          <FormRow cols={1}>
+            <div className="flex justify-end">
+              <AppButton
+                type='button'
+                iconName='FileText'
+                size='sm'
+                disabled={!consultationData.casePaperUrl}
+                onClick={() => {
+                  if (consultationData.casePaperUrl) {
+                    window.open(consultationData.casePaperUrl, '_blank');
+                  }
+                }}
+              >
+                View Casepaper
+              </AppButton>
+            </div>
           </FormRow>
 
           {/* Services and Medicines Details */}
@@ -447,14 +357,14 @@ export default function ReceiptPage() {
                   <div className="px-4 py-2 font-medium text-sm border-r">{consultationData.appointment.type === 'PROCEDURE' ? 'Procedure' : 'Service'}</div>
                   <div className="px-4 py-2 font-medium text-sm border-r">Description</div>
                   <div className="px-4 py-2 font-medium text-sm border-r">Rate</div>
-                  <div className="px-4 py-2 font-medium text-sm">Amount</div>
+                  <div className="px-4 py-2 font-medium text-sm border-r">Amount</div>
                 </div>
                 {consultationData.consultationDetails?.map((detail, index) => (
                   <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
                     <div className="px-4 py-2 font-medium text-sm border-r">{detail.service?.name || '—'}</div>
                     <div className="px-4 py-2 font-medium text-sm border-r">{detail.description || '—'}</div>
                     <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(detail.rate)}</div>
-                    <div className="px-4 py-2 font-medium text-sm">{formatIndianCurrency(detail.amount)}</div>
+                    <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(detail.amount)}</div>
                   </div>
                 ))}
                 <TotalsDisplay showServicesSubtotal={false} showSubtotal={true} />
@@ -470,14 +380,14 @@ export default function ReceiptPage() {
                   <div className="px-4 py-2 font-medium text-sm border-r">Medicine</div>
                   <div className="px-4 py-2 font-medium text-sm border-r">Qty</div>
                   <div className="px-4 py-2 font-medium text-sm border-r">MRP</div>
-                  <div className="px-4 py-2 font-medium text-sm">Amount</div>
+                  <div className="px-4 py-2 font-medium text-sm border-r">Amount</div>
                 </div>
                 {consultationData.consultationMedicines?.map((medicine, index) => (
                   <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
                     <div className="px-4 py-2 font-medium text-sm border-r">{medicine.medicine?.name || '—'}</div>
                     <div className="px-4 py-2 font-medium text-sm border-r">{medicine.qty}</div>
                     <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(medicine.mrp)}</div>
-                    <div className="px-4 py-2 font-medium text-sm">{formatIndianCurrency(medicine.amount)}</div>
+                    <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(medicine.amount)}</div>
                   </div>
                 ))}
                 <TotalsDisplay showMedicinesSubtotal={false} showSubtotal={true} />
@@ -495,14 +405,14 @@ export default function ReceiptPage() {
                     <div className="px-4 py-2 font-medium text-sm border-r">{consultationData.appointment.type === 'PROCEDURE' ? 'Procedure' : 'Service'}</div>
                     <div className="px-4 py-2 font-medium text-sm border-r">Description</div>
                     <div className="px-4 py-2 font-medium text-sm border-r">Rate</div>
-                    <div className="px-4 py-2 font-medium text-sm">Amount</div>
+                    <div className="px-4 py-2 font-medium text-sm border-r">Amount</div>
                   </div>
                   {consultationData.consultationDetails?.map((detail, index) => (
                     <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
                       <div className="px-4 py-2 font-medium text-sm border-r">{detail.service?.name || '—'}</div>
                       <div className="px-4 py-2 font-medium text-sm border-r">{detail.description || '—'}</div>
                       <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(detail.rate)}</div>
-                      <div className="px-4 py-2 font-medium text-sm">{formatIndianCurrency(detail.amount)}</div>
+                      <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(detail.amount)}</div>
                     </div>
                   ))}
                 </div>
@@ -516,196 +426,20 @@ export default function ReceiptPage() {
                     <div className="px-4 py-2 font-medium text-sm border-r">Medicine</div>
                     <div className="px-4 py-2 font-medium text-sm border-r">Qty</div>
                     <div className="px-4 py-2 font-medium text-sm border-r">MRP</div>
-                    <div className="px-4 py-2 font-medium text-sm">Amount</div>
+                    <div className="px-4 py-2 font-medium text-sm border-r">Amount</div>
                   </div>
                   {consultationData.consultationMedicines?.map((medicine, index) => (
                     <div key={index} className="grid grid-cols-4 gap-0 border-b last:border-b-0">
                       <div className="px-4 py-2 font-medium text-sm border-r">{medicine.medicine?.name || '—'}</div>
                       <div className="px-4 py-2 font-medium text-sm border-r">{medicine.qty}</div>
                       <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(medicine.mrp)}</div>
-                      <div className="px-4 py-2 font-medium text-sm">{formatIndianCurrency(medicine.amount)}</div>
+                      <div className="px-4 py-2 font-medium text-sm border-r">{formatIndianCurrency(medicine.amount)}</div>
                     </div>
                   ))}
                   <TotalsDisplay showServicesSubtotal={true} showMedicinesSubtotal={true} showSubtotal={true} />
                 </div>
               </div>
             </>
-          )}
-        </AppCard.Content>
-      </AppCard>
-
-      {/* Add Receipt Form */}
-      <AppCard>
-        <AppCard.Header>
-          <AppCard.Title>Add New Receipt</AppCard.Title>
-        </AppCard.Header>
-        <AppCard.Content>
-          <Form {...form}>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              {/* Receipt Amount - Move to top */}
-              <FormRow cols={1}>
-                <TextInput
-                  control={control}
-                  name="amount"
-                  label="Receipt Amount"
-                  type="number"
-                  step="0.01"
-                  required
-                  placeholder="Enter amount"
-                  disabled={currentBalance === 0}
-                  max={currentBalance}
-                />
-              </FormRow>
-
-              <FormRow cols={3}>
-                <TextInput
-                  control={control}
-                  name="date"
-                  label="Receipt Date"
-                  type="date"
-                  required
-                  disabled={currentBalance === 0}
-                />
-                <ComboboxInput
-                  control={control}
-                  name="paymentMode"
-                  label="Payment Mode"
-                  options={paymentModeOptions}
-                  required
-                  placeholder="Select payment mode"
-                  disabled={currentBalance === 0}
-                />
-                <TextInput
-                  control={control}
-                  name="payerName"
-                  label="Payer Name"
-                  placeholder="Enter payer name"
-                  disabled={currentBalance === 0}
-                />
-              </FormRow>
-
-              {/* Conditional fields based on payment mode */}
-              {selectedPaymentMode === 'CASH' && (
-                <FormRow cols={1}>
-                  <TextInput
-                    control={control}
-                    name="contactNumber"
-                    label="Contact Number"
-                    maxLength={10}
-                    pattern='[+0-9]*'
-                    onInput={(e) => {
-                      e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
-                    }}
-                    placeholder="Enter contact number"
-                    disabled={currentBalance === 0}
-                  />
-                </FormRow>
-              )}
-
-              {selectedPaymentMode === 'UPI' && (
-                <FormRow cols={3}>
-                  <TextInput
-                    control={control}
-                    name="upiName"
-                    label="UPI Name"
-                    placeholder="Enter UPI name"
-                    disabled={currentBalance === 0}
-                  />
-                  <TextInput
-                    control={control}
-                    name="utrNumber"
-                    label="UTR Number"
-                    placeholder="Enter UTR number"
-                    disabled={currentBalance === 0}
-                  />
-                  <TextInput
-                    control={control}
-                    name="contactNumber"
-                    label="Contact Number"
-                    maxLength={10}
-                    pattern='[+0-9]*'
-                    onInput={(e) => {
-                      e.currentTarget.value = e.currentTarget.value.replace(/[^0-9]/g, '');
-                    }}
-                    placeholder="Enter contact number"
-                    disabled={currentBalance === 0}
-                  />
-                </FormRow>
-              )}
-
-              {selectedPaymentMode === 'CHEQUE' && (
-                <FormRow cols={3}>
-                  <TextInput
-                    control={control}
-                    name="bankName"
-                    label="Bank Name"
-                    placeholder="Enter bank name"
-                    disabled={currentBalance === 0}
-                  />
-                  <TextInput
-                    control={control}
-                    name="chequeNumber"
-                    label="Cheque Number"
-                    placeholder="Enter cheque number"
-                    disabled={currentBalance === 0}
-                  />
-                  <TextInput
-                    control={control}
-                    name="chequeDate"
-                    label="Cheque Date"
-                    type="date"
-                    disabled={currentBalance === 0}
-                  />
-                </FormRow>
-              )}
-
-              <FormRow cols={1}>
-                <TextareaInput
-                  control={control}
-                  name="notes"
-                  label="Notes"
-                  placeholder="Enter notes (optional)"
-                  disabled={currentBalance === 0}
-                />
-              </FormRow>
-
-              <div className="flex justify-end space-x-2">
-                <AppButton
-                  type="button"
-                  variant="outline"
-                  iconName='X'
-                  onClick={() => router.push('/day-book')}
-                >
-                  Cancel
-                </AppButton>
-                <AppButton
-                  type="submit"
-                  isLoading={submitting}
-                  disabled={submitting || currentBalance === 0 || !form.formState.isValid}
-                >
-                  Create Receipt
-                </AppButton>
-              </div>
-            </form>
-          </Form>
-        </AppCard.Content>
-      </AppCard>
-
-      {/* Receipt History */}
-      <AppCard>
-        <AppCard.Header>
-          <AppCard.Title>Receipt History</AppCard.Title>
-        </AppCard.Header>
-        <AppCard.Content>
-          {loading ? (
-            <div className="text-center py-4">Loading receipts...</div>
-          ) : receipts.length === 0 ? (
-            <div className="text-center py-4 text-gray-500">No receipts found</div>
-          ) : (
-            <DataTable
-              data={receipts}
-              columns={receiptColumns}
-            />
           )}
         </AppCard.Content>
       </AppCard>

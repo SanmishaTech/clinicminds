@@ -59,6 +59,12 @@ export const NAV_ITEMS: NavItem[] = [
     permission: PERMISSIONS.VIEW_PATIENTS,
   },
   {
+    title: "Referred Patients",
+    href: "/referred-patients",
+    icon: Users,
+    permission: PERMISSIONS.READ_REFERRED_PATIENTS,
+  },
+  {
     type: "group",
     title: "Master",
     icon: Building2,

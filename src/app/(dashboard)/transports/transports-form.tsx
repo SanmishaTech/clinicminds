@@ -220,7 +220,7 @@ export default function TransportForm({
                         return (
                           <tr key={d.id ?? idx} className='border-t'>
                             <td className='px-3 py-2'>
-                              {(d.medicineName || '—') + (d.brandName ? ` (${d.brandName})` : '')}
+                              {`${d.medicineName} - ${d.brandName}`}
                             </td>
                             <td className='px-3 py-2'>{d.batchNumber || '—'}</td>
                             <td className='px-3 py-2'>

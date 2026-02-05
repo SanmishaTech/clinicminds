@@ -55,8 +55,12 @@ export async function GET(req: NextRequest) {
   
   // Filter by user role
   if (auth.user.role === 'Admin') {
-    // Admin can only see patients referred to head office
-    where.isReferredToHo = true;
+    // Admin can choose between all patients or only referred patients
+    const referredOnly = searchParams.get("referredOnly") === "true";
+    if (referredOnly) {
+      where.isReferredToHo = true;
+    }
+    // If referredOnly is false/undefined, admin sees ALL patients (no where clause)
   } else {
   // Get current user's franchise ID, role, and team
   const currentUser = await prisma.user.findUnique({
@@ -527,6 +531,7 @@ export async function PATCH(req: NextRequest) {
 
   const {
     id,
+    franchiseId: newFranchiseId,
     isReferredToHo,
     teamId,
     firstName,
@@ -571,6 +576,7 @@ export async function PATCH(req: NextRequest) {
   } =
     (body as Partial<{
       id: number | string;
+      franchiseId?: number | string | null;
       isReferredToHo?: boolean;
       teamId?: number | string | null;
       firstName?: string;
@@ -614,6 +620,7 @@ export async function PATCH(req: NextRequest) {
       patientReports?: Array<{ name?: string; url?: string }> | null;
     }>) || {} as {
       id?: number | string;
+      franchiseId?: number | string | null;
       isReferredToHo?: boolean;
       teamId?: number | string | null;
       firstName?: string;
@@ -670,6 +677,16 @@ export async function PATCH(req: NextRequest) {
       const n = Number(teamId);
       if (Number.isNaN(n)) return ApiError("Invalid team", 400);
       data.team = { connect: { id: n } };
+    }
+  }
+
+  if (newFranchiseId !== undefined) {
+    if (newFranchiseId === null || newFranchiseId === "") {
+      data.franchise = { disconnect: true };
+    } else {
+      const n = Number(newFranchiseId);
+      if (Number.isNaN(n)) return ApiError("Invalid franchise", 400);
+      data.franchise = { connect: { id: n } };
     }
   }
 
@@ -857,6 +874,7 @@ export async function PATCH(req: NextRequest) {
         select: {
           id: true,
           patientNo: true,
+          franchise: { select: { id: true, name: true } },
           team: { select: { id: true, name: true } },
           firstName: true,
           middleName: true,
