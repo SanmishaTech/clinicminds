@@ -25,6 +25,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
         contactNo: true,
         contactEmail: true,
         franchiseFeeAmount: true,
+        gstNumber: true,
         userMobile: true,
         createdAt: true,
         user: {

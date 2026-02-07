@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
       contactNo: true,
       contactEmail: true,
       franchiseFeeAmount: true,
+      gstNumber: true,
       userMobile: true,
       createdAt: true,
       user: {
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
     contactNo,
     contactEmail,
     franchiseFeeAmount,
+    gstNumber,
     userName,
     userMobile,
     userEmail,
@@ -121,6 +123,7 @@ export async function POST(req: NextRequest) {
     contactNo: string;
     contactEmail: string;
     franchiseFeeAmount: number;
+    gstNumber: string;
     userName: string;
     userMobile: string;
     userEmail: string;
@@ -145,6 +148,9 @@ export async function POST(req: NextRequest) {
   if (!/^[0-9]{10}$/.test(String(contactNo))) return Error("Contact No must be 10 digits", 400);
   if (!/^[0-9]{10}$/.test(String(userMobile))) return Error("Mobile must be 10 digits", 400);
   if (password.length < 6) return Error("Password must be at least 6 characters", 400);
+  if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstNumber)) {
+    return Error("GST Number must be in the format: 22AAAAA0000A1Z5", 400);
+  }
 
   const trimmedFranchiseName = String(name).trim();
 
@@ -185,6 +191,7 @@ export async function POST(req: NextRequest) {
           contactNo,
           contactEmail,
           franchiseFeeAmount: typeof franchiseFeeAmount === 'number' ? franchiseFeeAmount : undefined,
+          gstNumber: gstNumber || null,
           userMobile,
           userId: user.id,
         },
@@ -199,6 +206,7 @@ export async function POST(req: NextRequest) {
           contactNo: true,
           contactEmail: true,
           franchiseFeeAmount: true,
+          gstNumber: true,
           userMobile: true,
           createdAt: true,
           user: {
@@ -251,6 +259,7 @@ export async function PATCH(req: NextRequest) {
     contactNo,
     contactEmail,
     franchiseFeeAmount,
+    gstNumber,
     userName,
     userMobile,
     userEmail,
@@ -267,6 +276,7 @@ export async function PATCH(req: NextRequest) {
     contactNo?: string;
     contactEmail?: string;
     franchiseFeeAmount?: number;
+    gstNumber?: string;
     userName?: string;
     userMobile?: string;
     userEmail?: string;
@@ -303,6 +313,12 @@ export async function PATCH(req: NextRequest) {
   }
   if (typeof contactEmail === "string" && contactEmail) franchiseData.contactEmail = contactEmail;
   if (typeof franchiseFeeAmount === 'number') franchiseData.franchiseFeeAmount = franchiseFeeAmount;
+  if (typeof gstNumber === "string" || gstNumber === null) {
+    if (gstNumber && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/.test(gstNumber)) {
+      return Error("GST Number must be in the format: 22AAAAA0000A1Z5", 400);
+    }
+    franchiseData.gstNumber = gstNumber || null;
+  }
   if (typeof userMobile === "string" && userMobile) {
     if (!/^[0-9]{10}$/.test(userMobile)) return Error("Mobile must be 10 digits", 400);
     franchiseData.userMobile = userMobile;
@@ -361,6 +377,7 @@ export async function PATCH(req: NextRequest) {
         contactNo: true,
         contactEmail: true,
         franchiseFeeAmount: true,
+        gstNumber: true,
         userMobile: true,
         createdAt: true,
         user: {

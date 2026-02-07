@@ -65,7 +65,8 @@ model Franchise {
   contactNo    String
   contactEmail String
   franchiseFeeAmount Decimal? @db.Decimal(10, 2)
-   
+  gstNumber    String?
+
   userMobile String
   userId     Int    @unique
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)

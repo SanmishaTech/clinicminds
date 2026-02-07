@@ -515,12 +515,15 @@ export async function PATCH(req: NextRequest) {
       return ApiError("Current user not found", 404);
     }
     
+  // Only check franchise for non-admin users
+  if (currentUser.role !== 'ADMIN') {
     // Get franchise ID from either direct assignment or through team
     const franchiseId = currentUser.franchise?.id || currentUser.team?.franchise?.id;
     
     if (!franchiseId) {
       return ApiError("Current user is not associated with any franchise", 400);
     }
+  }
 
   let body: unknown;
   try {

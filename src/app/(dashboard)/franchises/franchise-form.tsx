@@ -43,6 +43,7 @@ export interface FranchiseFormInitialData {
   contactNo?: string;
   contactEmail?: string;
   franchiseFeeAmount?: number;
+  gstNumber?: string;
   userName?: string | null;
   userMobile?: string;
   userEmail?: string;
@@ -80,6 +81,19 @@ export function FranchiseForm({
       .transform((v) => (v === '' ? undefined : v))
       .refine((v) => v === undefined || (!isNaN(Number(v)) && Number(v) >= 0), 'Fee must be a valid number'),
 
+    gstNumber: z.preprocess(
+  (v) => (v === '' || v === null ? undefined : v),
+  z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(
+      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$/,
+      'GST Number must be in the format: 22AAAAA0000A1Z5'
+    )
+    .optional()
+),
+
     userName: z.string().trim().min(1, 'Name is required'),
     userMobile: z.string().regex(/^[0-9]{10}$/, 'Mobile must be 10 digits'),
     userEmail: z.string().email('Invalid email'),
@@ -107,6 +121,7 @@ export function FranchiseForm({
       contactNo: initial?.contactNo || '',
       contactEmail: initial?.contactEmail || '',
       franchiseFeeAmount: initial?.franchiseFeeAmount?.toString() || '',
+      gstNumber: initial?.gstNumber || '',
 
       userName: initial?.userName || '',
       userMobile: initial?.userMobile || '',
@@ -215,6 +230,7 @@ export function FranchiseForm({
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
           franchiseFeeAmount: values.franchiseFeeAmount ? Number(values.franchiseFeeAmount) : undefined,
+          gstNumber: values.gstNumber,
 
           userName: values.userName,
           userMobile: values.userMobile,
@@ -236,6 +252,7 @@ export function FranchiseForm({
           contactNo: values.contactNo,
           contactEmail: values.contactEmail,
           franchiseFeeAmount: values.franchiseFeeAmount ? Number(values.franchiseFeeAmount) : undefined,
+          gstNumber: values.gstNumber,
 
           userName: values.userName,
           userMobile: values.userMobile,
@@ -281,14 +298,19 @@ export function FranchiseForm({
               <FormRow>
                 <TextInput control={control} name='name' label='Franchise Name' required placeholder='Franchise name' />
               </FormRow>
-              <FormRow>
+              <FormRow cols={2}>
                 <TextInput
                   control={control}
                   name='franchiseFeeAmount'
                   label='Franchise Fee Amount'
                   placeholder='0'
                   type='number'
-                  itemClassName='col-span-12 md:col-span-6'
+                />
+                <TextInput
+                  control={control}
+                  name='gstNumber'
+                  label='GST Number'
+                  placeholder='GST number'
                 />
               </FormRow>
               <FormRow cols={2}>

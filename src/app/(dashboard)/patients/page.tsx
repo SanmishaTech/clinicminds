@@ -12,7 +12,7 @@ import { AppButton } from '@/components/common/app-button';
 import { AppSelect } from '@/components/common/app-select';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { DeleteButton } from '@/components/common/delete-button';
-import { TransferDropdown } from '@/components/patients/transfer-dropdown';
+import { TransferButton } from '@/app/(dashboard)/patients/components/transfer-button';
 import { usePermissions } from '@/hooks/use-permissions';
 import { useCurrentUser } from '@/hooks/use-current-user';
 import { PERMISSIONS, ROLES } from '@/config/roles';
@@ -330,10 +330,12 @@ export default function PatientsPage() {
                     <IconButton iconName='FileText' tooltip='Medical History' aria-label='Medical History' />
                   </Link>
                 )}
-                <TransferDropdown 
-                  patient={p} 
-                  onTransferComplete={() => mutate()}
-                />
+                {isAdmin && (
+                  <TransferButton
+                    patient={p}
+                    onTransferComplete={() => mutate()}
+                  />
+                )}
                 {can(PERMISSIONS.EDIT_PATIENTS) && !isAdmin && (
                   <IconButton 
                     iconName='ArrowUp' 
