@@ -1,67 +1,37 @@
 'use client';
 
-import { formatIndianCurrency, formatDateTime } from '@/lib/locales';
+import { formatDateTime } from '@/lib/locales';
 import jsPDF from 'jspdf';
 import { ToWords } from 'to-words';
 
-type ConsultationData = {
+type MedicineBillData = {
   id: number;
-  consultationNumber?: string;
-  discountPercentage?: number | string;
-  totalAmount: string;
-  totalReceivedAmount?: string | null;
-  complaint?: string;
-  diagnosis?: string;
-  remarks?: string;
-  nextFollowUpDate?: string;
-  casePaper?: string;
-  createdAt: string;
-  updatedAt: string;
-  appointment: {
-    id: number;
-    appointmentDateTime: string;
-    type: string;
-    patient: {
-      patientNo: string;
-      firstName: string;
-      middleName?: string;
-      lastName: string;
-      mobile: string;
-      gender: string;
-    };
-    team?: {
-      name: string;
-    };
+  billNumber: string;
+  billDate: string;
+  discountPercent: number;
+  totalAmount: number;
+  totalReceivedAmount?: number;
+  patient: {
+    patientNo: string;
+    firstName: string;
+    middleName?: string;
+    lastName: string;
+    mobile: string;
+    gender: string;
   };
-  consultationDetails?: Array<{
+  medicineDetails: Array<{
     id: number;
-    serviceId: number;
-    description: string | null;
-    qty: number;
-    rate: number;
-    amount: number;
-    service: {
-      id: number;
-      name: string;
-    } | null;
-  }>;
-  consultationMedicines?: Array<{
-    id: number;
-    medicineId: number;
-    medicine?: {
-      id: number;
-      name: string;
-      brand?: {
-        id: number;
-        name: string;
-      };
-    };
     qty: number;
     mrp: number;
     amount: number;
-    doses?: string;
+    medicine: {
+      id: number;
+      name: string;
+      brand?: string;
+    };
   }>;
-  consultationReceipts?: Array<{
+  createdAt: string;
+  medicineBillReceipts?: Array<{
     id: number;
     receiptNumber: string;
     date: string;
@@ -69,8 +39,8 @@ type ConsultationData = {
     amount: number;
     payerName?: string;
     contactNumber?: string;
-    upiName?: string;
     utrNumber?: string;
+    upiName?: string;
     bankName?: string;
     chequeNumber?: string;
     chequeDate?: string;
@@ -78,26 +48,20 @@ type ConsultationData = {
   }>;
 };
 
-interface ConsultationInvoicePDFProps {
-  consultationData: ConsultationData;
-  servicesSubtotal: number;
-  medicinesSubtotal: number;
+interface MedicineBillInvoicePDFProps {
+  medicineBillData: MedicineBillData;
   subtotal: number;
-  discountPercentage: number;
   discountAmount: number;
   totalAmount: number;
 }
 
-export function ConsultationInvoicePDF({
-  consultationData,
-  servicesSubtotal,
-  medicinesSubtotal,
+export function MedicineBillInvoicePDF({
+  medicineBillData,
   subtotal,
-  discountPercentage,
   discountAmount,
   totalAmount
-}: ConsultationInvoicePDFProps) {
-   
+}: MedicineBillInvoicePDFProps) {
+  
   const toWords = new ToWords({
   localeCode: 'en-IN',
   converterOptions: {
@@ -114,12 +78,12 @@ export function ConsultationInvoicePDF({
     const amountStr = numAmount.toFixed(2);
     const [integerPart, decimalPart] = amountStr.split('.');
     
-    // Format the integer part according to Indian numbering system
+    // Format integer part according to Indian numbering system
     let formattedInteger = '';
     if (parseInt(integerPart) >= 1000) {
-      // Get the last 3 digits
+      // Get last 3 digits
       const lastThree = integerPart.slice(-3);
-      // Get the remaining digits
+      // Get remaining digits
       const remaining = integerPart.slice(0, -3);
       
       // Format remaining digits with commas every 2 digits from right
@@ -137,7 +101,7 @@ export function ConsultationInvoicePDF({
   };
 
   const generateInvoicePDF = () => {
-    if (!consultationData) return;
+    if (!medicineBillData) return;
 
     try {
       const doc = new jsPDF({ orientation: 'landscape' });
@@ -154,44 +118,33 @@ export function ConsultationInvoicePDF({
       doc.text(process.env.NEXT_PUBLIC_APP_NAME || 'ANKURAM', pageWidth / 2, y, { align: 'center' });
       y += 10;
       doc.setFontSize(16);
-      doc.text('INVOICE', pageWidth / 2, y, { align: 'center' });
+      doc.text('TAX INVOICE', pageWidth / 2, y, { align: 'center' });
       y += 12;
 
       // Invoice and Patient Info
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       
-      const invoiceNumber = consultationData.consultationNumber || `APT-${consultationData.appointment.id}`;
-      const patientName = `${consultationData.appointment.patient.firstName} ${consultationData.appointment.patient.middleName} ${consultationData.appointment.patient.lastName}`.trim();
+      const billNumber = medicineBillData.billNumber;
+      const patientName = `${medicineBillData.patient.firstName} ${medicineBillData.patient.middleName} ${medicineBillData.patient.lastName}`.trim();
       
-      doc.text(`Invoice Number: ${invoiceNumber}`, margin, y);
-      doc.text(`Date: ${formatDateTime(new Date(consultationData.appointment.appointmentDateTime), { year: 'numeric', month: '2-digit', day: '2-digit' })}`, pageWidth - 40, y);
+      doc.text(`Invoice Number: ${billNumber}`, margin, y);
+      doc.text(`Date: ${formatDateTime(new Date(medicineBillData.billDate), { year: 'numeric', month: '2-digit', day: '2-digit' })}`, pageWidth - 40, y);
       y += 8;
       
       doc.text(`Patient: ${patientName}`, margin, y);
       y += 8;
       
-      doc.text(`Mobile Number: ${consultationData.appointment.patient.mobile}`, margin, y);
+      doc.text(`Mobile Number: ${medicineBillData.patient.mobile}`, margin, y);
       y += 8;
       
-      doc.text(`Gender: ${consultationData.appointment.patient.gender ? consultationData.appointment.patient.gender.charAt(0).toUpperCase() + consultationData.appointment.patient.gender.slice(1).toLowerCase() : 'Unknown'}`, margin, y);
+      doc.text(`Gender: ${medicineBillData.patient.gender ? medicineBillData.patient.gender.charAt(0).toUpperCase() + medicineBillData.patient.gender.slice(1).toLowerCase() : 'Unknown'}`, margin, y);
       y += 8;
-      
-      if (consultationData.appointment.team) {
-        doc.text(`Team: ${consultationData.appointment.team.name}`, margin, y);
-        y += 8;
-      }
       y += 5;
 
       // Table headers
-      const headers = [
-        consultationData.appointment.type === 'PROCEDURE' ? 'Procedure' : 'Service', 
-        'Description', 
-        'Quantity', 
-        'MRP', 
-        'Amount'
-      ];
-      const colWidths = [25, 90, 35, 30, 95];
+      const headers = ['Description', 'Quantity', 'MRP', 'Amount'];
+      const colWidths = [130, 28, 30, 90];
       const rowH = 8;
 
       const drawRow = (rowData: string[], isHeader = false, isBold = false, skipBorders: boolean[] = []) => {
@@ -233,33 +186,13 @@ export function ConsultationInvoicePDF({
       // Draw table headers
       y = drawRow(headers, true);
 
-      // Services
-      if (consultationData.consultationDetails && consultationData.consultationDetails.length > 0) {
-        consultationData.consultationDetails.forEach((detail) => {
-          const serviceName = detail.service?.name || (consultationData.appointment.type === 'PROCEDURE' ? 'Procedure' : 'Service');
-          const description = detail.description || '';
-          y = drawRow([
-            serviceName,
-            description.substring(0, 35),
-            '-',
-            formatPdfCurrency(detail.rate),
-            formatPdfCurrency(detail.amount)
-          ]);
-        });
-        
-        // Services subtotal
-        const servicesSubtotal = consultationData.consultationDetails.reduce((sum, detail) => sum + parseFloat(detail.amount.toString()), 0);
-        y = drawRow(['', '', 'Subtotal:', '', formatPdfCurrency(servicesSubtotal)], false, true);
-      }
-
       // Medicines
-      if (consultationData.consultationMedicines && consultationData.consultationMedicines.length > 0) {
-        consultationData.consultationMedicines.forEach((medicine) => {
+      if (medicineBillData.medicineDetails && medicineBillData.medicineDetails.length > 0) {
+        medicineBillData.medicineDetails.forEach((medicine) => {
           const medicineName = medicine.medicine ? 
-            `${medicine.medicine.name} ${medicine.medicine.brand?.name || ''}`.trim() : 
+            `${medicine.medicine.name} - ${medicine.medicine.brand || ''}`.trim() : 
             'Medicine';
           y = drawRow([
-            'Medicine',
             medicineName.substring(0, 35),
             medicine.qty.toString(),
             formatPdfCurrency(medicine.mrp),
@@ -268,26 +201,22 @@ export function ConsultationInvoicePDF({
         });
         
         // Medicines subtotal
-        const medicinesSubtotal = consultationData.consultationMedicines.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0);
-        y = drawRow(['', '', 'Subtotal:', '', formatPdfCurrency(medicinesSubtotal)], false, true);
+        const medicinesSubtotal = medicineBillData.medicineDetails.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0);
+        y = drawRow(['', 'Subtotal:', '', formatPdfCurrency(medicinesSubtotal)], false, true);
       }
 
       // Grand Total calculation with discount
-      const servicesSubtotal = consultationData.consultationDetails?.reduce((sum, detail) => sum + parseFloat(detail.amount.toString()), 0) || 0;
-      const medicinesSubtotal = consultationData.consultationMedicines?.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0) || 0;
-      const subtotal = servicesSubtotal + medicinesSubtotal;
+      const medicinesSubtotal = medicineBillData.medicineDetails?.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0) || 0;
+      const calculatedSubtotal = medicinesSubtotal;
       
       // Calculate discount
-      const discountPercentage = parseFloat(consultationData.discountPercentage?.toString() || '0') || 0;
-      const discountAmount = subtotal * (discountPercentage / 100);
-      const grandTotal = Math.ceil(Math.max(0, subtotal - discountAmount));
-      
-      // Show subtotal
-      y = drawRow(['', '', 'Subtotal:', '', formatPdfCurrency(subtotal)], false, true);
+      const discountPercentage = parseFloat(medicineBillData.discountPercent?.toString() || '0') || 0;
+      const calculatedDiscountAmount = calculatedSubtotal * (discountPercentage / 100);
+      const grandTotal = Math.max(0, calculatedSubtotal - calculatedDiscountAmount);
       
       // Show discount if applicable
       if (discountPercentage > 0) {
-        y = drawRow(['', '', `Discount (${discountPercentage}%):`, '', `-${formatPdfCurrency(discountAmount)}`], false, true);
+        y = drawRow(['', `Discount (${discountPercentage}%):`, '', `-${formatPdfCurrency(calculatedDiscountAmount)}`], false, true);
       }
 
       // Tax breakup (for TAX INVOICE) - inside the table
@@ -298,25 +227,26 @@ export function ConsultationInvoicePDF({
       const totalGstAmount = cgstAmount + sgstAmount;
 
       // Show tax breakup inside the table
-      y = drawRow(['', '', 'Taxable Value:', '', formatPdfCurrency(taxableValue)], false, true);
-      y = drawRow(['', '', 'CGST (6%):', '', formatPdfCurrency(cgstAmount)], false, true);
-      y = drawRow(['', '', 'SGST (6%):', '', formatPdfCurrency(sgstAmount)], false, true);
-      y = drawRow(['', '', 'Total GST:', '', formatPdfCurrency(totalGstAmount)], false, true);
-      y = drawRow(['', '', 'Invoice Total:', '', formatPdfCurrency(grandTotal)], false, true);
+      y = drawRow(['', 'Taxable Value:', '', formatPdfCurrency(taxableValue)], false, true);
+      y = drawRow(['', 'CGST (6%):', '', formatPdfCurrency(cgstAmount)], false, true);
+      y = drawRow(['', 'SGST (6%):', '', formatPdfCurrency(sgstAmount)], false, true);
+      y = drawRow(['', 'Total GST:', '', formatPdfCurrency(totalGstAmount)], false, true);
+      y = drawRow(['', 'Invoice Total:', '', formatPdfCurrency(grandTotal)], false, true);
 
+      // Add amount in words
       const amountInWords = toWords.convert(Math.ceil(grandTotal));
-      y = drawRow(['', '', 'In Words:', amountInWords.substring(0, 50), ''], false, true, [false, false, false, true, false]);
+      y = drawRow(['', 'In Words:', amountInWords.substring(0, 50), ''], false, true, [false, false, true, false]);
       if (amountInWords.length > 50) {
-        y = drawRow(['', '', '', amountInWords.substring(50), ''], false, true, [false, false, false, true, false]);
+        y = drawRow(['', '', amountInWords.substring(50), ''], false, true, [false, false, true, false]);
       }
 
       // Receipts
-      if (consultationData.consultationReceipts && consultationData.consultationReceipts.length > 0) {
+      if (medicineBillData.medicineBillReceipts && medicineBillData.medicineBillReceipts.length > 0) {
         doc.setFont('helvetica', 'bold');
         doc.text('PAYMENT RECEIPTS', margin, y);
         y += 8;
 
-        consultationData.consultationReceipts.forEach((receipt) => {
+        medicineBillData.medicineBillReceipts.forEach((receipt) => {
           doc.setFont('helvetica', 'normal');
           doc.text(`Receipt #: ${receipt.receiptNumber} | ${formatDateTime(new Date(receipt.date), { year: 'numeric', month: '2-digit', day: '2-digit' })} | ${receipt.paymentMode} | ${formatPdfCurrency(receipt.amount)}`, margin, y);
           y += 6;
@@ -333,7 +263,7 @@ export function ConsultationInvoicePDF({
       doc.text('Medicines once sold will not be taken back.', pageWidth / 2, pageHeight - 10, { align: 'center' });
 
       // Save PDF
-      const filenameBase = `consultation-invoice-${consultationData.consultationNumber || consultationData.appointment.id}`;
+      const filenameBase = `medicine-bill-invoice-${medicineBillData.billNumber}`;
       const dateStr = formatDateTime(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' });
       doc.save(`${filenameBase}-${dateStr}.pdf`);
     } catch (e) {

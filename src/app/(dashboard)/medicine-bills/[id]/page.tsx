@@ -8,6 +8,7 @@ import { toast } from '@/lib/toast';
 import { AppCard } from '@/components/common/app-card';
 import { AppButton } from '@/components/common/app-button';
 import { formatIndianCurrency, formatRelativeTime } from '@/lib/locales';
+import { MedicineBillInvoicePDF } from '@/components/medicine-bill/medicine-bill-invoice-pdf';
 
 type MedicineBillDetail = {
   id: number;
@@ -34,6 +35,7 @@ type MedicineBill = {
     middleName: string;
     lastName: string;
     mobile: string;
+    gender: string;
   };
   franchise?: {
     id: number;
@@ -167,7 +169,38 @@ export default function MedicineBillDetailPage() {
                   type='button'
                   iconName='Download'
                   size='sm'
-                  onClick={() => console.log('Download Invoice')}
+                  onClick={() => {
+                    if (bill) {
+                      const subtotal = bill.medicineDetails.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0);
+                      const discountAmount = subtotal * (bill.discountPercent / 100);
+                      const generatePDF = MedicineBillInvoicePDF({
+                        medicineBillData: {
+                          ...bill,
+                          medicineDetails: bill.medicineDetails.map(detail => ({
+                            ...detail,
+                            medicine: {
+                              ...detail.medicine,
+                              brand: detail.medicine.brand || undefined
+                            }
+                          })),
+                          patient: bill.patient ? {
+                            ...bill.patient,
+                          } : {
+                            patientNo: '',
+                            firstName: 'Unknown',
+                            middleName: '',
+                            lastName: 'Patient',
+                            mobile: '',
+                            gender: 'Unknown'
+                          }
+                        },
+                        subtotal,
+                        discountAmount,
+                        totalAmount: bill.totalAmount
+                      });
+                      generatePDF();
+                    }
+                  }}
                 >
                   Download Invoice
                 </AppButton>
