@@ -113,3 +113,7 @@ next-env.d.ts
 !/public/uploads/.gitkeep
 !/public/uploads/**/.gitkeep
 /uploads
+
+# Additional configuration files
+.codiumignore
+.windsurfrules

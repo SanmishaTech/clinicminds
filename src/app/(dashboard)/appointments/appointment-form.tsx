@@ -16,6 +16,27 @@ import { toast } from '@/lib/toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ComboboxInput } from '@/components/common/combobox-input';
 import { formatDateTimeForInput } from '@/lib/locales';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
+
+// Create a controlled DateTimePicker component for react-hook-form
+interface ControlledDateTimePickerProps {
+  value?: Date;
+  onChange: (date: Date | undefined) => void;
+  label: string;
+  required?: boolean;
+}
+
+function ControlledDateTimePicker({ value, onChange, label, required }: ControlledDateTimePickerProps) {
+  return (
+    <div className="space-y-2">
+      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      <DateTimePicker value={value} onChange={onChange} />
+    </div>
+  );
+}
 
 type TeamsResponse = {
   data: { id: number; name: string; user?: { role?: string; status?: boolean } }[];
@@ -184,12 +205,15 @@ export function AppointmentForm({
 
             <FormSection legend="Appointment Details">
               <FormRow cols={3}>
-                <TextInput
-                  control={control}
-                  name="appointmentDateTime"
+                <ControlledDateTimePicker
+                  value={initial?.appointmentDateTime ? new Date(initial.appointmentDateTime) : undefined}
+                  onChange={(date) => {
+                    if (date) {
+                      form.setValue('appointmentDateTime', date.toISOString());
+                    }
+                  }}
                   label="Appointment Date & Time"
                   required
-                  type="datetime-local"
                 />
                 <ComboboxInput
                   control={control as any}

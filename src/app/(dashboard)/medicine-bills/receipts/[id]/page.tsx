@@ -17,6 +17,7 @@ import { DataTable, Column } from '@/components/common/data-table';
 import { formatIndianCurrency, formatDate, formatDateTime } from '@/lib/locales';
 import { useParams, useRouter } from 'next/navigation';
 import jsPDF from 'jspdf';
+import { MedicineBillInvoicePDF } from '@/components/medicine-bill/medicine-bill-invoice-pdf';
 
 const paymentModeOptions = [
   { value: 'CASH', label: 'Cash' },
@@ -68,7 +69,19 @@ type MedicineBillData = {
   }>;
   createdAt: string;
   medicineBillReceipts?: Array<{
+    id: number;
+    receiptNumber: string;
+    date: string;
+    paymentMode: string;
     amount: number;
+    payerName?: string;
+    contactNumber?: string;
+    utrNumber?: string;
+    upiName?: string;
+    bankName?: string;
+    chequeNumber?: string;
+    chequeDate?: string;
+    notes?: string;
   }>;
 };
 
@@ -118,140 +131,22 @@ export default function MedicineBillReceiptsPage() {
 
   const currentBalance = medicineBillData ? medicineBillData.totalAmount - totalReceivedAmount : 0;
 
-  const formatPdfCurrency = (amount: number): string => {
-    // Convert to number and then to string with 2 decimal places
-    const numAmount = Number(amount);
-    const amountStr = numAmount.toFixed(2);
-    const [integerPart, decimalPart] = amountStr.split('.');
-    
-    // Format the integer part according to Indian numbering system
-    let formattedInteger = '';
-    if (parseInt(integerPart) >= 1000) {
-      // Get the last 3 digits
-      const lastThree = integerPart.slice(-3);
-      // Get the remaining digits
-      const remaining = integerPart.slice(0, -3);
-      
-      // Format remaining digits with commas every 2 digits from right
-      if (remaining.length > 0) {
-        const remainingFormatted = remaining.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
-        formattedInteger = remainingFormatted + ',' + lastThree;
-      } else {
-        formattedInteger = lastThree;
-      }
-    } else {
-      formattedInteger = integerPart;
-    }
-    
-    return `Rs. ${formattedInteger}.${decimalPart}`;
-  };
+  // Calculate values for the PDF component
+  const medicinesSubtotal = medicineBillData?.medicineDetails?.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0) || 0;
+  const discountPercentage = parseFloat(medicineBillData?.discountPercent?.toString() || '0') || 0;
+  const discountAmount = medicinesSubtotal * (discountPercentage / 100);
+  const calculatedTotalAmount = Math.max(0, medicinesSubtotal - discountAmount);
 
+  // Create the PDF generator function
   const generateInvoicePDF = () => {
     if (!medicineBillData) return;
-
-    try {
-      const doc = new jsPDF({ orientation: 'landscape' });
-      doc.setFont('helvetica', 'normal');
-
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 10;
-      let y = margin;
-
-      // Header with App Name
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(20);
-      doc.text(process.env.NEXT_PUBLIC_APP_NAME || 'ANKURAM', pageWidth / 2, y, { align: 'center' });
-      y += 10;
-      doc.setFontSize(16);
-      doc.text('INVOICE', pageWidth / 2, y, { align: 'center' });
-      y += 12;
-
-      // Invoice and Patient Info
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      
-      const billNumber = medicineBillData.billNumber;
-      const patientName = `${medicineBillData.patient.firstName} ${medicineBillData.patient.middleName} ${medicineBillData.patient.lastName}`.trim();
-      
-      doc.text(`Invoice Number: ${billNumber}`, margin, y);
-      doc.text(`Date: ${formatDate(medicineBillData.billDate)}`, pageWidth - 60, y);
-      y += 8;
-      
-      doc.text(`Patient: ${patientName}`, margin, y);
-      y += 8;
-      
-      doc.text(`Mobile Number: ${medicineBillData.patient.mobile}`, margin, y);
-      y += 8;
-      
-      doc.text(`Gender: ${medicineBillData.patient.gender}`, margin, y);
-      y += 8;
-      y += 5;
-
-      // Table headers
-      const headers = ['Description', 'Quantity', 'MRP', 'Amount'];
-      const colWidths = [130, 25, 30, 40];
-      const rowH = 8;
-
-      const drawRow = (rowData: string[], isHeader = false, isBold = false) => {
-        let x = margin;
-        
-        if (isHeader) {
-          doc.setFillColor(240, 240, 240);
-          doc.rect(x, y, colWidths.reduce((a, b) => a + b, 0), rowH, 'F');
-        }
-        
-        rowData.forEach((cell, index) => {
-          doc.rect(x, y, colWidths[index], rowH);
-          doc.setFont('helvetica', isBold ? 'bold' : (isHeader ? 'bold' : 'normal'));
-          doc.text(cell, x + 2, y + 5.5);
-          x += colWidths[index];
-        });
-        
-        y += rowH;
-        return y;
-      };
-
-      // Draw table headers
-      y = drawRow(headers, true);
-
-      // Medicines
-      if (medicineBillData.medicineDetails && medicineBillData.medicineDetails.length > 0) {
-        medicineBillData.medicineDetails.forEach((medicine) => {
-          const medicineName = medicine.medicine ? 
-            `${medicine.medicine.name} - ${medicine.medicine.brand || ''}`.trim() : 
-            'Medicine';
-          y = drawRow([
-            medicineName.substring(0, 35),
-            medicine.qty.toString(),
-            formatPdfCurrency(medicine.mrp),
-            formatPdfCurrency(medicine.amount)
-          ]);
-        });
-        
-        // Medicines subtotal
-        const medicinesSubtotal = medicineBillData.medicineDetails.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0);
-        y = drawRow(['', 'Subtotal:', '', formatPdfCurrency(medicinesSubtotal)], false, true);
-      }
-
-      // Grand Total
-      const medicinesSubtotal = medicineBillData.medicineDetails?.reduce((sum, medicine) => sum + parseFloat(medicine.amount.toString()), 0) || 0;
-      const grandTotal = medicinesSubtotal;
-      
-      y = drawRow(['', 'Grand Total:', '', formatPdfCurrency(grandTotal)], false, true);
-
-      // Footer
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'italic');
-      doc.text('This is a computer-generated invoice.', pageWidth / 2, pageHeight - 10, { align: 'center' });
-
-      // Save PDF
-      const filenameBase = `medicine-bill-invoice-${medicineBillData.billNumber}`;
-      const dateStr = formatDateTime(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' });
-      doc.save(`${filenameBase}-${dateStr}.pdf`);
-    } catch (e) {
-      toast.error('Failed to generate PDF');
-    }
+    
+    return MedicineBillInvoicePDF({
+      medicineBillData,
+      subtotal: medicinesSubtotal,
+      discountAmount,
+      totalAmount: calculatedTotalAmount
+    })();
   };
 
   // Check if receipt amount exceeds balance

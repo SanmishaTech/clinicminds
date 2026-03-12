@@ -183,24 +183,18 @@ export default function ClosingStockReportPage() {
       doc.setFont('helvetica', 'normal');
       
       // Letter Header
-      doc.setFontSize(16);
-      doc.setTextColor(0, 102, 204); // Blue color
-      doc.text('ClinicMinds Healthcare', 20, 20);
-      
-      doc.setFontSize(10);
-      doc.setTextColor(100, 100, 100);
-      doc.text('123 Medical Center Road, Healthcare City', 20, 26);
-      doc.text('Phone: +91 98765 43210 | Email: info@clinicminds.com', 20, 32);
-      doc.text('GSTIN: 27AAAPL1234C1ZV | License: MH/PH/2023/12345', 20, 38);
+      doc.setFontSize(18);
+      doc.setTextColor(0, 0, 0); // Black color
+      doc.text(process.env.NEXT_PUBLIC_APP_NAME || 'ANKURAM', 105, 20, { align: 'center' });
       
       // Separator line
       doc.setDrawColor(200, 200, 200);
-      doc.line(20, 42, 190, 42);
+      doc.line(20, 30, 190, 30);
       
       // Report Title
       doc.setTextColor(0, 0, 0);
-      doc.setFontSize(18);
-      doc.text('Closing Stock Report', 105, 55, { align: 'center' });
+      doc.setFontSize(16);
+      doc.text('Closing Stock Report', 105, 45, { align: 'center' });
       
       // Date and Report ID
       doc.setFontSize(10);
@@ -211,10 +205,10 @@ export default function ClosingStockReportPage() {
         second: '2-digit', 
         hour12: true 
       });
-      doc.text(`Report Date: ${now.toLocaleDateString()} ${time12hr}`, 20, 65);
+      doc.text(`Report Date: ${now.toLocaleDateString()} ${time12hr}`, 20, 55);
       
       // Horizontal Table Header with rounded corners
-      const tableTop = 80;
+      const tableTop = 70;
       const columnWidth = 56.67; // 170 / 3 columns
       const rowHeight = 10;
       const cornerRadius = 2;
@@ -277,7 +271,7 @@ export default function ClosingStockReportPage() {
       doc.setTextColor(100, 100, 100);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text('Page 1 of 1 | ClinicMinds Healthcare Management System', 105, 285, { align: 'center' });
+      doc.text('Page 1 of 1 | ANKURAM Management System', 105, 285, { align: 'center' });
       doc.text(`${now.toLocaleDateString()} ${time12hr}`, 190, 285, { align: 'right' });
       
       // Save PDF
