@@ -17,6 +17,7 @@ import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS, ROLES } from '@/config/roles';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AdminStockRefillDialog } from '@/app/(dashboard)/stocks/components/admin-stock-refill-dialog';
+import { formatIndianCurrency } from '@/lib/locales';
 
 type StockRow = {
   franchiseId: number;
@@ -137,7 +138,7 @@ export default function StocksPage() {
         return d.toISOString().split('T')[0];
       },
     },
-    { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
+    { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap', accessor: (row) => formatIndianCurrency(parseFloat(row.rate)) },
     { key: 'stock', header: 'Stock', sortable: true, className: 'whitespace-nowrap' },
   ];
 
@@ -157,7 +158,7 @@ export default function StocksPage() {
         return d.toISOString().split('T')[0];
       },
     },
-    { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap' },
+    { key: 'rate', header: 'Rate', sortable: true, className: 'whitespace-nowrap', accessor: (row) => formatIndianCurrency(parseFloat(row.rate)) },
     { key: 'stock', header: 'Stock', sortable: true, className: 'whitespace-nowrap' },
   ];
 

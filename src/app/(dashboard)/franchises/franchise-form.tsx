@@ -304,6 +304,7 @@ export function FranchiseForm({
                   name='franchiseFeeAmount'
                   label='Franchise Fee Amount'
                   placeholder='0'
+                  prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                   type='number'
                 />
                 <TextInput

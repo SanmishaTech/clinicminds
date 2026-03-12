@@ -105,7 +105,7 @@ type ReceiptItem = {
 export default function MedicineBillReceiptsPage() {
   const params = useParams();
   const router = useRouter();
-  const medicineBillId = parseInt(params.id as string);
+  const medicineBillId = parseInt(params?.id as string);
   
   const [receipts, setReceipts] = useState<ReceiptItem[]>([]);
   const [loading, setLoading] = useState(false);

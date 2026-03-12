@@ -132,7 +132,7 @@ type ReceiptItem = {
 export default function ReceiptPage() {
   const params = useParams();
   const router = useRouter();
-  const consultationId = parseInt(params.id as string);
+  const consultationId = parseInt(params?.id as string);
   
   const [receipts, setReceipts] = useState<ReceiptItem[]>([]);
   const [loading, setLoading] = useState(false);

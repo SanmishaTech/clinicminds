@@ -12,7 +12,7 @@ import { AppButton } from '@/components/common/app-button';
 import { DataTable, SortState, Column } from '@/components/common/data-table';
 import { usePermissions } from '@/hooks/use-permissions';
 import { PERMISSIONS } from '@/config/roles';
-import { formatRelativeTime } from '@/lib/locales';
+import { formatIndianCurrency } from '@/lib/locales';
 import { useQueryParamsState } from '@/hooks/use-query-params-state';
 import { EditButton } from '@/components/common/icon-button';
 import { DeleteButton } from '@/components/common/delete-button';
@@ -26,7 +26,6 @@ type MedicineListItem = {
   rate: string;
   franchiseRate: string;
   mrp: string;
-  createdAt: string;
 };
 
 type MedicinesResponse = {
@@ -99,11 +98,10 @@ export default function MedicinesPage() {
   const columns: Column<MedicineListItem>[] = [
     { key: 'name', header: 'Medicine', sortable: true, cellClassName: 'font-medium whitespace-nowrap'},
     { key: 'brand', header: 'Brand', sortable: true, accessor: (r) => r.brand || 'Unknown Brand' },
-    { key: 'rate', header: 'Base Rate', sortable: true, className: 'whitespace-nowrap' },
+    { key: 'rate', header: 'Base Rate', sortable: true, className: 'whitespace-nowrap', accessor: (r) => formatIndianCurrency(parseFloat(r.rate)) },
     { key: 'gstPercent', header: 'GST %', sortable: true, className: 'whitespace-nowrap', accessor: (r) => `${r.gstPercent}%` },
-    { key: 'franchiseRate', header: 'Franchise Rate', sortable: true, className: 'whitespace-nowrap' },
-    { key: 'mrp', header: 'MRP', sortable: true, className: 'whitespace-nowrap' },
-    { key: 'createdAt', header: 'Created', sortable: true, className: 'whitespace-nowrap', cellClassName: 'text-muted-foreground whitespace-nowrap', accessor: (r) => formatRelativeTime(r.createdAt) },
+    { key: 'franchiseRate', header: 'Franchise Rate', sortable: true, className: 'whitespace-nowrap', accessor: (r) => formatIndianCurrency(parseFloat(r.franchiseRate)) },
+    { key: 'mrp', header: 'MRP', sortable: true, className: 'whitespace-nowrap', accessor: (r) => formatIndianCurrency(parseFloat(r.mrp)) },
   ];
 
   const sortState: SortState = { field: sort, order };

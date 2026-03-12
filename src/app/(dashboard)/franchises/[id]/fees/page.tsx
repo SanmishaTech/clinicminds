@@ -288,6 +288,7 @@ export default function FranchiseFeesPage() {
                       type='number'
                       required
                       placeholder='0'
+                      prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                       min={0}
                       max={remainingBalance || undefined}
                       step='0.01'

@@ -142,11 +142,12 @@ export function ServiceForm({
             >
               <FormRow cols={4} from='md'>
                 <TextInput control={control} name='name' label='Service Name' required placeholder='Service name' span={1} spanFrom='md' />
-                <TextInput control={control} name='rate' label='Base Rate' required placeholder='Base rate' type='number' step='0.01' span={1} spanFrom='md' />
+                <TextInput control={control} name='rate' label='Base Rate' required placeholder='Base rate' prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>} type='number' step='0.01' span={1} spanFrom='md' />
                 <TextInput control={control} name='gstPercent' label='GST %' required placeholder='GST %' type='number' step='0.01' span={1} spanFrom='md' />
                 <NonFormTextInput
                   label='Actual Rate'
                   value={actualRate}
+                  prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                   disabled
                   readOnly
                   type='number'

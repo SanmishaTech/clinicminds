@@ -1297,6 +1297,7 @@ const { control, handleSubmit, setValue, setError, clearErrors, formState, trigg
                                 type="number"
                                 step="0.01"
                                 placeholder="Enter amount received"
+                                prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                                 required
                                 max={parseFloat(form.getValues('totalAmount')) || 0}
                                 disabled={isTotalAmountZero}

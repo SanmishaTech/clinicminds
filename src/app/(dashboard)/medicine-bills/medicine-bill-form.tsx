@@ -98,7 +98,7 @@ export function MedicineBillForm({
 }: MedicineBillFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlPatientId = searchParams.get('patientId');
+  const urlPatientId = searchParams?.get('patientId');
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -569,6 +569,7 @@ export function MedicineBillForm({
                           type="number"
                           step="0.01"
                           placeholder="Enter amount received"
+                          prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                           disabled={isTotalAmountZero}
                           required={watch('addReceipt')}
                         />

@@ -92,7 +92,7 @@ export function AppointmentForm({
 }: AppointmentFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlPatientId = searchParams.get('patientId');
+  const urlPatientId = searchParams?.get('patientId');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isCreate = mode === 'create';
   const { data: teamsResponse } = useSWR<TeamsResponse>(

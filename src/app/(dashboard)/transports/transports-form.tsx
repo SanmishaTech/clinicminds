@@ -300,6 +300,7 @@ export default function TransportForm({
                   placeholder='0'
                   type='number'
                   step='0.01'
+                  prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                   required
                   disabled={submitting || externalLoading}
                 />

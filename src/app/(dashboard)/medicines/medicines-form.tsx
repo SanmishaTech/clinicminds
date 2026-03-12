@@ -186,6 +186,7 @@ export function MedicineForm({
                   name='rate'
                   label='Base Rate'
                   placeholder='Base rate'
+                  prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                   type='number'
                   step='0.01'
                   required
@@ -204,6 +205,7 @@ export function MedicineForm({
                   name='franchiseRate'
                   label='Franchise Rate'
                   placeholder='Franchise Rate'
+                  prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                   type='number'
                   step='0.01'
                   required
@@ -214,6 +216,7 @@ export function MedicineForm({
                   name='mrp'
                   label='MRP'
                   placeholder='MRP'
+                  prefixIcon={<span className='text-sm text-muted-foreground'>₹</span>}
                   type='number'
                   step='0.01'
                   required
