@@ -211,7 +211,8 @@ async function fetchConsultations(params: {
       appointment: {
         appointmentDateTime: order
       }
-    }
+    },
+    take: 500, // Safety cap to prevent loading entire history into memory
   });
 
   return { data: consultations };
@@ -283,7 +284,8 @@ async function fetchMedicineBills(params: {
     },
     orderBy: {
       billDate: order
-    }
+    },
+    take: 500, // Safety cap to prevent loading entire history into memory
   });
 
   return { data: medicineBills };

@@ -36,7 +36,11 @@ export async function GET(req: NextRequest) {
           medicineId: medicineIdNum
         }
       },
-      include: {
+      select: {
+        id: true,
+        franchiseId: true,
+        medicineId: true,
+        quantity: true,
         franchise: {
           select: {
             id: true,

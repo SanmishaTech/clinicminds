@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
     const balances = await stockBatchBalanceModel.findMany({
       where: { franchiseId: franchise.id, quantity: { not: 0 } },
       orderBy: [{ medicine: { name: "asc" } }, { expiryDate: "asc" }],
+      take: 1000, // Safety cap to prevent unbounded memory usage
       select: {
         medicineId: true,
         batchNumber: true,

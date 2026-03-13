@@ -13,6 +13,9 @@ import { API_ACCESS_RULES, Permission } from "@/config/access-control";
    (ACTIVE_ROLE_LABELS as readonly string[]).map(String)
  );
 
+// Module-level cache for role-permissions.json (read once, reused for all requests)
+let _rolePermissionsCache: Record<string, string[]> | null = null;
+
 // Return shape reused by both guard functions
 export type GuardSuccess = { ok: true; user: { id: number; role: string } };
 export type GuardFailure = { ok: false; response: Response };
@@ -68,15 +71,19 @@ export async function guardApiPermissions(
     ? resolvedRoleLabel
     : ROLES.DOCTOR;
   // Merge/override with saved role permissions if present
+  // Cache role-permissions.json in memory to avoid reading from disk on every request
   async function getRolePermissions(role: string): Promise<string[]> {
-    try {
-      const file = path.join(process.cwd(), "data", "role-permissions.json");
-      const buf = await fs.readFile(file, "utf8");
-      const json = JSON.parse(buf) as Record<string, string[]>;
-      if (json && json[role]) return Array.from(new Set(json[role]));
-    } catch {
-      // ignore
+    if (!_rolePermissionsCache) {
+      try {
+        const file = path.join(process.cwd(), "data", "role-permissions.json");
+        const buf = await fs.readFile(file, "utf8");
+        _rolePermissionsCache = JSON.parse(buf) as Record<string, string[]>;
+      } catch {
+        _rolePermissionsCache = {};
+      }
     }
+    const found = _rolePermissionsCache?.[role];
+    if (found) return Array.from(new Set(found));
     return (ROLES_PERMISSIONS as any)[role] || [];
   }
   const perms = await getRolePermissions(roleLabel);
